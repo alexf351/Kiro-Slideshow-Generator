@@ -704,11 +704,18 @@ async function downloadAllSlides() {
     btn.textContent = 'Loading...';
     const html2canvas = await loadHtml2Canvas();
 
-    // Wait for web fonts (Inter) to finish loading so exported PNGs use the
-    // right weights. Without this, the first download after a cold load can
-    // render in Segoe UI / system fallback and <strong> tags won't differ.
-    if (document.fonts && document.fonts.ready) {
-      try { await document.fonts.ready; } catch (e) {}
+    // Force each weight of Inter to actually resolve, then wait for all
+    // in-flight font work. document.fonts.ready alone can return before a
+    // given weight is usable in a new DOM element — document.fonts.load()
+    // asks the browser to fetch + decode that specific FontFace and only
+    // resolves when it's ready to paint. Covers every weight we use across
+    // hook / prompt-title / cta-headline / cta-search / cta-slogan.
+    if (document.fonts && document.fonts.load) {
+      try {
+        const weights = [400, 500, 600, 700, 800, 900];
+        await Promise.all(weights.map((w) => document.fonts.load(`${w} 100px Inter`)));
+        if (document.fonts.ready) await document.fonts.ready;
+      } catch (e) {}
     }
 
     // Hide the safe zone overlay if it's on, and the HUD itself, during capture
