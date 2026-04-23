@@ -161,7 +161,7 @@ export default function App() {
   }
 
   const tileBase =
-    'group relative flex flex-col items-center gap-2 p-3.5 rounded-xl ' +
+    'group relative flex flex-col items-center gap-3 p-5 rounded-2xl ' +
     'transition-all duration-200 ease-out';
   const tileSelected =
     'border border-[#00E5FF]/60 bg-gradient-to-br from-[#0e2b3a] to-[#091626] ' +
@@ -172,9 +172,9 @@ export default function App() {
     'hover:-translate-y-0.5';
 
   const sectionLabel = (text: string, suffix?: ReactNode) => (
-    <div className="flex items-center gap-2.5 mb-5">
-      <span className="h-4 w-1 rounded-full bg-gradient-to-b from-[#00E5FF] to-[#00A5D9]"></span>
-      <label className="text-[13px] font-bold uppercase tracking-[0.2em] text-gray-200">
+    <div className="flex items-center gap-3 mb-6">
+      <span className="h-5 w-[5px] rounded-full bg-gradient-to-b from-[#00E5FF] to-[#00A5D9]"></span>
+      <label className="text-[15px] font-bold uppercase tracking-[0.22em] text-gray-200">
         {text}
       </label>
       {suffix}
@@ -183,32 +183,32 @@ export default function App() {
 
   return (
     <div className="flex h-screen bg-[#070a14] text-gray-100">
-      <aside className="w-[420px] xl:w-[480px] 2xl:w-[560px] shrink-0 flex flex-col overflow-hidden relative
+      <aside className="w-[520px] xl:w-[640px] 2xl:w-[760px] shrink-0 flex flex-col overflow-hidden relative
                         bg-gradient-to-b from-[#0b1020] via-[#0a0e1a] to-[#07091a]
                         border-r border-white/[0.06]
                         shadow-[inset_-1px_0_0_rgba(0,229,255,0.04)]">
         {/* subtle top accent */}
         <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#00E5FF]/40 to-transparent"></div>
 
-        <header className="px-8 pt-8 pb-6 border-b border-white/[0.06]">
-          <div className="flex items-center gap-4">
-            <div className="w-[5px] h-14 rounded-full bg-gradient-to-b from-[#00E5FF] to-[#00A5D9] shadow-[0_0_16px_rgba(0,229,255,0.7)]"></div>
+        <header className="px-10 pt-10 pb-7 border-b border-white/[0.06]">
+          <div className="flex items-center gap-5">
+            <div className="w-[6px] h-20 rounded-full bg-gradient-to-b from-[#00E5FF] to-[#00A5D9] shadow-[0_0_20px_rgba(0,229,255,0.7)]"></div>
             <div>
-              <h1 className="text-4xl font-black tracking-tight text-white leading-none">KIRO</h1>
-              <p className="mt-2 text-[11px] font-bold uppercase tracking-[0.25em] text-[#00E5FF]">
+              <h1 className="text-6xl font-black tracking-tight text-white leading-none">KIRO</h1>
+              <p className="mt-3 text-[13px] font-bold uppercase tracking-[0.28em] text-[#00E5FF]">
                 Slideshow Studio
               </p>
             </div>
           </div>
-          <p className="mt-5 text-sm text-gray-500 leading-relaxed">
+          <p className="mt-6 text-base text-gray-500 leading-relaxed">
             Pick mascot · emote · platform. Paste JSON. Click render.
           </p>
         </header>
 
         <div className="flex-1 overflow-y-auto custom-scrollbar">
-          <section className="px-8 py-6 border-b border-white/[0.04]">
+          <section className="px-10 py-7 border-b border-white/[0.04]">
             {sectionLabel('Mascot')}
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-3 gap-4">
               {MASCOT_ORDER.map((m) => {
                 const selected = m === mascot;
                 return (
@@ -222,13 +222,13 @@ export default function App() {
                       src={`/${m}-kiro.webp`}
                       alt={`${m} kiro`}
                       className={
-                        'w-24 h-24 object-contain transition-transform duration-200 ' +
-                        (selected ? 'drop-shadow-[0_4px_14px_rgba(0,229,255,0.5)]' : 'group-hover:scale-105')
+                        'w-36 h-36 object-contain transition-transform duration-200 ' +
+                        (selected ? 'drop-shadow-[0_6px_20px_rgba(0,229,255,0.55)]' : 'group-hover:scale-105')
                       }
                       loading="lazy"
                     />
                     <span className={
-                      'text-[11px] font-bold uppercase tracking-[0.16em] ' +
+                      'text-[13px] font-bold uppercase tracking-[0.18em] ' +
                       (selected ? 'text-[#00E5FF]' : 'text-gray-500 group-hover:text-gray-300')
                     }>
                       {m}
@@ -239,14 +239,14 @@ export default function App() {
             </div>
           </section>
 
-          <section className="px-8 py-6 border-b border-white/[0.04]">
+          <section className="px-10 py-7 border-b border-white/[0.04]">
             {sectionLabel(
               'Emote',
               <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-600">
                 · {mascot}
               </span>
             )}
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-3 gap-4">
               {VARIANTS_BY_TIER[mascot].map((v) => {
                 const selected = v === variant;
                 return (
@@ -260,13 +260,13 @@ export default function App() {
                       src={variantAssetPath(mascot, v)}
                       alt={`${mascot} ${v}`}
                       className={
-                        'w-20 h-20 object-contain transition-transform duration-200 ' +
-                        (selected ? 'drop-shadow-[0_4px_14px_rgba(0,229,255,0.5)]' : 'group-hover:scale-105')
+                        'w-32 h-32 object-contain transition-transform duration-200 ' +
+                        (selected ? 'drop-shadow-[0_6px_20px_rgba(0,229,255,0.55)]' : 'group-hover:scale-105')
                       }
                       loading="lazy"
                     />
                     <span className={
-                      'text-[11px] font-bold uppercase tracking-[0.16em] ' +
+                      'text-[13px] font-bold uppercase tracking-[0.18em] ' +
                       (selected ? 'text-[#00E5FF]' : 'text-gray-500 group-hover:text-gray-300')
                     }>
                       {v}
@@ -277,7 +277,7 @@ export default function App() {
             </div>
           </section>
 
-          <section className="px-8 py-6 border-b border-white/[0.04]">
+          <section className="px-10 py-7 border-b border-white/[0.04]">
             {sectionLabel('Chat platform')}
             <div className="grid grid-cols-2 gap-2 p-1.5 rounded-xl bg-black/30 border border-white/[0.04]">
               {(['claude', 'chatgpt'] as Platform[]).map((p) => {
@@ -288,7 +288,7 @@ export default function App() {
                     type="button"
                     onClick={() => setPlatform(p)}
                     className={
-                      'py-3.5 rounded-lg text-[15px] font-bold tracking-wide transition-all duration-200 ' +
+                      'py-5 rounded-lg text-lg font-bold tracking-wide transition-all duration-200 ' +
                       (selected
                         ? 'bg-gradient-to-br from-[#00E5FF]/20 to-[#00A5D9]/10 text-[#00E5FF] shadow-[inset_0_0_20px_rgba(0,229,255,0.08),0_1px_0_rgba(255,255,255,0.04)]'
                         : 'text-gray-400 hover:text-gray-200 hover:bg-white/[0.03]')
@@ -301,14 +301,14 @@ export default function App() {
             </div>
           </section>
 
-          <section className="px-8 py-6">
+          <section className="px-10 py-7">
             {sectionLabel('Slides JSON')}
             <textarea
               value={jsonText}
               onChange={(e) => setJsonText(e.target.value)}
               spellCheck={false}
-              className="w-full h-80 bg-[#070b18] border border-white/[0.08] rounded-xl p-5
-                         text-[13px] font-mono leading-relaxed text-gray-200
+              className="w-full h-[28rem] bg-[#070b18] border border-white/[0.08] rounded-xl p-6
+                         text-sm font-mono leading-relaxed text-gray-200
                          placeholder:text-gray-700
                          focus:border-[#00E5FF]/50 focus:outline-none
                          focus:shadow-[0_0_0_4px_rgba(0,229,255,0.08)]
@@ -338,16 +338,16 @@ export default function App() {
             <button
               type="button"
               onClick={handleRender}
-              className="mt-5 w-full py-4 rounded-xl font-bold text-base tracking-wide
+              className="mt-6 w-full py-5 rounded-xl font-bold text-lg tracking-wide
                          bg-gradient-to-r from-[#00E5FF] to-[#00A5D9]
                          text-[#0a0e1a]
-                         shadow-[0_4px_24px_rgba(0,229,255,0.35),inset_0_1px_0_rgba(255,255,255,0.3)]
-                         hover:shadow-[0_6px_30px_rgba(0,229,255,0.55),inset_0_1px_0_rgba(255,255,255,0.4)]
+                         shadow-[0_6px_30px_rgba(0,229,255,0.4),inset_0_1px_0_rgba(255,255,255,0.3)]
+                         hover:shadow-[0_8px_36px_rgba(0,229,255,0.6),inset_0_1px_0_rgba(255,255,255,0.4)]
                          hover:-translate-y-0.5 active:translate-y-0
                          transition-all duration-200"
             >
-              <span className="inline-flex items-center justify-center gap-2.5">
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <span className="inline-flex items-center justify-center gap-3">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <polygon points="5 3 19 12 5 21 5 3" fill="currentColor" />
                 </svg>
                 Render slides
