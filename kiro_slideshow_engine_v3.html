@@ -36,6 +36,14 @@
   .gpt-icons-left, .gpt-icons-right { display: flex; gap: 24px; align-items: center; }
   .icon-plus, .icon-mic, .icon-send { width: 64px; height: 64px; display: flex; align-items: center; justify-content: center; color: var(--box-icon); }
   .icon-send { background: rgba(255,255,255,0.12); border-radius: 50%; color: var(--ink); }
+  /* CLAUDE BOX — distinct chrome so viewers register "this is Claude" (orange pill + orange send + no mic) */
+  .claude-box { width: 100%; background: rgba(38, 32, 28, 0.94); border: 1px solid rgba(204, 120, 92, 0.20); border-radius: 36px; padding: 38px 48px 38px 48px; backdrop-filter: blur(20px); box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
+  .claude-model { display: inline-flex; align-items: center; gap: 12px; font-size: 30px; font-weight: 600; color: #CC785C; background: rgba(204, 120, 92, 0.10); border: 1px solid rgba(204, 120, 92, 0.30); border-radius: 999px; padding: 10px 22px 10px 18px; margin-bottom: 28px; letter-spacing: 0.01em; }
+  .claude-model svg { width: 28px; height: 28px; }
+  .claude-prompt { font-size: 54px; line-height: 1.32; color: var(--ink); font-weight: 400; margin-bottom: 56px; text-align: left; }
+  .claude-icons { display: flex; justify-content: space-between; align-items: center; }
+  .claude-icons-left, .claude-icons-right { display: flex; gap: 24px; align-items: center; }
+  .icon-claude-send { width: 64px; height: 64px; display: flex; align-items: center; justify-content: center; background: #CC785C; border-radius: 50%; color: #ffffff; }
   .attribution { margin-top: 32px; font-size: 38px; font-weight: 600; color: var(--ink-muted); letter-spacing: 0.18em; align-self: flex-start; }
   .cta-scrim { width: 100%; padding: 60px 40px; background: radial-gradient(ellipse at center, rgba(0,0,0,0.78) 0%, rgba(0,0,0,0.65) 60%, rgba(0,0,0,0.0) 100%); text-align: center; }
   .cta-headline { font-size: 92px; line-height: 1.1; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 60px; color: var(--ink); text-shadow: 0 2px 12px rgba(0,0,0,0.6); }
@@ -207,6 +215,11 @@ const MASCOTS = {
 };
 
 const SLIDES = {
+  // Which AI tool's chat box renders around each prompt. REQUIRED.
+  // Options: "chatgpt" or "claude"
+  // Hook text (e.g. "ChatGPT Prompts" vs "Claude Prompts") is set in hook.headline below — keep them in sync.
+  platform: "chatgpt",
+
   // Mascot tier shown in the blurred background.
   // Options: "bronze", "silver", "gold", "platinum", "diamond", "iridescent"
   // Mapping per playbook: Generic → bronze/silver, Path-audience → gold, Path-gap → diamond
@@ -278,6 +291,7 @@ const SLIDES = {
     <textarea class="paste-textarea" id="paste-input" spellcheck="false" placeholder='Paste JSON here. Either:
 
 {
+  "platform": "chatgpt",
   "mascot": "platinum",
   "hook": { ... },
   "prompts": [ ... ],
@@ -288,11 +302,13 @@ const SLIDES = {
 — or —
 
 const SLIDES = {
+  platform: "chatgpt",
   mascot: "platinum",
   hook: { ... },
   ...
 };
 
+platform is REQUIRED. Valid: chatgpt, claude.
 mascot is optional. Valid: bronze, silver, gold, platinum, diamond, iridescent.'></textarea>
     <div class="paste-actions">
       <button class="paste-btn" onclick="loadPastedSlides()">Render Slides</button>
@@ -311,6 +327,7 @@ mascot is optional. Valid: bronze, silver, gold, platinum, diamond, iridescent.'
 const PLUS_SVG = `<svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>`;
 const MIC_SVG = `<svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>`;
 const SEND_SVG = `<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>`;
+const CLAUDE_SPARKLE_SVG = `<svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><path d="M12 1 L13.5 9.5 L22 11 L13.5 12.5 L12 22 L10.5 12.5 L2 11 L10.5 9.5 Z"/></svg>`;
 
 function render() {
   const stage = document.getElementById('stage');
@@ -319,7 +336,7 @@ function render() {
   // Hook
   slides.push(buildHook(SLIDES.hook));
   // Prompts
-  SLIDES.prompts.forEach((p, i) => slides.push(buildPrompt(p, SLIDES.attribution)));
+  SLIDES.prompts.forEach((p, i) => slides.push(buildPrompt(p, SLIDES.attribution, SLIDES.platform)));
   // CTA
   slides.push(buildCTA(SLIDES.cta, SLIDES.pathContext));
 
@@ -358,7 +375,7 @@ function buildHook(h) {
   </div>`;
 }
 
-function buildPrompt(p, attribution) {
+function buildPrompt(p, attribution, platform) {
   // Auto-shrink title — check both total length AND longest single word
   // (one long word like "HALLUCINATION" can blow out the layout even at low total length)
   const titleVisible = p.title.replace(/<[^>]+>/g, '');
@@ -374,10 +391,18 @@ function buildPrompt(p, attribution) {
   if (promptLen >= 220) promptSize = 42;
   else if (promptLen >= 160) promptSize = 48;
 
+  const box = platform === 'claude' ? buildClaudeBox(p.prompt, promptSize) : buildGPTBox(p.prompt, promptSize);
+
   return `<div class="body">
     <div class="prompt-title" style="font-size: ${titleSize}px;">${p.title}</div>
-    <div class="gpt-box">
-      <div class="gpt-prompt" style="font-size: ${promptSize}px;">${p.prompt}</div>
+    ${box}
+    <div class="attribution">— ${attribution}</div>
+  </div>`;
+}
+
+function buildGPTBox(prompt, promptSize) {
+  return `<div class="gpt-box">
+      <div class="gpt-prompt" style="font-size: ${promptSize}px;">${prompt}</div>
       <div class="gpt-icons">
         <div class="gpt-icons-left"><span class="icon-plus">${PLUS_SVG}</span></div>
         <div class="gpt-icons-right">
@@ -385,9 +410,20 @@ function buildPrompt(p, attribution) {
           <span class="icon-send">${SEND_SVG}</span>
         </div>
       </div>
-    </div>
-    <div class="attribution">— ${attribution}</div>
-  </div>`;
+    </div>`;
+}
+
+function buildClaudeBox(prompt, promptSize) {
+  return `<div class="claude-box">
+      <div class="claude-model">${CLAUDE_SPARKLE_SVG}<span>Claude</span></div>
+      <div class="claude-prompt" style="font-size: ${promptSize}px;">${prompt}</div>
+      <div class="claude-icons">
+        <div class="claude-icons-left"><span class="icon-plus">${PLUS_SVG}</span></div>
+        <div class="claude-icons-right">
+          <span class="icon-claude-send">${SEND_SVG}</span>
+        </div>
+      </div>
+    </div>`;
 }
 
 function buildCTA(c, pathContext) {
@@ -515,6 +551,16 @@ function parseSlidesInput(raw) {
   }
   if (!parsed.attribution) {
     parsed.attribution = '@KIRO.APP'; // default
+  }
+
+  // Platform is REQUIRED — controls whether prompts render in a ChatGPT or Claude chat box
+  if (!parsed.platform) {
+    showStatus('err', 'Missing required field: platform. Must be "chatgpt" or "claude".');
+    return null;
+  }
+  if (parsed.platform !== 'chatgpt' && parsed.platform !== 'claude') {
+    showStatus('err', `Unknown platform: "${parsed.platform}". Must be "chatgpt" or "claude".`);
+    return null;
   }
 
   // Mascot is OPTIONAL but if present, validate it matches a known mascot key

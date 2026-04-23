@@ -8,7 +8,7 @@ Updated to support **three slideshow modes** and **mascot tier selection**:
 | **path-audience** (Shape B) | Mid-funnel, role-targeted | "7 prompts every [marketer / manager / etc.] should save" — CTA points to specific Kiro path |
 | **path-gap** (Shape A-prime) | Mid-funnel, knowledge-gap angle | "7 [topic] questions you should be able to answer" — CTA points to specific Kiro path |
 
-Paste the prompt below into ChatGPT (5.4) or Claude. Fill in `MODE`, `PATH`, `ANGLE`, `TOPIC` at the bottom.
+Paste the prompt below into ChatGPT (5.4) or Claude. Fill in `MODE`, `PLATFORM`, `PATH`, `ANGLE`, `TOPIC` at the bottom.
 
 ---
 
@@ -40,6 +40,24 @@ MODE = path-gap
   REQUIRES: pathContext.pathKey field in the JSON output.
 
 ═══════════════════════════════════════════════════════════════
+PLATFORM (orthogonal to MODE — required field)
+═══════════════════════════════════════════════════════════════
+PLATFORM controls which AI tool's chat box the prompts render inside.
+It also drives the hook text ("ChatGPT Prompts" vs "Claude Prompts").
+
+PLATFORM = chatgpt
+  Prompts render in a ChatGPT-style chat box (plus + mic + send icons).
+  Hook says "ChatGPT Prompts" (or for path-gap, just "AI Questions").
+  Default for broad-reach posts. ChatGPT has bigger TikTok name recognition.
+
+PLATFORM = claude
+  Prompts render in a Claude-style chat box (Claude pill at top, orange send button, no mic).
+  Hook says "Claude Prompts" (or for path-gap, "AI Questions" — same as chatgpt).
+  Use for: developer/technical audiences, longer/more structured prompts, niche differentiation.
+  Claude prompts can lean a bit longer and more structured (Claude handles XML-ish tags well),
+  but the SAME slide length constraints apply — keep prompts readable on a 1080x1920 slide.
+
+═══════════════════════════════════════════════════════════════
 KIRO LEARNING PATHS (use ONE pathKey per slideshow when MODE != generic)
 ═══════════════════════════════════════════════════════════════
 
@@ -69,10 +87,12 @@ HOOK FORMAT
 - Bold the punch noun (last 2-3 word phrase) with <strong>
 - Sub-line in parens, 4-7 words, will render italic
 
-Examples by mode:
-  generic:        "<strong>7</strong> ChatGPT Prompts<br/>Every <strong>AI Beginner</strong><br/>Should Save"
-  path-audience:  "<strong>7</strong> ChatGPT Prompts<br/>Every <strong>Marketer</strong><br/>Should Save"
-  path-gap:       "<strong>7</strong> AI Questions<br/>Every <strong>Marketer</strong><br/>Should Be Able<br/>To Answer"
+Examples by mode (swap "ChatGPT" → "Claude" in the headline if PLATFORM = claude):
+  generic + chatgpt:        "<strong>7</strong> ChatGPT Prompts<br/>Every <strong>AI Beginner</strong><br/>Should Save"
+  generic + claude:         "<strong>7</strong> Claude Prompts<br/>Every <strong>AI Beginner</strong><br/>Should Save"
+  path-audience + chatgpt:  "<strong>7</strong> ChatGPT Prompts<br/>Every <strong>Marketer</strong><br/>Should Save"
+  path-audience + claude:   "<strong>7</strong> Claude Prompts<br/>Every <strong>Marketer</strong><br/>Should Save"
+  path-gap (either):        "<strong>7</strong> AI Questions<br/>Every <strong>Marketer</strong><br/>Should Be Able<br/>To Answer"
 
 ═══════════════════════════════════════════════════════════════
 PROMPT/QUESTION SLIDES (7 of them)
@@ -174,6 +194,7 @@ Return ONLY a JSON object. Wrap in a single fenced code block. No commentary bef
 
 For MODE = generic:
 {
+  "platform": "chatgpt" or "claude",
   "mascot": "bronze" or "silver",
   "hook": { "headline": "...", "sub": "..." },
   "prompts": [ {"title": "1. <strong>...</strong> ...", "prompt": "..."}, ... 7 total ... ],
@@ -183,6 +204,7 @@ For MODE = generic:
 
 For MODE = path-audience or path-gap (note the pathContext field):
 {
+  "platform": "chatgpt" or "claude",
   "mascot": "gold" (path-audience) or "diamond" (path-gap),
   "pathContext": { "pathKey": "ai-for-marketing" },
   "hook": { "headline": "...", "sub": "..." },
@@ -190,6 +212,8 @@ For MODE = path-audience or path-gap (note the pathContext field):
   "cta": { "headline": "...", "instructionAbove": "search:", "searchTerm": "Kiro AI", "instructionBelow": "on the App Store.", "slogan": "stop asking AI questions.<br/><strong>start building with it.</strong>" },
   "attribution": "@KIRO.APP"
 }
+
+PLATFORM is REQUIRED in every output. The engine rejects JSON without it.
 
 MASCOT TIER RULES (required field, pick ONE per the playbook mapping):
 - Generic mode       → "bronze" or "silver" (alternate between them across generic posts)
@@ -202,6 +226,7 @@ MASCOT TIER RULES (required field, pick ONE per the playbook mapping):
 TODAY'S BRIEF
 ═══════════════════════════════════════════════════════════════
 MODE: [generic / path-audience / path-gap]
+PLATFORM: [chatgpt / claude]
 PATH: [pathKey from the table above — only required if MODE is not generic]
 ANGLE: [hook angle, e.g. "7 ChatGPT prompts that replace a $200 consultant"]
 TOPIC: [topic/audience specifics]
@@ -213,17 +238,28 @@ Generate the JSON now.
 
 ## Example briefs by mode
 
-### Generic mode
+### Generic mode (ChatGPT)
 ```
 MODE: generic
+PLATFORM: chatgpt
 PATH: (leave blank)
 ANGLE: 7 ChatGPT prompts every AI beginner should save
 TOPIC: working professionals 25-45 who have used ChatGPT a few times
 ```
 
+### Generic mode (Claude)
+```
+MODE: generic
+PLATFORM: claude
+PATH: (leave blank)
+ANGLE: 7 Claude prompts every AI beginner should save
+TOPIC: working professionals 25-45 who have heard of Claude but default to ChatGPT
+```
+
 ### Path-audience mode (Shape B)
 ```
 MODE: path-audience
+PLATFORM: chatgpt
 PATH: ai-for-marketing
 ANGLE: 7 ChatGPT prompts every marketer should save
 TOPIC: B2B SaaS marketers tired of writing the same LinkedIn posts
@@ -232,6 +268,7 @@ TOPIC: B2B SaaS marketers tired of writing the same LinkedIn posts
 ### Path-gap mode (Shape A-prime) — the highest-leverage format
 ```
 MODE: path-gap
+PLATFORM: claude
 PATH: ai-for-managers
 ANGLE: 7 AI questions every manager should be able to answer
 TOPIC: middle managers at 50-500 person companies pretending to understand AI in meetings
@@ -264,3 +301,5 @@ Cycle through 10 paths so each gets a slideshow every ~3 weeks.
 **For path-gap:** the questions should make a senior person nod and a junior person sweat. Test: "Would a 3-year veteran in this field find this question worth their time?"
 
 **Pinned comment for path-gap posts:** "if you got more than 4 of these wrong, the AI for [path] path on Kiro covers all of it. free to try." Direct, doesn't oversell, gives the dropout reason.
+
+**ChatGPT vs Claude (PLATFORM choice):** Default to chatgpt for broad-reach posts — bigger TikTok name recognition. Use claude for technical/developer-leaning audiences (ai-agents, ai-automation, ai-for-business path-gap), or to differentiate when the rotation feels samey. The Claude-styled chat box is a small visual variety lever; don't overthink it. ~1 in 4 posts on Claude is a reasonable starting mix.
