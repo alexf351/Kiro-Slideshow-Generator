@@ -35,7 +35,12 @@ SOURCE_DIR = REPO / "app" / "public"
 TIERS = ["bronze", "silver", "gold", "platinum", "diamond", "iridescent"]
 
 TARGET_SIZE = 800
-BLUR_RADIUS_ON_SOURCE = 35
+# Base variants (bronze, silver, …) are the default background silhouette for
+# hook + prompt slides — heavy blur keeps text readable. Emote variants
+# (celebrating, waving, …) are deliberately picked when the creator wants the
+# pose to read, so they get a lighter blur.
+BLUR_RADIUS_BASE = 80
+BLUR_RADIUS_EMOTE = 35
 JPEG_QUALITY = 82
 
 
@@ -56,14 +61,14 @@ def scan_variants(tier: str) -> dict[str, Path]:
     return out
 
 
-def bake_one(path: Path) -> str:
+def bake_one(path: Path, blur_radius: int) -> str:
     im = Image.open(path)
     bg = Image.new("RGB", im.size, (0, 0, 0))
     if im.mode == "RGBA":
         bg.paste(im, mask=im.split()[3])
     else:
         bg.paste(im.convert("RGB"))
-    blurred = bg.filter(ImageFilter.GaussianBlur(radius=BLUR_RADIUS_ON_SOURCE))
+    blurred = bg.filter(ImageFilter.GaussianBlur(radius=blur_radius))
     blurred = blurred.resize((TARGET_SIZE, TARGET_SIZE), Image.LANCZOS)
     buf = io.BytesIO()
     blurred.save(buf, format="JPEG", quality=JPEG_QUALITY, optimize=True)
@@ -82,9 +87,10 @@ def main():
         ordered = ["base"] + sorted(v for v in variants if v != "base")
         for variant in ordered:
             key = tier if variant == "base" else f"{tier}-{variant}"
-            b64 = bake_one(variants[variant])
+            radius = BLUR_RADIUS_BASE if variant == "base" else BLUR_RADIUS_EMOTE
+            b64 = bake_one(variants[variant], radius)
             entries.append((key, b64))
-            print(f"[ok] {key}: {len(b64)} b64 chars")
+            print(f"[ok] {key}: r={radius} {len(b64)} b64 chars")
 
     # Regenerate MASCOTS object wholesale
     lines = ["const MASCOTS = {"]
