@@ -4,6 +4,10 @@
 <meta charset="UTF-8" />
 <title>Kiro Slideshow Engine</title>
 <style>
+  /* Inter has the full weight range 400-900. Segoe UI (the Windows fallback)
+     only ships up to 700, which makes <strong> (font-weight:900) look
+     identical to .hook (font-weight:700). Loading Inter first fixes that. */
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
   :root {
     --bg: #000000;
     --ink: #FFFFFF;
@@ -16,7 +20,7 @@
     --page-w: 1080px;
     --page-h: 1920px;
   }
-  html, body { margin: 0; padding: 0; background: #1a1a1a; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', system-ui, sans-serif; color: var(--ink); }
+  html, body { margin: 0; padding: 0; background: #1a1a1a; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif; color: var(--ink); }
   .stage { display: flex; flex-direction: column; align-items: center; gap: 40px; padding: 40px 0; }
   .slide { position: relative; width: var(--page-w); height: var(--page-h); background: var(--bg); overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.6); color: var(--ink); }
   .bg-mascot { position: absolute; top: 48%; left: 50%; width: 1200px; height: 1200px; transform: translate(-50%, -50%); background-size: contain; background-repeat: no-repeat; background-position: center; opacity: 0.85; pointer-events: none; }
@@ -699,6 +703,13 @@ async function downloadAllSlides() {
   try {
     btn.textContent = 'Loading...';
     const html2canvas = await loadHtml2Canvas();
+
+    // Wait for web fonts (Inter) to finish loading so exported PNGs use the
+    // right weights. Without this, the first download after a cold load can
+    // render in Segoe UI / system fallback and <strong> tags won't differ.
+    if (document.fonts && document.fonts.ready) {
+      try { await document.fonts.ready; } catch (e) {}
+    }
 
     // Hide the safe zone overlay if it's on, and the HUD itself, during capture
     const safeWasOn = document.body.classList.contains('show-safezone');
