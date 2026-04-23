@@ -1,21 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useState } from 'react';
 import engineHtml from '../../kiro_slideshow_engine_v3.html?raw';
 
 type View = 'welcome' | 'editor';
 
 export default function App() {
   const [view, setView] = useState<View>('welcome');
-
-  // Wrap the engine HTML in a blob URL so the iframe can load it in-place,
-  // without Vite needing to serve the file from outside /app.
-  const engineUrl = useMemo(() => {
-    const blob = new Blob([engineHtml], { type: 'text/html' });
-    return URL.createObjectURL(blob);
-  }, []);
-
-  useEffect(() => {
-    return () => URL.revokeObjectURL(engineUrl);
-  }, [engineUrl]);
 
   return (
     <div className="flex h-screen bg-[#0a0e1a] text-gray-100">
@@ -57,7 +46,7 @@ export default function App() {
           </div>
         ) : (
           <iframe
-            src={engineUrl}
+            srcDoc={engineHtml}
             className="w-full h-full border-0 bg-[#1a1a1a]"
             title="Kiro slideshow renderer"
           />
