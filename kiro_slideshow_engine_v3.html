@@ -26,7 +26,7 @@
     --page-h: 1920px;
   }
   html, body { margin: 0; padding: 0; background: #1a1a1a; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif; color: var(--ink); }
-  .stage { display: flex; flex-direction: column; align-items: center; gap: 40px; padding: 40px 0; }
+  .stage { display: flex; flex-direction: column; align-items: center; gap: 40px; padding: 96px 0 40px 0; }
   .slide { position: relative; width: var(--page-w); height: var(--page-h); background: var(--bg); overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.6); color: var(--ink); }
   .bg-mascot { position: absolute; top: 48%; left: 50%; width: 1200px; height: 1200px; transform: translate(-50%, -50%); background-size: contain; background-repeat: no-repeat; background-position: center; opacity: 0.85; pointer-events: none; }
   .slide-cta .bg-mascot { opacity: 0.85; }
@@ -64,8 +64,46 @@
   .cta-path { font-size: 76px; font-weight: 800; color: var(--ink); letter-spacing: -0.01em; margin-bottom: 30px; padding: 8px 24px; background: rgba(0, 229, 255, 0.08); border: 2px solid rgba(0, 229, 255, 0.35); border-radius: 16px; display: inline-block; text-shadow: 0 2px 8px rgba(0,0,0,0.5); }
   .cta-slogan { margin-top: 70px; font-size: 56px; line-height: 1.25; color: var(--ink); font-weight: 600; font-style: italic; text-shadow: 0 2px 10px rgba(0,0,0,0.7); }
   .cta-slogan strong { font-weight: 800; font-style: normal; color: var(--accent); }
-  .hud { position: fixed; top: 12px; left: 12px; background: #111; color: #eee; padding: 10px 14px; border-radius: 8px; font-size: 12px; z-index: 1000; }
-  .hud button { margin-left: 8px; padding: 4px 8px; background: #333; color: #fff; border: 1px solid #555; border-radius: 4px; cursor: pointer; font-size: 12px; }
+  .hud {
+    position: fixed; top: 0; left: 0; right: 0;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 24px;
+    background: linear-gradient(180deg, rgba(10,14,26,0.96) 0%, rgba(10,14,26,0.82) 100%);
+    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    box-shadow: 0 4px 24px rgba(0,0,0,0.35);
+    z-index: 1000;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
+  }
+  .hud-left { display: flex; align-items: center; gap: 14px; }
+  .hud-title { font-size: 17px; font-weight: 700; letter-spacing: 0.02em; color: #fff; }
+  .hud-badge {
+    font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+    color: #00E5FF;
+    padding: 5px 10px; border-radius: 999px;
+    background: rgba(0,229,255,0.08); border: 1px solid rgba(0,229,255,0.25);
+    font-variant-numeric: tabular-nums;
+  }
+  .hud-right { display: flex; gap: 10px; align-items: center; }
+  .hud-btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px 18px; border-radius: 10px;
+    font-size: 14px; font-weight: 600;
+    font-family: inherit; cursor: pointer;
+    border: 1px solid transparent;
+    transition: background 160ms ease, border-color 160ms ease, box-shadow 200ms ease, transform 120ms ease, color 160ms ease;
+  }
+  .hud-btn-ghost { background: rgba(255,255,255,0.04); color: #cfd3dd; border-color: rgba(255,255,255,0.10); }
+  .hud-btn-ghost:hover { background: rgba(255,255,255,0.09); border-color: rgba(255,255,255,0.18); color: #fff; }
+  body.show-safezone .hud-btn-ghost { background: rgba(255,80,80,0.12); border-color: rgba(255,80,80,0.45); color: #ffb0b0; }
+  .hud-btn-primary {
+    background: linear-gradient(135deg, #00E5FF 0%, #00A5D9 100%);
+    color: #0a0e1a;
+    box-shadow: 0 4px 22px rgba(0,229,255,0.28), inset 0 1px 0 rgba(255,255,255,0.25);
+  }
+  .hud-btn-primary:hover { box-shadow: 0 6px 30px rgba(0,229,255,0.48), inset 0 1px 0 rgba(255,255,255,0.35); transform: translateY(-1px); }
+  .hud-btn-primary:active { transform: translateY(0); }
+  .hud-btn[disabled] { opacity: 0.55; cursor: not-allowed; transform: none !important; box-shadow: none; }
 
   /* ============================================================
      PASTE PANEL — fixed top-right, where you paste JSON from Barry/Claude
@@ -304,10 +342,20 @@ const SLIDES = {
 </script>
 
 <div class="hud">
-  Kiro engine · 1080×1920
-  <button onclick="document.body.classList.toggle('show-safezone')">Toggle safe zone</button>
-  <button onclick="window.print()">Print</button>
-  <button onclick="downloadAllSlides()" id="dl-btn">⬇ Download all slides</button>
+  <div class="hud-left">
+    <span class="hud-title">Kiro Engine</span>
+    <span class="hud-badge">1080 × 1920</span>
+  </div>
+  <div class="hud-right">
+    <button class="hud-btn hud-btn-ghost" id="safe-zone-btn" onclick="toggleSafeZone()">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="5" width="14" height="14" rx="1" stroke-dasharray="3 2"></rect></svg>
+      Safe zone
+    </button>
+    <button class="hud-btn hud-btn-primary" onclick="downloadAllSlides()" id="dl-btn">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"></path><path d="m6 9 6 6 6-6"></path><path d="M5 21h14"></path></svg>
+      <span id="dl-btn-label">Download all slides</span>
+    </button>
+  </div>
 </div>
 
 <!-- ============================================================
@@ -700,13 +748,18 @@ function loadHtml2Canvas() {
   });
 }
 
+function toggleSafeZone() {
+  document.body.classList.toggle('show-safezone');
+}
+
 async function downloadAllSlides() {
   const btn = document.getElementById('dl-btn');
-  const originalText = btn.textContent;
+  const label = document.getElementById('dl-btn-label');
+  const originalText = label.textContent;
   btn.disabled = true;
 
   try {
-    btn.textContent = 'Loading...';
+    label.textContent = 'Loading…';
     const html2canvas = await loadHtml2Canvas();
 
     // Force each weight of Inter to actually resolve, then wait for all
@@ -734,7 +787,7 @@ async function downloadAllSlides() {
 
     const slides = document.querySelectorAll('.slide');
     for (let i = 0; i < slides.length; i++) {
-      btn.textContent = `Capturing ${i+1} / ${slides.length}...`;
+      label.textContent = `Capturing ${i+1} / ${slides.length}…`;
       const canvas = await html2canvas(slides[i], {
         width: 1080,
         height: 1920,
@@ -753,13 +806,13 @@ async function downloadAllSlides() {
 
     if (safeWasOn) document.body.classList.add('show-safezone');
     document.querySelector('.hud').style.visibility = 'visible';
-    btn.textContent = '✓ Done — check Downloads folder';
-    setTimeout(() => { btn.textContent = originalText; btn.disabled = false; }, 3000);
+    label.textContent = '✓ Done — check Downloads';
+    setTimeout(() => { label.textContent = originalText; btn.disabled = false; }, 3000);
   } catch (err) {
     console.error(err);
     document.querySelector('.hud').style.visibility = 'visible';
-    btn.textContent = '✗ Failed — check console';
-    setTimeout(() => { btn.textContent = originalText; btn.disabled = false; }, 3000);
+    label.textContent = '✗ Failed — check console';
+    setTimeout(() => { label.textContent = originalText; btn.disabled = false; }, 3000);
   }
 }
 </script>
