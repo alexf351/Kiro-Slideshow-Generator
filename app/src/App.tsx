@@ -7,6 +7,30 @@ type Status = { kind: 'idle' } | { kind: 'rendering' } | { kind: 'ok'; at: numbe
 
 const MASCOT_ORDER: Mascot[] = ['bronze', 'silver', 'gold', 'platinum', 'diamond', 'iridescent'];
 
+// Variants baked into MASCOTS for each tier. Keep in sync with app/public/ and scripts/bake_mascots.py.
+const VARIANTS_BY_TIER: Record<Mascot, string[]> = {
+  bronze: ['base', 'celebrating', 'happy', 'learning', 'sad', 'splash', 'typing', 'waving'],
+  silver: ['base', 'celebrating', 'waving'],
+  gold: ['base', 'celebrating', 'waving'],
+  platinum: ['base', 'celebrating', 'waving'],
+  diamond: ['base', 'celebrating', 'waving'],
+  iridescent: ['base', 'celebrating', 'waving'],
+};
+
+// Filename resolver for the sharp source assets served by Vite at the site root.
+function variantAssetPath(tier: Mascot, variant: string): string {
+  if (variant === 'base') return `/${tier}-kiro.webp`;
+  // bronze-splash is the only non-webp variant on disk.
+  if (tier === 'bronze' && variant === 'splash') return '/bronze-kiro-splash.png';
+  return `/${tier}-kiro-${variant}.webp`;
+}
+
+// Composes the MASCOTS key used by the engine: base → tier only (backward-compat),
+// other variants → "{tier}-{variant}".
+function mascotKey(tier: Mascot, variant: string): string {
+  return variant === 'base' ? tier : `${tier}-${variant}`;
+}
+
 const DEFAULT_JSON = `{
   "platform": "claude",
   "mascot": "platinum",
@@ -38,38 +62,49 @@ const DEFAULT_JSON = `{
   "attribution": "@KIRO.APP"
 }`;
 
-const STORAGE_KEY = 'kiro_slideshow_generator_state_v1';
+const STORAGE_KEY = 'kiro_slideshow_generator_state_v2';
 
-type Persisted = { mascot: Mascot; platform: Platform; jsonText: string };
+type Persisted = { mascot: Mascot; variant: string; platform: Platform; jsonText: string };
 
 function loadPersisted(): Persisted {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const p = JSON.parse(raw) as Partial<Persisted>;
+      const mascot = MASCOT_ORDER.includes(p.mascot as Mascot) ? (p.mascot as Mascot) : 'platinum';
+      const available = VARIANTS_BY_TIER[mascot];
+      const variant = typeof p.variant === 'string' && available.includes(p.variant) ? p.variant : 'base';
       return {
-        mascot: MASCOT_ORDER.includes(p.mascot as Mascot) ? (p.mascot as Mascot) : 'platinum',
+        mascot,
+        variant,
         platform: p.platform === 'chatgpt' ? 'chatgpt' : 'claude',
         jsonText: typeof p.jsonText === 'string' ? p.jsonText : DEFAULT_JSON,
       };
     }
   } catch {}
-  return { mascot: 'platinum', platform: 'claude', jsonText: DEFAULT_JSON };
+  return { mascot: 'platinum', variant: 'base', platform: 'claude', jsonText: DEFAULT_JSON };
 }
 
 export default function App() {
   const initial = useMemo(loadPersisted, []);
   const [mascot, setMascot] = useState<Mascot>(initial.mascot);
+  const [variant, setVariant] = useState<string>(initial.variant);
   const [platform, setPlatform] = useState<Platform>(initial.platform);
   const [jsonText, setJsonText] = useState<string>(initial.jsonText);
   const [status, setStatus] = useState<Status>({ kind: 'idle' });
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
 
+  // When tier changes, keep the current variant if the new tier has it; otherwise reset to base.
+  function handleTierChange(newTier: Mascot) {
+    setMascot(newTier);
+    if (!VARIANTS_BY_TIER[newTier].includes(variant)) setVariant('base');
+  }
+
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ mascot, platform, jsonText }));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ mascot, variant, platform, jsonText }));
     } catch {}
-  }, [mascot, platform, jsonText]);
+  }, [mascot, variant, platform, jsonText]);
 
   useEffect(() => {
     const onMessage = (e: MessageEvent) => {
@@ -109,7 +144,7 @@ export default function App() {
   function handleRender() {
     const parsed = parseJson();
     if (!parsed) return;
-    const slides = { ...parsed, mascot, platform };
+    const slides = { ...parsed, mascot: mascotKey(mascot, variant), platform };
     const iframe = iframeRef.current;
     if (!iframe || !iframe.contentWindow) {
       setStatus({ kind: 'err', msg: 'Engine iframe not ready.' });
@@ -145,7 +180,7 @@ export default function App() {
                   <button
                     key={m}
                     type="button"
-                    onClick={() => setMascot(m)}
+                    onClick={() => handleTierChange(m)}
                     className={
                       'group flex flex-col items-center gap-1 p-2 rounded-md border transition-colors ' +
                       (selected
@@ -161,6 +196,40 @@ export default function App() {
                     />
                     <span className={'text-[10px] uppercase tracking-wider ' + (selected ? 'text-[#00E5FF]' : 'text-gray-400')}>
                       {m}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+
+          <section className="px-5 py-4 border-b border-[#2a334a]">
+            <label className="block text-[11px] uppercase tracking-wider text-gray-400 mb-3">
+              Emote <span className="text-gray-600">· {mascot}</span>
+            </label>
+            <div className="grid grid-cols-3 gap-2">
+              {VARIANTS_BY_TIER[mascot].map((v) => {
+                const selected = v === variant;
+                return (
+                  <button
+                    key={v}
+                    type="button"
+                    onClick={() => setVariant(v)}
+                    className={
+                      'group flex flex-col items-center gap-1 p-2 rounded-md border transition-colors ' +
+                      (selected
+                        ? 'border-[#00E5FF] bg-[rgba(0,229,255,0.08)]'
+                        : 'border-[#2a334a] bg-[#121826] hover:border-[#3a4560]')
+                    }
+                  >
+                    <img
+                      src={variantAssetPath(mascot, v)}
+                      alt={`${mascot} ${v}`}
+                      className="w-14 h-14 object-contain"
+                      loading="lazy"
+                    />
+                    <span className={'text-[10px] uppercase tracking-wider ' + (selected ? 'text-[#00E5FF]' : 'text-gray-400')}>
+                      {v}
                     </span>
                   </button>
                 );
