@@ -36,10 +36,8 @@
   .gpt-icons-left, .gpt-icons-right { display: flex; gap: 24px; align-items: center; }
   .icon-plus, .icon-mic, .icon-send { width: 64px; height: 64px; display: flex; align-items: center; justify-content: center; color: var(--box-icon); }
   .icon-send { background: rgba(255,255,255,0.12); border-radius: 50%; color: var(--ink); }
-  /* CLAUDE BOX — distinct chrome so viewers register "this is Claude" (orange pill + orange send + no mic) */
-  .claude-box { width: 100%; background: rgba(38, 32, 28, 0.94); border: 1px solid rgba(204, 120, 92, 0.20); border-radius: 36px; padding: 38px 48px 38px 48px; backdrop-filter: blur(20px); box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
-  .claude-model { display: inline-flex; align-items: center; gap: 12px; font-size: 30px; font-weight: 600; color: #CC785C; background: rgba(204, 120, 92, 0.10); border: 1px solid rgba(204, 120, 92, 0.30); border-radius: 999px; padding: 10px 22px 10px 18px; margin-bottom: 28px; letter-spacing: 0.01em; }
-  .claude-model svg { width: 28px; height: 28px; }
+  /* CLAUDE BOX — distinct chrome so viewers register "this is Claude" (warmer bg + orange send + no mic) */
+  .claude-box { width: 100%; background: rgba(38, 32, 28, 0.94); border: 1px solid rgba(204, 120, 92, 0.20); border-radius: 36px; padding: 46px 48px 38px 48px; backdrop-filter: blur(20px); box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
   .claude-prompt { font-size: 54px; line-height: 1.32; color: var(--ink); font-weight: 400; margin-bottom: 56px; text-align: left; }
   .claude-icons { display: flex; justify-content: space-between; align-items: center; }
   .claude-icons-left, .claude-icons-right { display: flex; gap: 24px; align-items: center; }
@@ -327,7 +325,6 @@ mascot is optional. Valid: bronze, silver, gold, platinum, diamond, iridescent.'
 const PLUS_SVG = `<svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>`;
 const MIC_SVG = `<svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>`;
 const SEND_SVG = `<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>`;
-const CLAUDE_SPARKLE_SVG = `<svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><path d="M12 1 L13.5 9.5 L22 11 L13.5 12.5 L12 22 L10.5 12.5 L2 11 L10.5 9.5 Z"/></svg>`;
 
 function render() {
   const stage = document.getElementById('stage');
@@ -415,7 +412,6 @@ function buildGPTBox(prompt, promptSize) {
 
 function buildClaudeBox(prompt, promptSize) {
   return `<div class="claude-box">
-      <div class="claude-model">${CLAUDE_SPARKLE_SVG}<span>Claude</span></div>
       <div class="claude-prompt" style="font-size: ${promptSize}px;">${prompt}</div>
       <div class="claude-icons">
         <div class="claude-icons-left"><span class="icon-plus">${PLUS_SVG}</span></div>
