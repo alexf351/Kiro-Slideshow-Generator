@@ -35,7 +35,7 @@ SOURCE_DIR = REPO / "app" / "public"
 TIERS = ["bronze", "silver", "gold", "platinum", "diamond", "iridescent"]
 
 TARGET_SIZE = 800
-BLUR_RADIUS_ON_SOURCE = 60
+BLUR_RADIUS_ON_SOURCE = 35
 JPEG_QUALITY = 82
 
 

@@ -141,23 +141,43 @@ export default function App() {
     }
   }
 
-  function handleRender() {
+  async function fetchAssetAsDataUrl(path: string): Promise<string | null> {
+    try {
+      const res = await fetch(path);
+      if (!res.ok) return null;
+      const blob = await res.blob();
+      return await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    } catch {
+      return null;
+    }
+  }
+
+  async function handleRender() {
     const parsed = parseJson();
     if (!parsed) return;
+    setStatus({ kind: 'rendering' });
+    // The CTA slide uses the sharp source (not the baked blurred bg) for brand
+    // prominence. We fetch + data-url it here so the iframe can use it without
+    // tainting the html2canvas export.
+    const ctaMascotUrl = await fetchAssetAsDataUrl(variantAssetPath(mascot, variant));
     const slides = { ...parsed, mascot: mascotKey(mascot, variant), platform };
     const iframe = iframeRef.current;
     if (!iframe || !iframe.contentWindow) {
       setStatus({ kind: 'err', msg: 'Engine iframe not ready.' });
       return;
     }
-    setStatus({ kind: 'rendering' });
-    iframe.contentWindow.postMessage({ type: 'render', slides }, '*');
+    iframe.contentWindow.postMessage({ type: 'render', slides, ctaMascotUrl }, '*');
   }
 
   function handleIframeLoad() {
     // Push current sidebar state into the engine on initial load so the
     // preview matches the controls instead of showing the engine's default.
-    handleRender();
+    void handleRender();
   }
 
   return (
@@ -277,7 +297,7 @@ export default function App() {
             </div>
             <button
               type="button"
-              onClick={handleRender}
+              onClick={() => void handleRender()}
               className="mt-3 w-full bg-[#00E5FF] text-[#0a0e1a] font-bold text-sm py-2.5 rounded-md hover:bg-[#33ECFF] transition-colors"
             >
               Render slides
