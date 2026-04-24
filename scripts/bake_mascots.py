@@ -39,7 +39,7 @@ TARGET_SIZE = 800
 # hook + prompt slides — heavy blur keeps text readable. Emote variants
 # (celebrating, waving, …) are deliberately picked when the creator wants the
 # pose to read, so they get a lighter blur.
-BLUR_RADIUS_BASE = 100
+BLUR_RADIUS_BASE = 50
 BLUR_RADIUS_EMOTE = 35
 JPEG_QUALITY = 82
 
