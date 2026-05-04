@@ -105,25 +105,43 @@ export default function Analytics() {
         </p>
       </header>
 
-      <div className="shrink-0 grid grid-cols-2 md:grid-cols-5 gap-2 md:gap-3 px-5 md:px-8 py-4 md:py-5 border-b border-white/[0.04]">
-        {STAT_FIELDS.map(({ key, label }) => (
-          <div
-            key={key}
-            className="rounded-xl bg-gradient-to-br from-[#0e2b3a] to-[#091626] border border-white/[0.06] px-3 py-2.5"
-          >
-            <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-gray-500">{label}</div>
-            <div className="mt-0.5 text-xl md:text-2xl font-black text-white">
-              {compactNumber(totals[key])}
+      <div className="shrink-0 grid grid-cols-2 md:grid-cols-5 gap-2 md:gap-3 px-5 md:px-8 py-4 md:py-5 border-b border-white/[0.05]">
+        {STAT_FIELDS.map(({ key, label }) => {
+          const has = totals[key] > 0;
+          return (
+            <div
+              key={key}
+              className={
+                'rounded-xl px-3 py-3 border transition-colors ' +
+                (has
+                  ? 'border-[#00E5FF]/20 bg-gradient-to-br from-[#0e2030] to-[#0a1424]'
+                  : 'border-white/[0.06] bg-[#0b1224]/60')
+              }
+            >
+              <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-gray-500">{label}</div>
+              <div
+                className={
+                  'mt-1 font-black tabular-nums leading-none ' +
+                  (has ? 'text-white text-xl md:text-3xl' : 'text-gray-600 text-xl md:text-3xl')
+                }
+              >
+                {compactNumber(totals[key])}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       <div className="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-6">
         {busy && <div className="mb-3 text-xs text-[#00E5FF]">{busy}</div>}
         {posts.length === 0 && (
           <div className="block w-full py-16 rounded-2xl border-2 border-dashed border-white/10 text-center text-gray-500">
-            <div className="text-base font-bold uppercase tracking-[0.16em] mb-1">No posts yet</div>
+            <div className="mx-auto mb-3 w-12 h-12 rounded-full bg-white/[0.04] border border-white/10 flex items-center justify-center text-2xl text-gray-500">
+              📊
+            </div>
+            <div className="text-sm font-bold uppercase tracking-[0.18em] mb-1 text-gray-300">
+              No posts tracked yet
+            </div>
             <div className="text-xs px-6 leading-relaxed">
               Render a slideshow on the Edit tab, then tap <strong>Save to history</strong> after you post on TikTok.
             </div>
