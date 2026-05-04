@@ -4,9 +4,10 @@
 // caps at ~5 MB across the whole origin.
 
 const DB_NAME = 'kiro_media_bank';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const ITEMS_STORE = 'items';
 const SETS_STORE = 'sets';
+const POSTS_STORE = 'posts';
 
 export type MediaItem = {
   id: string;
@@ -36,6 +37,11 @@ function openDb(): Promise<IDBDatabase> {
       }
       if (!db.objectStoreNames.contains(SETS_STORE)) {
         db.createObjectStore(SETS_STORE, { keyPath: 'id' });
+      }
+      // posts store added in v2 — kept here so both modules agree on the
+      // schema regardless of which one opens the DB first.
+      if (!db.objectStoreNames.contains(POSTS_STORE)) {
+        db.createObjectStore(POSTS_STORE, { keyPath: 'id' });
       }
     };
     req.onsuccess = () => resolve(req.result);

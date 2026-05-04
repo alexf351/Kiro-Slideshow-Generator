@@ -1,13 +1,15 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import engineHtml from '../../kiro_slideshow_engine_v3.html?raw';
 import Library from './Library';
+import Analytics from './Analytics';
 import { blobToDataUrl, getItem } from './mediaBank';
+import { addPost } from './posts';
 
 type Mascot = 'bronze' | 'silver' | 'gold' | 'platinum' | 'diamond' | 'iridescent';
 type Platform = 'claude' | 'chatgpt';
 type Status = { kind: 'idle' } | { kind: 'rendering' } | { kind: 'ok'; at: number } | { kind: 'err'; msg: string };
-type MobileView = 'edit' | 'library' | 'preview';
-type MainView = 'preview' | 'library';
+type MobileView = 'edit' | 'library' | 'analytics' | 'preview';
+type MainView = 'preview' | 'library' | 'analytics';
 
 // Per-slide background. Either a media-bank item id (resolved to a data URL at
 // render time) or a pasted URL we hand straight through to the engine.
@@ -81,6 +83,7 @@ type Persisted = {
   platform: Platform;
   jsonText: string;
   slideBgs: SlideBgMap;
+  caption: string;
 };
 
 function loadPersisted(): Persisted {
@@ -97,10 +100,11 @@ function loadPersisted(): Persisted {
         platform: p.platform === 'chatgpt' ? 'chatgpt' : 'claude',
         jsonText: typeof p.jsonText === 'string' ? p.jsonText : DEFAULT_JSON,
         slideBgs: (p.slideBgs && typeof p.slideBgs === 'object' ? p.slideBgs : {}) as SlideBgMap,
+        caption: typeof p.caption === 'string' ? p.caption : '',
       };
     }
   } catch {}
-  return { mascot: 'platinum', variant: 'base', platform: 'claude', jsonText: DEFAULT_JSON, slideBgs: {} };
+  return { mascot: 'platinum', variant: 'base', platform: 'claude', jsonText: DEFAULT_JSON, slideBgs: {}, caption: '' };
 }
 
 // Strip wrappers like `const SLIDES =` / `;` / ```json fences before JSON.parse.
@@ -144,6 +148,8 @@ export default function App() {
   const [mobileView, setMobileView] = useState<MobileView>('edit');
   const [mainView, setMainView] = useState<MainView>('preview');
   const [slideBgs, setSlideBgs] = useState<SlideBgMap>(initial.slideBgs);
+  const [caption, setCaption] = useState<string>(initial.caption);
+  const [saveStatus, setSaveStatus] = useState<{ kind: 'idle' } | { kind: 'saving' } | { kind: 'ok' } | { kind: 'err'; msg: string }>({ kind: 'idle' });
   // Active "pick a background for slide X" request — when set, the Library
   // shows a banner + cancel button and the next tap on an item resolves the
   // promise and writes back into slideBgs.
@@ -164,10 +170,10 @@ export default function App() {
     try {
       localStorage.setItem(
         STORAGE_KEY,
-        JSON.stringify({ mascot, variant, platform, jsonText, slideBgs }),
+        JSON.stringify({ mascot, variant, platform, jsonText, slideBgs, caption }),
       );
     } catch {}
-  }, [mascot, variant, platform, jsonText, slideBgs]);
+  }, [mascot, variant, platform, jsonText, slideBgs, caption]);
 
   useEffect(() => {
     const onMessage = (e: MessageEvent) => {
@@ -291,6 +297,54 @@ export default function App() {
     });
   }
 
+  // Asks the engine to render a small PNG of the hook slide and ship it
+  // back via postMessage. Resolves to null if the engine never replies
+  // (timeout) or hasn't rendered any slides yet — we still save the post,
+  // just without a thumbnail.
+  function captureThumbnail(): Promise<Blob | null> {
+    return new Promise((resolve) => {
+      const iframe = iframeRef.current;
+      if (!iframe || !iframe.contentWindow) {
+        resolve(null);
+        return;
+      }
+      const requestId = Math.random().toString(36).slice(2);
+      const onMessage = (e: MessageEvent) => {
+        const m = e.data as { type?: string; requestId?: string; blob?: unknown };
+        if (!m || m.type !== 'thumb' || m.requestId !== requestId) return;
+        window.removeEventListener('message', onMessage);
+        clearTimeout(timer);
+        resolve(m.blob instanceof Blob ? m.blob : null);
+      };
+      window.addEventListener('message', onMessage);
+      const timer = setTimeout(() => {
+        window.removeEventListener('message', onMessage);
+        resolve(null);
+      }, 15000);
+      iframe.contentWindow.postMessage({ type: 'capture-thumb', requestId }, '*');
+    });
+  }
+
+  async function handleSaveToHistory() {
+    if (!caption.trim() && !window.confirm('Save this post with no caption?')) return;
+    setSaveStatus({ kind: 'saving' });
+    try {
+      const thumb = await captureThumbnail();
+      await addPost({
+        caption: caption.trim(),
+        tiktokUrl: '',
+        jsonSnapshot: jsonText,
+        mascot: mascotKey(mascot, variant),
+        platform,
+        thumbnailBlob: thumb,
+      });
+      setSaveStatus({ kind: 'ok' });
+      setTimeout(() => setSaveStatus({ kind: 'idle' }), 2500);
+    } catch (e) {
+      setSaveStatus({ kind: 'err', msg: (e as Error).message || 'save failed' });
+    }
+  }
+
   function handleIframeLoad() {
     // Push current sidebar state into the engine on initial load so the
     // preview matches the controls instead of showing the engine's default.
@@ -339,6 +393,7 @@ export default function App() {
       <nav className="md:hidden flex shrink-0 bg-[#0a0e1a] border-b border-white/[0.06]">
         {mobileTabBtn('edit', 'Edit')}
         {mobileTabBtn('library', 'Library')}
+        {mobileTabBtn('analytics', 'Stats')}
         {mobileTabBtn('preview', 'Preview')}
       </nav>
 
@@ -562,19 +617,66 @@ export default function App() {
             )}
           </section>
 
-          <section className="px-5 md:px-10 py-6 md:py-7">
+          <section className="px-5 md:px-10 py-6 md:py-7 border-b border-white/[0.04]">
+            {sectionLabel(
+              'Caption',
+              <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-600">
+                · for TikTok
+              </span>,
+            )}
+            <textarea
+              value={caption}
+              onChange={(e) => setCaption(e.target.value)}
+              spellCheck={true}
+              rows={3}
+              className="w-full bg-[#070b18] border border-white/[0.08] rounded-xl p-3 md:p-4
+                         text-sm leading-relaxed text-gray-200
+                         placeholder:text-gray-700
+                         focus:border-[#00E5FF]/50 focus:outline-none
+                         focus:shadow-[0_0_0_4px_rgba(0,229,255,0.08)]
+                         resize-y custom-scrollbar transition-all duration-200"
+              placeholder="Hook in the first line. Hashtags at the end. (Saved with the post when you tap Save to history.)"
+            />
             <button
               type="button"
+              disabled={!caption}
               onClick={() => {
-                setMainView('library');
-                setMobileView('library');
+                if (!caption) return;
+                navigator.clipboard?.writeText(caption).catch(() => {});
               }}
-              className="mb-4 w-full py-3 rounded-xl text-sm font-bold uppercase tracking-[0.16em]
-                         border border-white/[0.10] bg-white/[0.03] text-gray-300
-                         hover:border-[#00E5FF]/40 hover:text-[#00E5FF] transition-all"
+              className="mt-2 text-[11px] font-bold uppercase tracking-[0.14em] text-gray-500 hover:text-[#00E5FF] disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              Open Media Bank
+              Copy caption
             </button>
+          </section>
+
+          <section className="px-5 md:px-10 py-6 md:py-7">
+            <div className="grid grid-cols-2 gap-2 mb-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setMainView('library');
+                  setMobileView('library');
+                }}
+                className="py-3 rounded-xl text-xs md:text-sm font-bold uppercase tracking-[0.14em]
+                           border border-white/[0.10] bg-white/[0.03] text-gray-300
+                           hover:border-[#00E5FF]/40 hover:text-[#00E5FF] transition-all"
+              >
+                Media Bank
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setMainView('analytics');
+                  setMobileView('analytics');
+                }}
+                className="py-3 rounded-xl text-xs md:text-sm font-bold uppercase tracking-[0.14em]
+                           border border-white/[0.10] bg-white/[0.03] text-gray-300
+                           hover:border-[#00E5FF]/40 hover:text-[#00E5FF] transition-all"
+              >
+                Analytics
+              </button>
+            </div>
             <button
               type="button"
               onClick={handleRender}
@@ -593,6 +695,20 @@ export default function App() {
                 Render slides
               </span>
             </button>
+            <button
+              type="button"
+              onClick={handleSaveToHistory}
+              disabled={saveStatus.kind === 'saving'}
+              className="mt-3 w-full py-3 md:py-3.5 rounded-xl text-sm font-bold uppercase tracking-[0.16em]
+                         border border-[#00E5FF]/30 bg-[#0e2b3a] text-[#00E5FF]
+                         hover:bg-[#13384c] hover:border-[#00E5FF]/60 transition-all
+                         disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {saveStatus.kind === 'saving' ? 'Saving…' : saveStatus.kind === 'ok' ? '✓ Saved to history' : 'Save to history'}
+            </button>
+            {saveStatus.kind === 'err' && (
+              <div className="mt-2 text-xs text-red-400">Save failed: {saveStatus.msg}</div>
+            )}
           </section>
         </div>
       </aside>
@@ -621,6 +737,13 @@ export default function App() {
           (mainView === 'library' ? 'md:block' : 'md:hidden')
         }>
           <Library pickMode={pickRequest} />
+        </div>
+        <div className={
+          'absolute inset-0 ' +
+          (mobileView === 'analytics' ? 'block ' : 'hidden ') +
+          (mainView === 'analytics' ? 'md:block' : 'md:hidden')
+        }>
+          <Analytics />
         </div>
         <div className={
           'absolute inset-0 ' +

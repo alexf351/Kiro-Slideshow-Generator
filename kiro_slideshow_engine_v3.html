@@ -586,13 +586,43 @@ if (window.parent !== window) {
 // MESSAGE BRIDGE — parent posts {type:'render', slides:{...}} to swap content.
 // Responds with {type:'rendered'} when done.
 // ============================================================
-window.addEventListener('message', (e) => {
+window.addEventListener('message', async (e) => {
   const msg = e.data;
-  if (!msg || typeof msg !== 'object' || msg.type !== 'render' || !msg.slides) return;
-  Object.keys(SLIDES).forEach(k => delete SLIDES[k]);
-  Object.assign(SLIDES, msg.slides);
-  rerender();
-  try { e.source.postMessage({ type: 'rendered' }, '*'); } catch (err) {}
+  if (!msg || typeof msg !== 'object') return;
+
+  if (msg.type === 'render' && msg.slides) {
+    Object.keys(SLIDES).forEach(k => delete SLIDES[k]);
+    Object.assign(SLIDES, msg.slides);
+    rerender();
+    try { e.source.postMessage({ type: 'rendered' }, '*'); } catch (err) {}
+    return;
+  }
+
+  // Captures slide 0 (the hook) at low resolution and posts the PNG blob
+  // back to the parent. Used by the React shell when the user taps
+  // "Save to history" so each post in the analytics list has a thumbnail.
+  if (msg.type === 'capture-thumb') {
+    try {
+      const html2canvas = await loadHtml2Canvas();
+      if (document.fonts && document.fonts.ready) {
+        try { await document.fonts.ready; } catch (err) {}
+      }
+      const slide = document.querySelector('.slide');
+      if (!slide) {
+        e.source.postMessage({ type: 'thumb', requestId: msg.requestId, error: 'no slides rendered' }, '*');
+        return;
+      }
+      // 0.25 scale → ~270×480 PNG, ~30 KB. Plenty for a list thumbnail.
+      const canvas = await html2canvas(slide, {
+        width: 1080, height: 1920, scale: 0.25, useCORS: true, backgroundColor: '#000000',
+      });
+      const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+      e.source.postMessage({ type: 'thumb', requestId: msg.requestId, blob }, '*');
+    } catch (err) {
+      try { e.source.postMessage({ type: 'thumb', requestId: msg.requestId, error: String(err) }, '*'); } catch (e2) {}
+    }
+    return;
+  }
 });
 
 // Load any previously-saved slides from localStorage on page load

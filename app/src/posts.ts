@@ -1,0 +1,140 @@
+// IndexedDB-backed history of posted slideshows. Each Post is a snapshot of
+// the JSON + mascot/platform that was rendered, plus a small thumbnail we
+// capture from the engine and a manual stats block the user fills in after
+// they actually post on TikTok.
+//
+// Lives in the same DB as the media bank (`kiro_media_bank`) — adding the
+// `posts` store just requires bumping the DB version and creating it in
+// the upgrade callback. Existing items + sets are left alone.
+
+const DB_NAME = 'kiro_media_bank';
+const DB_VERSION = 2;
+const ITEMS_STORE = 'items';
+const SETS_STORE = 'sets';
+const POSTS_STORE = 'posts';
+
+export type PostStats = {
+  views: number;
+  likes: number;
+  comments: number;
+  shares: number;
+  saves: number;
+};
+
+export type Post = {
+  id: string;
+  postedAt: number;
+  caption: string;
+  tiktokUrl: string;
+  jsonSnapshot: string;
+  mascot: string;
+  platform: string;
+  thumbnailBlob: Blob | null;
+  stats: PostStats;
+};
+
+export const ZERO_STATS: PostStats = { views: 0, likes: 0, comments: 0, shares: 0, saves: 0 };
+
+let dbPromise: Promise<IDBDatabase> | null = null;
+
+function openDb(): Promise<IDBDatabase> {
+  if (dbPromise) return dbPromise;
+  dbPromise = new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      // Re-create the existing stores defensively so a fresh install at v2
+      // still works. The mediaBank module also calls open() — the first
+      // caller wins; either path creates everything.
+      if (!db.objectStoreNames.contains(ITEMS_STORE)) db.createObjectStore(ITEMS_STORE, { keyPath: 'id' });
+      if (!db.objectStoreNames.contains(SETS_STORE)) db.createObjectStore(SETS_STORE, { keyPath: 'id' });
+      if (!db.objectStoreNames.contains(POSTS_STORE)) db.createObjectStore(POSTS_STORE, { keyPath: 'id' });
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+  return dbPromise;
+}
+
+function reqToPromise<T>(req: IDBRequest<T>): Promise<T> {
+  return new Promise((resolve, reject) => {
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function newId(): string {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID();
+  return 'id_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+}
+
+export async function addPost(input: Omit<Post, 'id' | 'postedAt' | 'stats'> & { stats?: PostStats }): Promise<Post> {
+  const db = await openDb();
+  const post: Post = {
+    id: newId(),
+    postedAt: Date.now(),
+    caption: input.caption,
+    tiktokUrl: input.tiktokUrl ?? '',
+    jsonSnapshot: input.jsonSnapshot,
+    mascot: input.mascot,
+    platform: input.platform,
+    thumbnailBlob: input.thumbnailBlob,
+    stats: input.stats ?? { ...ZERO_STATS },
+  };
+  const t = db.transaction([POSTS_STORE], 'readwrite');
+  t.objectStore(POSTS_STORE).put(post);
+  await new Promise<void>((res, rej) => {
+    t.oncomplete = () => res();
+    t.onerror = () => rej(t.error);
+  });
+  return post;
+}
+
+export async function listPosts(): Promise<Post[]> {
+  const db = await openDb();
+  const all = (await reqToPromise(db.transaction([POSTS_STORE], 'readonly').objectStore(POSTS_STORE).getAll())) as Post[];
+  // Newest first.
+  all.sort((a, b) => b.postedAt - a.postedAt);
+  return all;
+}
+
+export async function updatePost(id: string, patch: Partial<Omit<Post, 'id'>>): Promise<void> {
+  const db = await openDb();
+  const t = db.transaction([POSTS_STORE], 'readwrite');
+  const store = t.objectStore(POSTS_STORE);
+  const existing = (await reqToPromise(store.get(id))) as Post | undefined;
+  if (!existing) return;
+  const merged: Post = {
+    ...existing,
+    ...patch,
+    stats: patch.stats ? { ...existing.stats, ...patch.stats } : existing.stats,
+  };
+  store.put(merged);
+  await new Promise<void>((res, rej) => {
+    t.oncomplete = () => res();
+    t.onerror = () => rej(t.error);
+  });
+}
+
+export async function deletePost(id: string): Promise<void> {
+  const db = await openDb();
+  const t = db.transaction([POSTS_STORE], 'readwrite');
+  t.objectStore(POSTS_STORE).delete(id);
+  await new Promise<void>((res, rej) => {
+    t.oncomplete = () => res();
+    t.onerror = () => rej(t.error);
+  });
+}
+
+export function sumStats(posts: Post[]): PostStats {
+  return posts.reduce(
+    (acc, p) => ({
+      views: acc.views + (p.stats.views || 0),
+      likes: acc.likes + (p.stats.likes || 0),
+      comments: acc.comments + (p.stats.comments || 0),
+      shares: acc.shares + (p.stats.shares || 0),
+      saves: acc.saves + (p.stats.saves || 0),
+    }),
+    { ...ZERO_STATS },
+  );
+}
