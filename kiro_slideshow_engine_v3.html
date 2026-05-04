@@ -116,10 +116,16 @@
     paint-order: stroke fill;
     text-shadow: 0 6px 16px rgba(0,0,0,0.85);
   }
-  .preset-meme-pov .meme-top { top: 140px; }
-  .preset-meme-pov .meme-bottom { bottom: 220px; }
+  /* Captions positioned to clear the TikTok safe zone (top 14%, bottom
+     24%, sides 12% on a 1080×1920 canvas). Slightly less classic-meme
+     than edge-pinned text, but ensures the captions aren't obscured by
+     TikTok's username / caption / action-button overlays. */
+  .preset-meme-pov .meme-top { top: 290px; }
+  .preset-meme-pov .meme-bottom { bottom: 500px; }
   .preset-meme-pov .meme-watermark {
-    position: absolute; bottom: 60px; right: 60px;
+    /* Keep watermark inside the safe band too — anchored just above
+       the bottom obstruction zone instead of at the very edge. */
+    position: absolute; bottom: 480px; right: 80px;
     font-family: 'Inter', sans-serif; font-size: 28px; font-weight: 700;
     letter-spacing: 0.18em; color: rgba(255,255,255,0.85);
     text-shadow: 0 2px 6px rgba(0,0,0,0.8);
@@ -192,43 +198,83 @@
   .preset-aspirational .asp-cta-headline em {
     font-style: normal; font-weight: 900; color: #00E5FF;
   }
-  .preset-aspirational .asp-cta-headline {
-    font-family: 'Inter', sans-serif;
-    font-size: 144px; font-weight: 900; line-height: 0.96;
-    letter-spacing: -0.025em; color: #fff;
-    margin-bottom: 64px;
-    text-shadow: 0 4px 28px rgba(0,0,0,0.6);
+  /* Aspirational CTA — "luxury stamp" treatment.
+     Centered composition framed by gold rules, brand name set as a
+     trophy-style display lockup. Reads like a watch-brand label or a
+     limited-edition sleeve, not a generic search prompt. */
+  .preset-aspirational.slide-cta .frame {
+    /* Centered for the trophy feel, not bottom-anchored like the
+       beat slides. */
+    justify-content: center; align-items: center; text-align: center;
+    padding: 140px 120px 220px 120px;
   }
-  .preset-aspirational .asp-cta-search-row {
-    display: flex; align-items: baseline; gap: 28px;
-    margin-bottom: 28px;
-  }
-  .preset-aspirational .asp-cta-instruction {
+  .preset-aspirational .asp-cta-eyebrow {
     font-family: 'Inter', sans-serif;
-    font-size: 48px; font-weight: 500;
-    color: rgba(255,255,255,0.85);
+    font-size: 36px; font-weight: 800; letter-spacing: 0.36em;
+    text-transform: uppercase; color: #FFC857;
+    margin-bottom: 56px;
     text-shadow: 0 2px 10px rgba(0,0,0,0.6);
   }
-  .preset-aspirational .asp-cta-search {
+  .preset-aspirational .asp-cta-rule {
+    /* Thin gold rule with a soft glow — the visual frame for the
+       brand lockup. */
+    width: 520px; height: 2px;
+    background: linear-gradient(90deg, transparent, #FFC857 20%, #FFC857 80%, transparent);
+    box-shadow: 0 0 24px rgba(255,200,87,0.4);
+    margin: 0 auto 72px auto;
+  }
+  .preset-aspirational .asp-cta-rule-bottom {
+    margin: 72px auto 0 auto;
+  }
+  .preset-aspirational .asp-cta-headline {
     font-family: 'Inter', sans-serif;
-    font-size: 130px; font-weight: 900;
-    letter-spacing: -0.025em; color: #00E5FF;
-    border-bottom: 6px solid #00E5FF;
-    padding-bottom: 6px;
-    text-shadow: 0 0 24px rgba(0,229,255,0.35);
+    font-size: 132px; font-weight: 900; line-height: 0.96;
+    letter-spacing: -0.025em; color: #fff;
+    margin-bottom: 56px;
+    text-shadow: 0 4px 28px rgba(0,0,0,0.6);
+  }
+  /* Brand lockup — the search term renders huge as the trophy/stamp
+     centerpiece. Light gold border + drop-shadow sells the "premium
+     edition" feel. */
+  .preset-aspirational .asp-cta-search {
+    display: inline-block;
+    font-family: 'Inter', sans-serif;
+    font-size: 168px; font-weight: 900;
+    letter-spacing: -0.04em; color: #fff;
+    line-height: 0.95;
+    padding: 8px 12px;
+    text-shadow: 0 4px 32px rgba(0,229,255,0.40), 0 4px 16px rgba(0,0,0,0.5);
+  }
+  /* Cyan undertone glyphs — pseudo-element trick to give the search
+     term a subtle cyan halo without losing the white fill. */
+  .preset-aspirational .asp-cta-search { position: relative; }
+  .preset-aspirational .asp-cta-search::after {
+    content: ''; position: absolute; left: 50%; bottom: -12px;
+    transform: translateX(-50%);
+    width: 64px; height: 4px; background: #00E5FF;
+    box-shadow: 0 0 24px rgba(0,229,255,0.7);
+  }
+  .preset-aspirational .asp-cta-meta {
+    margin-top: 56px;
+    font-family: 'Inter', sans-serif;
+    font-size: 36px; font-weight: 600; letter-spacing: 0.24em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.78);
+    text-shadow: 0 2px 10px rgba(0,0,0,0.5);
   }
   .preset-aspirational .asp-cta-slogan {
-    margin-top: 52px;
-    font-family: 'Inter', sans-serif;
+    margin-top: 48px;
+    font-family: Georgia, 'Times New Roman', serif;
     font-size: 56px; font-weight: 600; font-style: italic;
     color: #FFC857;
     text-shadow: 0 2px 12px rgba(0,0,0,0.6);
   }
   .preset-aspirational .asp-attribution {
-    position: absolute; bottom: 80px; left: 90px;
+    position: absolute; bottom: 80px; left: 0; right: 0;
+    text-align: center;
     font-family: 'Inter', sans-serif;
-    font-size: 32px; font-weight: 700; letter-spacing: 0.20em;
-    color: rgba(255,255,255,0.6);
+    font-size: 32px; font-weight: 700; letter-spacing: 0.24em;
+    color: rgba(255,200,87,0.7);
   }
 
   /* ============================================================
@@ -299,37 +345,84 @@
     border-radius: 24px;
     z-index: 2;
   }
-  /* CTA reuses the headline / search-row pattern but skips the
-     mockup so the conversion message is uncluttered. */
+  /* Product Demo CTA — phone mockup at the top, then a real
+     App-Store-style download badge below. Reads like an app
+     marketing card, not a generic search prompt. */
+  .preset-product-demo.slide-cta .frame {
+    /* Slightly tighter top so the mockup + headline + badge stack
+       fits without the bottom slogan crashing into the safe zone. */
+    padding: 100px 80px 220px 80px;
+    justify-content: center;
+  }
   .preset-product-demo .product-cta-headline {
     font-family: 'Inter', sans-serif;
-    font-size: 132px; font-weight: 900; line-height: 1.0;
+    font-size: 108px; font-weight: 900; line-height: 1.0;
     letter-spacing: -0.025em; color: #fff;
-    margin-bottom: 72px; max-width: 1000px;
+    margin: 56px 0 48px 0; max-width: 920px;
     text-shadow: 0 2px 16px rgba(0,0,0,0.55);
   }
   .preset-product-demo .product-cta-headline strong { color: #00E5FF; font-weight: 900; }
-  .preset-product-demo .product-cta-search-row {
-    display: flex; align-items: baseline; justify-content: center; gap: 28px;
-    margin-bottom: 28px;
+  .preset-product-demo .product-cta-mockup-wrap { display: flex; justify-content: center; }
+  /* Slightly smaller mockup on the CTA so badge + slogan fit. */
+  .preset-product-demo.slide-cta .phone-mockup {
+    width: 480px; height: 1024px;
+    border-radius: 64px; padding: 14px;
   }
-  .preset-product-demo .product-cta-instruction {
-    font-family: 'Inter', sans-serif;
-    font-size: 50px; font-weight: 500; color: rgba(255,255,255,0.85);
+  .preset-product-demo.slide-cta .phone-screen { border-radius: 52px; }
+  .preset-product-demo.slide-cta .phone-notch {
+    top: 28px; width: 144px; height: 30px;
   }
-  .preset-product-demo .product-cta-search {
+  /* App-Store-style download badge — black pill with the "Download
+     on the" microcopy above the bigger "App Store" wordmark. SVG-free
+     so it captures cleanly through html2canvas. */
+  .preset-product-demo .product-cta-badge {
+    display: inline-flex; align-items: center; gap: 24px;
+    padding: 24px 44px;
+    background: #000;
+    border: 2px solid rgba(255,255,255,0.85);
+    border-radius: 28px;
+    box-shadow: 0 12px 36px rgba(0,0,0,0.55), 0 0 24px rgba(0,229,255,0.18);
+    text-decoration: none;
+  }
+  .preset-product-demo .product-cta-badge-glyph {
+    /* Stylised Apple-ish glyph drawn in CSS. Not the literal Apple
+       logo — close enough to read as an app store badge without
+       trademark issues. */
+    width: 64px; height: 64px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Inter', sans-serif; font-size: 60px;
+    font-weight: 800; color: #fff; line-height: 1;
+  }
+  .preset-product-demo .product-cta-badge-text {
+    display: flex; flex-direction: column; align-items: flex-start;
+    line-height: 1; text-align: left;
+  }
+  .preset-product-demo .product-cta-badge-eyebrow {
     font-family: 'Inter', sans-serif;
-    font-size: 130px; font-weight: 900; letter-spacing: -0.02em;
-    color: #00E5FF;
-    border-bottom: 6px solid #00E5FF;
-    padding-bottom: 6px;
-    text-shadow: 0 0 24px rgba(0,229,255,0.35);
+    font-size: 24px; font-weight: 600; letter-spacing: 0.06em;
+    color: rgba(255,255,255,0.85);
+    margin-bottom: 8px;
+  }
+  .preset-product-demo .product-cta-badge-store {
+    font-family: 'Inter', sans-serif;
+    font-size: 56px; font-weight: 800; letter-spacing: -0.02em;
+    color: #fff;
+  }
+  .preset-product-demo .product-cta-search-line {
+    margin-top: 40px;
+    font-family: 'Inter', sans-serif;
+    font-size: 36px; font-weight: 600; letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgba(0,229,255,0.85);
+  }
+  .preset-product-demo .product-cta-search-line strong {
+    color: #fff; font-weight: 800;
   }
   .preset-product-demo .product-cta-slogan {
-    margin-top: 60px;
+    margin-top: 24px;
     font-family: 'Inter', sans-serif;
-    font-size: 50px; font-weight: 600; font-style: italic;
-    color: rgba(0,229,255,0.85);
+    font-size: 42px; font-weight: 600; font-style: italic;
+    color: rgba(255,255,255,0.85);
   }
   .preset-product-demo .product-attribution {
     position: absolute; bottom: 80px; left: 0; right: 0;
@@ -443,7 +536,10 @@
      stacked caption-style block (search line + slogan) instead of
      top/bottom captions. */
   .preset-meme-pov .meme-cta {
-    position: absolute; left: 0; right: 0; bottom: 200px;
+    /* Anchored just inside the TikTok bottom safe zone (24% = ~460px)
+       so the search-row and slogan stay visible above the caption /
+       action overlay. */
+    position: absolute; left: 0; right: 0; bottom: 500px;
     padding: 0 80px;
     text-align: center;
     color: #fff;
@@ -1243,17 +1339,25 @@ function buildAspirationalBeat(b) {
 
 function buildAspirationalCTA(c, attribution) {
   if (!c) return '';
+  // Eyebrow surfaces the platform context (e.g. "AVAILABLE NOW" or
+  // c.instructionAbove if supplied) above the gold rule. Falls back to
+  // a sensible default so the visual frame holds even with sparse JSON.
+  const eyebrowText = c.instructionAbove || (c.searchTerm ? 'available on' : '');
+  const eyebrow = eyebrowText
+    ? `<div class="asp-cta-eyebrow">${eyebrowText}</div>`
+    : '';
+  const ruleTop = `<div class="asp-cta-rule"></div>`;
   const headline = c.headline ? `<div class="asp-cta-headline">${c.headline}</div>` : '';
-  let searchRow = '';
-  if (c.instructionAbove || c.searchTerm || c.instructionBelow) {
-    const above = c.instructionAbove ? `<span class="asp-cta-instruction">${c.instructionAbove}</span>` : '';
-    const term = c.searchTerm ? `<span class="asp-cta-search">${c.searchTerm}</span>` : '';
-    searchRow = `<div class="asp-cta-search-row">${above}${term}</div>`;
-  }
-  const below = c.instructionBelow ? `<div class="asp-cta-instruction">${c.instructionBelow}</div>` : '';
+  // The search term itself is the trophy/stamp centerpiece — rendered
+  // huge with a cyan accent rule below.
+  const search = c.searchTerm ? `<div class="asp-cta-search">${c.searchTerm}</div>` : '';
+  // instructionBelow becomes a small uppercase meta line under the
+  // brand lockup, e.g. "the app store · 5 min/day".
+  const meta = c.instructionBelow ? `<div class="asp-cta-meta">${c.instructionBelow}</div>` : '';
+  const ruleBottom = `<div class="asp-cta-rule asp-cta-rule-bottom"></div>`;
   const slogan = c.slogan ? `<div class="asp-cta-slogan">${c.slogan}</div>` : '';
   const attr = attribution ? `<div class="asp-attribution">${attribution}</div>` : '';
-  return `<div class="asp-cta">${headline}${searchRow}${below}${slogan}</div>${attr}`;
+  return `${eyebrow}${ruleTop}${headline}${search}${meta}${ruleBottom}${slogan}${attr}`;
 }
 
 // ============================================================
@@ -1290,17 +1394,32 @@ function buildProductFeature(f) {
 
 function buildProductCTA(c, attribution) {
   if (!c) return '';
+  // CTA can show an App Store screenshot inside the mockup just like a
+  // feature slide. The picker writes to c.bg; c.screenshot is also
+  // accepted as an alias for hand-edited JSON.
+  const screenshot = c.bg || c.screenshot || '';
+  const mockup = `<div class="product-cta-mockup-wrap">${phoneMockup(screenshot)}</div>`;
   const headline = c.headline ? `<div class="product-cta-headline">${c.headline}</div>` : '';
-  let searchRow = '';
+  // Pseudo-Apple-ish download badge — not the literal mark, just a
+  // recognisable "Download on the App Store" lockup.
+  const badge = `
+    <a class="product-cta-badge">
+      <span class="product-cta-badge-glyph">⬇</span>
+      <span class="product-cta-badge-text">
+        <span class="product-cta-badge-eyebrow">Download on the</span>
+        <span class="product-cta-badge-store">App Store</span>
+      </span>
+    </a>`;
+  // Search line lives under the badge as a secondary instruction.
+  let searchLine = '';
   if (c.instructionAbove || c.searchTerm) {
-    const above = c.instructionAbove ? `<span class="product-cta-instruction">${c.instructionAbove}</span>` : '';
-    const term = c.searchTerm ? `<span class="product-cta-search">${c.searchTerm}</span>` : '';
-    searchRow = `<div class="product-cta-search-row">${above}${term}</div>`;
+    const above = c.instructionAbove ? `${c.instructionAbove} ` : '';
+    const term = c.searchTerm ? `<strong>${c.searchTerm}</strong>` : '';
+    searchLine = `<div class="product-cta-search-line">${above}${term}</div>`;
   }
-  const below = c.instructionBelow ? `<div class="product-cta-instruction">${c.instructionBelow}</div>` : '';
   const slogan = c.slogan ? `<div class="product-cta-slogan">${c.slogan}</div>` : '';
   const attr = attribution ? `<div class="product-attribution">${attribution}</div>` : '';
-  return `${headline}${searchRow}${below}${slogan}${attr}`;
+  return `${mockup}${headline}${badge}${searchLine}${slogan}${attr}`;
 }
 
 // ============================================================
