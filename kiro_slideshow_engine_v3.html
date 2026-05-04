@@ -43,6 +43,52 @@
   .bg-mascot { position: absolute; top: 48%; left: 50%; width: 1200px; height: 1200px; transform: translate(-50%, -50%); background-size: contain; background-repeat: no-repeat; background-position: center; opacity: 0.85; pointer-events: none; }
   .bg-photo { position: absolute; inset: 0; background-size: cover; background-position: center; background-repeat: no-repeat; pointer-events: none; }
   .bg-photo-scrim { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.15) 25%, rgba(0,0,0,0.15) 55%, rgba(0,0,0,0.85) 90%, rgba(0,0,0,1) 100%); pointer-events: none; }
+  /* Solid fallback for photo-first presets (e.g. pain_story) when no
+     background is supplied. Sits where .bg-mascot would sit in the
+     prompt-pack flow but stays neutral. */
+  .bg-solid { position: absolute; inset: 0; background: #0a0a12; }
+
+  /* ============================================================
+     PRESET: pain_story
+     Aesthetic-photo-driven confession format. Editorial italic serif,
+     no chat boxes, no top counter, soft lowercase CTA. Designed to
+     sit on top of a moody full-bleed photo (S.background) and read
+     like a long-form social caption broken across slides.
+     ============================================================ */
+  .preset-pain-story .frame { padding: 200px 100px 220px 100px; display: flex; align-items: center; justify-content: center; }
+  .preset-pain-story.slide-cta .frame { padding-bottom: 200px; }
+  .preset-pain-story .pain-text {
+    font-family: Georgia, 'Iowan Old Style', 'Apple Garamond', 'Times New Roman', serif;
+    font-size: 110px; line-height: 1.18; font-weight: 500; font-style: italic;
+    color: #fff; text-align: center; letter-spacing: -0.005em;
+    text-shadow: 0 4px 24px rgba(0,0,0,0.7), 0 2px 8px rgba(0,0,0,0.5);
+  }
+  .preset-pain-story .pain-text-hook { font-size: 132px; font-weight: 600; }
+  .preset-pain-story .pain-text strong { font-weight: 700; font-style: italic; }
+  .preset-pain-story .pain-cta { text-align: center; color: #fff; }
+  .preset-pain-story .pain-cta-headline {
+    font-family: Georgia, 'Iowan Old Style', 'Apple Garamond', 'Times New Roman', serif;
+    font-size: 110px; font-weight: 600; font-style: italic;
+    line-height: 1.18; margin-bottom: 70px;
+    text-shadow: 0 4px 24px rgba(0,0,0,0.7);
+  }
+  .preset-pain-story .pain-cta-line {
+    font-family: 'Inter', -apple-system, system-ui, sans-serif;
+    font-size: 56px; font-weight: 400; color: rgba(255,255,255,0.92);
+    margin-bottom: 50px; text-shadow: 0 2px 12px rgba(0,0,0,0.6);
+  }
+  .preset-pain-story .pain-cta-line strong {
+    font-family: Georgia, serif; font-style: italic; font-weight: 700; color: #fff;
+  }
+  .preset-pain-story .pain-cta-slogan {
+    font-family: Georgia, serif; font-size: 48px; font-style: italic;
+    color: rgba(255,255,255,0.78); text-shadow: 0 2px 12px rgba(0,0,0,0.6);
+  }
+  .preset-pain-story .pain-attribution {
+    position: absolute; bottom: 80px; left: 0; right: 0; text-align: center;
+    font-family: 'Inter', sans-serif; font-size: 32px; font-weight: 600;
+    letter-spacing: 0.18em; color: rgba(255,255,255,0.55);
+  }
   .bg-vignette { position: absolute; inset: 0; background: radial-gradient(ellipse at center, rgba(0,0,0,0.0) 0%, rgba(0,0,0,0.30) 70%, rgba(0,0,0,0.65) 100%), linear-gradient(180deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.0) 25%, rgba(0,0,0,0.0) 50%, rgba(0,0,0,1.0) 82%, rgba(0,0,0,1.0) 100%); pointer-events: none; }
   body.show-safezone .slide::after { content: ''; position: absolute; top: 14%; bottom: 24%; left: 12%; right: 12%; border: 4px dashed rgba(255, 80, 80, 0.55); pointer-events: none; z-index: 50; }
   .frame { position: absolute; inset: 0; padding: 140px 90px 200px 90px; display: flex; flex-direction: column; z-index: 10; }
@@ -426,26 +472,79 @@ const PLUS_SVG = `<svg width="56" height="56" viewBox="0 0 24 24" fill="none" st
 const MIC_SVG = `<svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>`;
 const SEND_SVG = `<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>`;
 
+// Preset registry. Each preset is a self-contained format — its own slide
+// structure, its own builders, its own wrapper rules. Adding a new format
+// means adding an entry here, not branching inside the existing renderer.
+//
+// `prompt_pack` is the original Kiro format. The buildHook / buildPrompt /
+// buildCTA functions below are referenced unchanged so the trusted format
+// keeps rendering byte-for-byte the same.
+const PRESETS = {
+  prompt_pack: {
+    label: 'Prompt Pack',
+    slideClass: '',
+    showCounter: true,
+    // 'mascot' = fall back to the bouncy mascot bg + vignette when a slide
+    // has no explicit `bg`. 'photo' = solid dark fallback (no mascot).
+    fallbackBg: 'mascot',
+    buildSlides(S) {
+      const out = [];
+      out.push({ html: buildHook(S.hook), bg: S.hook && S.hook.bg });
+      (S.prompts || []).forEach((p) => {
+        out.push({ html: buildPrompt(p, S.attribution, S.platform), bg: p.bg });
+      });
+      out.push({ html: buildCTA(S.cta, S.pathContext), bg: S.cta && S.cta.bg });
+      return out;
+    },
+  },
+  pain_story: {
+    label: 'Pain Story',
+    slideClass: 'preset-pain-story',
+    showCounter: false,
+    fallbackBg: 'photo',
+    buildSlides(S) {
+      const out = [];
+      // `S.background` is a single shared photo URL/dataURL applied to every
+      // slide that doesn't define its own — keeps a confession-style story
+      // visually unified across beats.
+      const shared = S.background;
+      out.push({
+        html: buildPainText(S.hook, 'hook'),
+        bg: (S.hook && S.hook.bg) || shared,
+      });
+      (S.beats || []).forEach((b) => {
+        out.push({
+          html: buildPainText(b, 'beat'),
+          bg: (b && b.bg) || shared,
+        });
+      });
+      out.push({
+        html: buildPainCTA(S.cta, S.attribution),
+        bg: (S.cta && S.cta.bg) || shared,
+      });
+      return out;
+    },
+  },
+};
+
 function render() {
   // Any cached files from a previous "tap again to save" reflect the OLD
   // slides; invalidate now so the next save tap captures fresh.
   pendingShareFiles = null;
   const stage = document.getElementById('stage');
-  // Each entry: { html, bg } — bg is an optional per-slide image URL/data-URL
-  // that replaces the mascot. Falls back to the mascot when not set.
-  const slides = [];
 
-  slides.push({ html: buildHook(SLIDES.hook), bg: SLIDES.hook && SLIDES.hook.bg });
-  SLIDES.prompts.forEach((p) => {
-    slides.push({ html: buildPrompt(p, SLIDES.attribution, SLIDES.platform), bg: p.bg });
-  });
-  slides.push({ html: buildCTA(SLIDES.cta, SLIDES.pathContext), bg: SLIDES.cta && SLIDES.cta.bg });
+  const presetKey = (SLIDES.preset && PRESETS[SLIDES.preset]) ? SLIDES.preset : 'prompt_pack';
+  const preset = PRESETS[presetKey];
+  const slides = preset.buildSlides(SLIDES);
 
   const total = slides.length;
   slides.forEach(({ html: slideHTML, bg }, i) => {
     const slide = document.createElement('div');
     const isCTA = i === total - 1;
-    slide.className = 'slide' + (isCTA ? ' slide-cta' : '');
+    const cls = ['slide'];
+    if (preset.slideClass) cls.push(preset.slideClass);
+    if (isCTA) cls.push('slide-cta');
+    slide.className = cls.join(' ');
 
     let bgLayer;
     if (typeof bg === 'string' && bg.length > 0) {
@@ -453,16 +552,24 @@ function render() {
       const safeBg = bg.replace(/'/g, "\\'");
       bgLayer = `<div class="bg-photo" style="background-image: url('${safeBg}')"></div>
                  <div class="bg-photo-scrim"></div>`;
-    } else {
+    } else if (preset.fallbackBg === 'mascot') {
       const mascotKey = SLIDES.mascot || 'platinum';
       const mascotUrl = MASCOTS[mascotKey] || MASCOTS.platinum;
       bgLayer = `<div class="bg-mascot" style="background-image: url('${mascotUrl}')"></div>
                  <div class="bg-vignette"></div>`;
+    } else {
+      // Photo-first preset with no photo set yet — a solid dark fallback
+      // keeps text legible without dragging the mascot in (it would clash
+      // with editorial typography in formats like pain_story).
+      bgLayer = `<div class="bg-solid"></div>
+                 <div class="bg-photo-scrim"></div>`;
     }
+
+    const counterHtml = preset.showCounter ? `<div class="top-counter">${i+1} / ${total}</div>` : '';
 
     slide.innerHTML = `
       ${bgLayer}
-      <div class="top-counter">${i+1} / ${total}</div>
+      ${counterHtml}
       <div class="frame">${slideHTML}</div>
     `;
     stage.appendChild(slide);
@@ -569,6 +676,34 @@ function buildCTA(c, pathContext) {
       <div class="cta-slogan">${c.slogan}</div>
     </div>
   </div>`;
+}
+
+// ============================================================
+// PRESET: pain_story builders
+// Each beat is just a single italic serif sentence centered on a
+// shared aesthetic photo. The CTA is the only multi-element slide
+// and stays text-only (no chat boxes, no app icon).
+// ============================================================
+function buildPainText(item, kind) {
+  if (!item) return '';
+  const text = typeof item === 'string' ? item : (item.text || '');
+  const cls = kind === 'hook' ? 'pain-text pain-text-hook' : 'pain-text';
+  return `<div class="${cls}">${text}</div>`;
+}
+
+function buildPainCTA(c, attribution) {
+  if (!c) return '';
+  const headline = c.headline ? `<div class="pain-cta-headline">${c.headline}</div>` : '';
+  const ctaLineParts = [];
+  if (c.instructionAbove) ctaLineParts.push(`<span>${c.instructionAbove}</span>`);
+  if (c.searchTerm) ctaLineParts.push(`<strong>${c.searchTerm}</strong>`);
+  if (c.instructionBelow) ctaLineParts.push(`<span>${c.instructionBelow}</span>`);
+  const ctaLine = ctaLineParts.length
+    ? `<div class="pain-cta-line">${ctaLineParts.join(' ')}</div>`
+    : '';
+  const slogan = c.slogan ? `<div class="pain-cta-slogan">${c.slogan}</div>` : '';
+  const attr = attribution ? `<div class="pain-attribution">${attribution}</div>` : '';
+  return `<div class="pain-cta">${headline}${ctaLine}${slogan}</div>${attr}`;
 }
 
 render();
