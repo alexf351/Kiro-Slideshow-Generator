@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
+<meta name="viewport" content="width=1080, user-scalable=yes" />
 <title>Kiro Slideshow Engine</title>
 <style>
     /* Inter variable font, baked inline to avoid any network race
@@ -29,6 +30,8 @@
   .stage { display: flex; flex-direction: column; align-items: center; gap: 40px; padding: 96px 0 40px 0; }
   .slide { position: relative; width: var(--page-w); height: var(--page-h); background: var(--bg); overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.6); color: var(--ink); }
   .bg-mascot { position: absolute; top: 48%; left: 50%; width: 1200px; height: 1200px; transform: translate(-50%, -50%); background-size: contain; background-repeat: no-repeat; background-position: center; opacity: 0.85; pointer-events: none; }
+  .bg-photo { position: absolute; inset: 0; background-size: cover; background-position: center; background-repeat: no-repeat; pointer-events: none; }
+  .bg-photo-scrim { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.15) 25%, rgba(0,0,0,0.15) 55%, rgba(0,0,0,0.85) 90%, rgba(0,0,0,1) 100%); pointer-events: none; }
   .bg-vignette { position: absolute; inset: 0; background: radial-gradient(ellipse at center, rgba(0,0,0,0.0) 0%, rgba(0,0,0,0.30) 70%, rgba(0,0,0,0.65) 100%), linear-gradient(180deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.0) 25%, rgba(0,0,0,0.0) 50%, rgba(0,0,0,1.0) 82%, rgba(0,0,0,1.0) 100%); pointer-events: none; }
   body.show-safezone .slide::after { content: ''; position: absolute; top: 14%; bottom: 24%; left: 12%; right: 12%; border: 4px dashed rgba(255, 80, 80, 0.55); pointer-events: none; z-index: 50; }
   .frame { position: absolute; inset: 0; padding: 140px 90px 200px 90px; display: flex; flex-direction: column; z-index: 10; }
@@ -52,7 +55,10 @@
   .claude-icons-left, .claude-icons-right { display: flex; gap: 24px; align-items: center; }
   .icon-claude-send { width: 64px; height: 64px; display: flex; align-items: center; justify-content: center; background: #CC785C; border-radius: 50%; color: #ffffff; }
   .attribution { margin-top: 32px; font-size: 38px; font-weight: 600; color: var(--ink-muted); letter-spacing: 0.18em; align-self: flex-start; }
-  .cta-scrim { width: 100%; padding: 60px 40px; background: radial-gradient(ellipse at center, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0.40) 60%, rgba(0,0,0,0.0) 100%); text-align: center; }
+  /* No background — any opaque fill draws the rectangular outline of this
+     div over the mascot/photo behind it. Readability comes from the
+     slide-wide .bg-vignette plus the text-shadow on each cta-* element. */
+  .cta-scrim { width: 100%; padding: 60px 40px; text-align: center; }
   .cta-headline { font-size: 72px; line-height: 1.1; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 60px; color: var(--ink); text-shadow: 0 2px 12px rgba(0,0,0,0.6); }
   .cta-headline strong { font-weight: 900; }
   .cta-instruction { font-size: 60px; font-weight: 400; color: var(--ink); margin-bottom: 20px; text-shadow: 0 2px 8px rgba(0,0,0,0.6); }
@@ -410,26 +416,41 @@ const MIC_SVG = `<svg width="56" height="56" viewBox="0 0 24 24" fill="none" str
 const SEND_SVG = `<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>`;
 
 function render() {
+  // Any cached files from a previous "tap again to save" reflect the OLD
+  // slides; invalidate now so the next save tap captures fresh.
+  pendingShareFiles = null;
   const stage = document.getElementById('stage');
+  // Each entry: { html, bg } — bg is an optional per-slide image URL/data-URL
+  // that replaces the mascot. Falls back to the mascot when not set.
   const slides = [];
 
-  // Hook
-  slides.push(buildHook(SLIDES.hook));
-  // Prompts
-  SLIDES.prompts.forEach((p, i) => slides.push(buildPrompt(p, SLIDES.attribution, SLIDES.platform)));
-  // CTA
-  slides.push(buildCTA(SLIDES.cta, SLIDES.pathContext));
+  slides.push({ html: buildHook(SLIDES.hook), bg: SLIDES.hook && SLIDES.hook.bg });
+  SLIDES.prompts.forEach((p) => {
+    slides.push({ html: buildPrompt(p, SLIDES.attribution, SLIDES.platform), bg: p.bg });
+  });
+  slides.push({ html: buildCTA(SLIDES.cta, SLIDES.pathContext), bg: SLIDES.cta && SLIDES.cta.bg });
 
   const total = slides.length;
-  slides.forEach((slideHTML, i) => {
+  slides.forEach(({ html: slideHTML, bg }, i) => {
     const slide = document.createElement('div');
     const isCTA = i === total - 1;
     slide.className = 'slide' + (isCTA ? ' slide-cta' : '');
-    const mascotKey = SLIDES.mascot || 'platinum';
-    const mascotUrl = MASCOTS[mascotKey] || MASCOTS.platinum;
+
+    let bgLayer;
+    if (typeof bg === 'string' && bg.length > 0) {
+      // Escape single quotes so a URL with a quote can't break the inline style.
+      const safeBg = bg.replace(/'/g, "\\'");
+      bgLayer = `<div class="bg-photo" style="background-image: url('${safeBg}')"></div>
+                 <div class="bg-photo-scrim"></div>`;
+    } else {
+      const mascotKey = SLIDES.mascot || 'platinum';
+      const mascotUrl = MASCOTS[mascotKey] || MASCOTS.platinum;
+      bgLayer = `<div class="bg-mascot" style="background-image: url('${mascotUrl}')"></div>
+                 <div class="bg-vignette"></div>`;
+    }
+
     slide.innerHTML = `
-      <div class="bg-mascot" style="background-image: url('${mascotUrl}')"></div>
-      <div class="bg-vignette"></div>
+      ${bgLayer}
       <div class="top-counter">${i+1} / ${total}</div>
       <div class="frame">${slideHTML}</div>
     `;
@@ -745,60 +766,133 @@ function toggleSafeZone() {
   document.body.classList.toggle('show-safezone');
 }
 
-async function downloadAllSlides() {
-  const btn = document.getElementById('dl-btn');
-  const label = document.getElementById('dl-btn-label');
-  const originalText = label.textContent;
-  btn.disabled = true;
+// Files captured on the previous tap that we couldn't share immediately
+// because the browser's transient activation expired during capture
+// (iOS, mostly). Stashed so the next tap — which has fresh activation —
+// can call navigator.share() without re-rendering everything.
+let pendingShareFiles = null;
 
+async function captureAllSlidesAsFiles(label) {
+  const html2canvas = await loadHtml2Canvas();
+
+  // Force each weight of Inter to resolve before we paint into a canvas.
+  // document.fonts.ready alone can return before a specific weight is
+  // usable; document.fonts.load() asks the browser to fetch + decode
+  // that exact FontFace.
+  if (document.fonts && document.fonts.load) {
+    try {
+      const weights = [400, 500, 600, 700, 800, 900];
+      await Promise.all(weights.map((w) => document.fonts.load(`${w} 100px Inter`)));
+      if (document.fonts.ready) await document.fonts.ready;
+    } catch (e) {}
+  }
+
+  const safeWasOn = document.body.classList.contains('show-safezone');
+  if (safeWasOn) document.body.classList.remove('show-safezone');
+  document.querySelector('.hud').style.visibility = 'hidden';
+
+  const now = new Date();
+  const stamp = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}`;
+
+  const slideEls = document.querySelectorAll('.slide');
+  const files = [];
   try {
-    label.textContent = 'Loading…';
-    const html2canvas = await loadHtml2Canvas();
-
-    // Force each weight of Inter to actually resolve, then wait for all
-    // in-flight font work. document.fonts.ready alone can return before a
-    // given weight is usable in a new DOM element — document.fonts.load()
-    // asks the browser to fetch + decode that specific FontFace and only
-    // resolves when it's ready to paint. Covers every weight we use across
-    // hook / prompt-title / cta-headline / cta-search / cta-slogan.
-    if (document.fonts && document.fonts.load) {
-      try {
-        const weights = [400, 500, 600, 700, 800, 900];
-        await Promise.all(weights.map((w) => document.fonts.load(`${w} 100px Inter`)));
-        if (document.fonts.ready) await document.fonts.ready;
-      } catch (e) {}
-    }
-
-    // Hide the safe zone overlay if it's on, and the HUD itself, during capture
-    const safeWasOn = document.body.classList.contains('show-safezone');
-    if (safeWasOn) document.body.classList.remove('show-safezone');
-    document.querySelector('.hud').style.visibility = 'hidden';
-
-    // Generate a date-based prefix so successive downloads don't collide
-    const now = new Date();
-    const stamp = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}`;
-
-    const slides = document.querySelectorAll('.slide');
-    for (let i = 0; i < slides.length; i++) {
-      label.textContent = `Capturing ${i+1} / ${slides.length}…`;
-      const canvas = await html2canvas(slides[i], {
+    for (let i = 0; i < slideEls.length; i++) {
+      if (label) label.textContent = `Capturing ${i+1} / ${slideEls.length}…`;
+      const canvas = await html2canvas(slideEls[i], {
         width: 1080,
         height: 1920,
         scale: 1,
         useCORS: true,
         backgroundColor: '#000000',
       });
-      const dataUrl = canvas.toDataURL('image/png');
-      const link = document.createElement('a');
-      link.href = dataUrl;
-      link.download = `kiro_${stamp}_slide_${String(i+1).padStart(2,'0')}.png`;
-      link.click();
-      // Tiny delay so the browser doesn't block consecutive downloads
-      await new Promise(r => setTimeout(r, 300));
+      // Filenames are zero-padded so iOS Photos sorts them in slide order
+      // when the user taps "Save X Images" from the share sheet.
+      const filename = `kiro_${stamp}_slide_${String(i+1).padStart(2,'0')}.png`;
+      const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+      files.push(new File([blob], filename, { type: 'image/png' }));
     }
-
+  } finally {
     if (safeWasOn) document.body.classList.add('show-safezone');
     document.querySelector('.hud').style.visibility = 'visible';
+  }
+  return files;
+}
+
+async function downloadAllSlides() {
+  const btn = document.getElementById('dl-btn');
+  const label = document.getElementById('dl-btn-label');
+  const originalText = label.textContent;
+
+  // Fast path: previous tap captured the files but couldn't share because
+  // activation expired. This tap has fresh activation — share immediately.
+  if (pendingShareFiles && typeof navigator.share === 'function') {
+    try {
+      label.textContent = 'Opening share sheet…';
+      await navigator.share({ files: pendingShareFiles, title: 'Kiro Slideshow' });
+      label.textContent = '✓ Saved — check Photos';
+    } catch (err) {
+      if (err && err.name === 'AbortError') {
+        label.textContent = originalText;
+      } else {
+        label.textContent = '✗ Share failed';
+      }
+    }
+    pendingShareFiles = null;
+    setTimeout(() => { label.textContent = originalText; }, 2500);
+    return;
+  }
+
+  btn.disabled = true;
+  try {
+    label.textContent = 'Loading…';
+    const files = await captureAllSlidesAsFiles(label);
+
+    // Mobile path: Web Share API. iOS share sheet → "Save X Images" →
+    // every PNG lands in Photos, in filename (and therefore slide) order.
+    const canShare = typeof navigator.canShare === 'function' && navigator.canShare({ files });
+    if (canShare) {
+      try {
+        label.textContent = 'Opening share sheet…';
+        await navigator.share({ files, title: 'Kiro Slideshow' });
+        label.textContent = '✓ Saved — check Photos';
+        setTimeout(() => { label.textContent = originalText; btn.disabled = false; }, 3000);
+        return;
+      } catch (err) {
+        if (err && err.name === 'AbortError') {
+          // User dismissed the share sheet — leave files cached so the next
+          // tap shares again without re-capture.
+          pendingShareFiles = files;
+          label.textContent = '⤴ Tap again to save';
+          btn.disabled = false;
+          return;
+        }
+        if (err && err.name === 'NotAllowedError') {
+          // Capture took longer than the user-activation window. Cache the
+          // files; the next tap's fresh activation will share them.
+          pendingShareFiles = files;
+          label.textContent = '⤴ Tap again to save';
+          btn.disabled = false;
+          return;
+        }
+        // Unknown share error → fall through to the per-file download loop.
+        console.warn('Share failed; falling back to downloads.', err);
+      }
+    }
+
+    // Desktop fallback: per-file download. Object URLs (vs the old data URLs)
+    // mean the same File array can power either branch without re-encoding.
+    for (let i = 0; i < files.length; i++) {
+      label.textContent = `Saving ${i+1} / ${files.length}…`;
+      const url = URL.createObjectURL(files[i]);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = files[i].name;
+      link.click();
+      // Tiny delay so the browser doesn't coalesce/cancel rapid downloads.
+      await new Promise(r => setTimeout(r, 300));
+      URL.revokeObjectURL(url);
+    }
     label.textContent = '✓ Done — check Downloads';
     setTimeout(() => { label.textContent = originalText; btn.disabled = false; }, 3000);
   } catch (err) {
