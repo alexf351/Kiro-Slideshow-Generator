@@ -770,7 +770,12 @@ function toggleSafeZone() {
 // because the browser's transient activation expired during capture
 // (iOS, mostly). Stashed so the next tap — which has fresh activation —
 // can call navigator.share() without re-rendering everything.
-let pendingShareFiles = null;
+//
+// `var` (not `let`) is intentional: render() is called at module level
+// well above this line, and a `let` here would put the variable in the
+// temporal dead zone during that first call → ReferenceError → engine
+// never finishes initialising → blank preview.
+var pendingShareFiles = null;
 
 async function captureAllSlidesAsFiles(label) {
   const html2canvas = await loadHtml2Canvas();
