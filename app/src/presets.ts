@@ -80,6 +80,27 @@ const PAIN_STORY_JSON = `{
   "attribution": "@IRO.AI"
 }`;
 
+const MEME_POV_JSON = `{
+  "preset": "meme_pov",
+  "panels": [
+    {
+      "top": "POV: you finally start learning AI",
+      "bottom": "and your boss says 'so you're an expert now?'"
+    },
+    {
+      "top": "what they think you're doing",
+      "bottom": "vs what you're actually doing"
+    }
+  ],
+  "cta": {
+    "instructionAbove": "search",
+    "searchTerm": "Iro AI",
+    "instructionBelow": "on the App Store",
+    "slogan": "actually get good at AI."
+  },
+  "attribution": "@IRO.AI"
+}`;
+
 // Placeholders for not-yet-shipped presets. Selecting one will currently
 // render as prompt_pack on the engine side; we keep the entries here so
 // the selector shows what's coming.
@@ -124,9 +145,9 @@ export const PRESETS: Record<PresetKey, PresetMeta> = {
   meme_pov: {
     key: 'meme_pov',
     label: 'Meme / POV',
-    pitch: 'Image-dominant, top/bottom captions. Minimal branding. (Coming soon.)',
-    status: 'planned',
-    defaultJson: PLACEHOLDER_JSON('meme_pov'),
+    pitch: 'Image-dominant. Top/bottom captions with thick stroke, minimal branding.',
+    status: 'ready',
+    defaultJson: MEME_POV_JSON,
   },
   product_demo: {
     key: 'product_demo',
