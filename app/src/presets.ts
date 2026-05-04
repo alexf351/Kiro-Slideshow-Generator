@@ -62,11 +62,11 @@ const PROMPT_PACK_JSON = `{
   "cta": {
     "headline": "Want to actually <strong>learn AI</strong><br/>instead of just<br/>collecting prompts?",
     "instructionAbove": "search:",
-    "searchTerm": "Kiro AI",
+    "searchTerm": "Iro AI",
     "instructionBelow": "on the App Store.",
     "slogan": "stop asking AI questions.<br/><strong>start building with it.</strong>"
   },
-  "attribution": "@KIRO.APP"
+  "attribution": "@IRO.AI"
 }`;
 
 const PAIN_STORY_JSON = `{
