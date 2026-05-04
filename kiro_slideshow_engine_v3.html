@@ -287,9 +287,14 @@
      is always the brand gradient via .bg-solid.
      ============================================================ */
   .preset-product-demo .frame {
-    padding: 140px 80px 220px 80px;
+    /* Padding pinned to the TikTok 14% top / 24% bottom safe zone so a
+       1-line headline + mockup + 2-line subline all stay visible inside
+       it. Anchored top (justify-content: flex-start) instead of centered
+       so any overflow falls below the visible area, not above where the
+       headline lives. */
+    padding: 280px 80px 460px 80px;
     display: flex; flex-direction: column;
-    justify-content: center; align-items: center;
+    justify-content: flex-start; align-items: center;
     text-align: center;
   }
   .preset-product-demo .bg-photo-scrim { display: none; }
@@ -305,32 +310,39 @@
   .preset-product-demo .bg-photo { display: none; }
   .preset-product-demo .product-headline {
     font-family: 'Inter', sans-serif;
-    font-size: 92px; font-weight: 800; line-height: 1.05;
+    /* Down from 92 px / 72 px margin: a tighter headline lets the mockup
+       fit fully inside the safe zone alongside a 2-line subline. */
+    font-size: 76px; font-weight: 800; line-height: 1.04;
     letter-spacing: -0.02em; color: #fff;
-    margin-bottom: 72px; max-width: 900px;
+    margin-bottom: 36px; max-width: 920px;
     text-shadow: 0 2px 16px rgba(0,0,0,0.5);
   }
   .preset-product-demo .product-headline strong { color: #00E5FF; font-weight: 900; }
   .preset-product-demo .product-subline {
-    margin-top: 64px;
+    margin-top: 36px;
     font-family: 'Inter', sans-serif;
-    font-size: 44px; font-weight: 500; line-height: 1.25;
+    /* Down from 44 px so 2-line sublines clear the bottom safe zone. */
+    font-size: 36px; font-weight: 500; line-height: 1.22;
     color: rgba(255,255,255,0.85);
-    max-width: 900px;
+    max-width: 880px;
   }
   .preset-product-demo .phone-mockup {
-    width: 600px; height: 1280px;
-    border-radius: 80px;
+    /* Down from 600 × 1280. The original size pushed the bottom of the
+       mockup well past the 24% safe-zone floor on TikTok. 440 × 938
+       keeps the iPhone 9:19.5-ish proportion but fits inside the safe
+       band even with a 1-line headline above and a 2-line subline below. */
+    width: 440px; height: 938px;
+    border-radius: 60px;
     background: #14141c;
-    padding: 18px; position: relative;
+    padding: 14px; position: relative;
     box-shadow:
-      0 32px 80px rgba(0,0,0,0.7),
+      0 28px 70px rgba(0,0,0,0.7),
       0 0 0 4px rgba(255,255,255,0.06),
       inset 0 0 0 1px rgba(255,255,255,0.04);
   }
   .preset-product-demo .phone-screen {
     width: 100%; height: 100%;
-    border-radius: 64px;
+    border-radius: 48px;
     overflow: hidden;
     background-color: #000;
     background-size: cover;
@@ -339,39 +351,34 @@
   }
   .preset-product-demo .phone-notch {
     position: absolute;
-    top: 36px; left: 50%; transform: translateX(-50%);
-    width: 180px; height: 36px;
+    /* Smaller notch to match the smaller mockup. */
+    top: 26px; left: 50%; transform: translateX(-50%);
+    width: 132px; height: 28px;
     background: #000;
-    border-radius: 24px;
+    border-radius: 20px;
     z-index: 2;
   }
-  /* Product Demo CTA — phone mockup at the top, then a real
-     App-Store-style download badge below. Reads like an app
-     marketing card, not a generic search prompt. */
+  /* Product Demo CTA — App-Store-style download badge as the focal
+     point. Earlier versions stacked a mockup ABOVE the badge but the
+     combined height pushed past the safe zone and the mockup competed
+     with the conversion message; the CTA now skips the mockup so the
+     headline + badge + search line + slogan can breathe inside the
+     14% / 24% safe band. */
   .preset-product-demo.slide-cta .frame {
-    /* Slightly tighter top so the mockup + headline + badge stack
-       fits without the bottom slogan crashing into the safe zone. */
-    padding: 100px 80px 220px 80px;
+    padding: 290px 80px 470px 80px;
     justify-content: center;
   }
   .preset-product-demo .product-cta-headline {
     font-family: 'Inter', sans-serif;
     font-size: 108px; font-weight: 900; line-height: 1.0;
     letter-spacing: -0.025em; color: #fff;
-    margin: 56px 0 48px 0; max-width: 920px;
+    margin-bottom: 56px; max-width: 920px;
     text-shadow: 0 2px 16px rgba(0,0,0,0.55);
   }
   .preset-product-demo .product-cta-headline strong { color: #00E5FF; font-weight: 900; }
-  .preset-product-demo .product-cta-mockup-wrap { display: flex; justify-content: center; }
-  /* Slightly smaller mockup on the CTA so badge + slogan fit. */
-  .preset-product-demo.slide-cta .phone-mockup {
-    width: 480px; height: 1024px;
-    border-radius: 64px; padding: 14px;
-  }
-  .preset-product-demo.slide-cta .phone-screen { border-radius: 52px; }
-  .preset-product-demo.slide-cta .phone-notch {
-    top: 28px; width: 144px; height: 30px;
-  }
+  /* The phone-mockup wrap is intentionally hidden on CTA slides — see
+     comment on .preset-product-demo.slide-cta .frame above. */
+  .preset-product-demo.slide-cta .product-cta-mockup-wrap { display: none; }
   /* App-Store-style download badge — black pill with the "Download
      on the" microcopy above the bigger "App Store" wordmark. SVG-free
      so it captures cleanly through html2canvas. */
