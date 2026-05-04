@@ -30,6 +30,8 @@
   .stage { display: flex; flex-direction: column; align-items: center; gap: 40px; padding: 96px 0 40px 0; }
   .slide { position: relative; width: var(--page-w); height: var(--page-h); background: var(--bg); overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.6); color: var(--ink); }
   .bg-mascot { position: absolute; top: 48%; left: 50%; width: 1200px; height: 1200px; transform: translate(-50%, -50%); background-size: contain; background-repeat: no-repeat; background-position: center; opacity: 0.85; pointer-events: none; }
+  .bg-photo { position: absolute; inset: 0; background-size: cover; background-position: center; background-repeat: no-repeat; pointer-events: none; }
+  .bg-photo-scrim { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.15) 25%, rgba(0,0,0,0.15) 55%, rgba(0,0,0,0.85) 90%, rgba(0,0,0,1) 100%); pointer-events: none; }
   .bg-vignette { position: absolute; inset: 0; background: radial-gradient(ellipse at center, rgba(0,0,0,0.0) 0%, rgba(0,0,0,0.30) 70%, rgba(0,0,0,0.65) 100%), linear-gradient(180deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.0) 25%, rgba(0,0,0,0.0) 50%, rgba(0,0,0,1.0) 82%, rgba(0,0,0,1.0) 100%); pointer-events: none; }
   body.show-safezone .slide::after { content: ''; position: absolute; top: 14%; bottom: 24%; left: 12%; right: 12%; border: 4px dashed rgba(255, 80, 80, 0.55); pointer-events: none; z-index: 50; }
   .frame { position: absolute; inset: 0; padding: 140px 90px 200px 90px; display: flex; flex-direction: column; z-index: 10; }
@@ -412,25 +414,37 @@ const SEND_SVG = `<svg width="40" height="40" viewBox="0 0 24 24" fill="none" st
 
 function render() {
   const stage = document.getElementById('stage');
+  // Each entry: { html, bg } — bg is an optional per-slide image URL/data-URL
+  // that replaces the mascot. Falls back to the mascot when not set.
   const slides = [];
 
-  // Hook
-  slides.push(buildHook(SLIDES.hook));
-  // Prompts
-  SLIDES.prompts.forEach((p, i) => slides.push(buildPrompt(p, SLIDES.attribution, SLIDES.platform)));
-  // CTA
-  slides.push(buildCTA(SLIDES.cta, SLIDES.pathContext));
+  slides.push({ html: buildHook(SLIDES.hook), bg: SLIDES.hook && SLIDES.hook.bg });
+  SLIDES.prompts.forEach((p) => {
+    slides.push({ html: buildPrompt(p, SLIDES.attribution, SLIDES.platform), bg: p.bg });
+  });
+  slides.push({ html: buildCTA(SLIDES.cta, SLIDES.pathContext), bg: SLIDES.cta && SLIDES.cta.bg });
 
   const total = slides.length;
-  slides.forEach((slideHTML, i) => {
+  slides.forEach(({ html: slideHTML, bg }, i) => {
     const slide = document.createElement('div');
     const isCTA = i === total - 1;
     slide.className = 'slide' + (isCTA ? ' slide-cta' : '');
-    const mascotKey = SLIDES.mascot || 'platinum';
-    const mascotUrl = MASCOTS[mascotKey] || MASCOTS.platinum;
+
+    let bgLayer;
+    if (typeof bg === 'string' && bg.length > 0) {
+      // Escape single quotes so a URL with a quote can't break the inline style.
+      const safeBg = bg.replace(/'/g, "\\'");
+      bgLayer = `<div class="bg-photo" style="background-image: url('${safeBg}')"></div>
+                 <div class="bg-photo-scrim"></div>`;
+    } else {
+      const mascotKey = SLIDES.mascot || 'platinum';
+      const mascotUrl = MASCOTS[mascotKey] || MASCOTS.platinum;
+      bgLayer = `<div class="bg-mascot" style="background-image: url('${mascotUrl}')"></div>
+                 <div class="bg-vignette"></div>`;
+    }
+
     slide.innerHTML = `
-      <div class="bg-mascot" style="background-image: url('${mascotUrl}')"></div>
-      <div class="bg-vignette"></div>
+      ${bgLayer}
       <div class="top-counter">${i+1} / ${total}</div>
       <div class="frame">${slideHTML}</div>
     `;
