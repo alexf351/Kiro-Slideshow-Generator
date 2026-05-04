@@ -1,12 +1,12 @@
-# Kiro Slideshow Content Generator — Claude/ChatGPT Prompt (v3)
+# Iro Slideshow Content Generator — Claude/ChatGPT Prompt (v3)
 
 Updated to support **three slideshow modes** and **mascot tier selection**:
 
 | Mode | When to use | What it produces |
 |---|---|---|
 | **generic** | Top-of-funnel, broad audience, daily volume | Standard "7 prompts every X should save" — points to App Store |
-| **path-audience** (Shape B) | Mid-funnel, role-targeted | "7 prompts every [marketer / manager / etc.] should save" — CTA points to specific Kiro path |
-| **path-gap** (Shape A-prime) | Mid-funnel, knowledge-gap angle | "7 [topic] questions you should be able to answer" — CTA points to specific Kiro path |
+| **path-audience** (Shape B) | Mid-funnel, role-targeted | "7 prompts every [marketer / manager / etc.] should save" — CTA points to specific Iro path |
+| **path-gap** (Shape A-prime) | Mid-funnel, knowledge-gap angle | "7 [topic] questions you should be able to answer" — CTA points to specific Iro path |
 
 Paste the prompt below into ChatGPT (5.4) or Claude. Fill in `MODE`, `PLATFORM`, `PATH`, `ANGLE`, `TOPIC` at the bottom.
 
@@ -15,7 +15,7 @@ Paste the prompt below into ChatGPT (5.4) or Claude. Fill in `MODE`, `PLATFORM`,
 ## THE PROMPT
 
 ```
-You are generating content for a Kiro AI TikTok slideshow. Kiro is a Duolingo-style app that teaches AI literacy in 5 minutes a day. Format: 1 hook slide + 7 content slides + 1 CTA slide.
+You are generating content for a Iro AI TikTok slideshow. Iro is a Duolingo-style app that teaches AI literacy in 5 minutes a day. Format: 1 hook slide + 7 content slides + 1 CTA slide.
 
 ═══════════════════════════════════════════════════════════════
 MODE
@@ -23,16 +23,16 @@ MODE
 Three modes are supported. The brief at the bottom tells you which to use.
 
 MODE = generic
-  Standard prompt slideshow. CTA is generic "search Kiro AI on the App Store."
+  Standard prompt slideshow. CTA is generic "search Iro AI on the App Store."
 
 MODE = path-audience
-  Audience-targeted slideshow tied to a specific Kiro learning path.
+  Audience-targeted slideshow tied to a specific Iro learning path.
   Each "prompt" is a useful prompt for that audience.
   CTA points to the specific path: "→ start with [Path Name]"
   REQUIRES: pathContext.pathKey field in the JSON output.
 
 MODE = path-gap
-  Knowledge-gap question slideshow tied to a specific Kiro learning path.
+  Knowledge-gap question slideshow tied to a specific Iro learning path.
   Each "prompt" is actually a sharp question the audience SHOULD be able to answer but probably can't.
   Format: questions are 1-3 sentences, end with a question mark, written so the reader feels exposed.
   Hook framing: "7 [topic] questions every [role] should be able to answer (if you can't, you're behind)"
@@ -58,7 +58,7 @@ PLATFORM = claude
   but the SAME slide length constraints apply — keep prompts readable on a 1080x1920 slide.
 
 ═══════════════════════════════════════════════════════════════
-KIRO LEARNING PATHS (use ONE pathKey per slideshow when MODE != generic)
+IRO LEARNING PATHS (use ONE pathKey per slideshow when MODE != generic)
 ═══════════════════════════════════════════════════════════════
 
 | pathKey              | Path Name           | Audience                          |
@@ -166,7 +166,7 @@ CTA — varies by mode
 For MODE = generic, use exactly:
   "headline": "Want to actually <strong>learn AI</strong><br/>instead of just<br/>collecting prompts?"
   "instructionAbove": "search:"
-  "searchTerm": "Kiro AI"
+  "searchTerm": "Iro AI"
   "instructionBelow": "on the App Store."
   "slogan": "stop asking AI questions.<br/><strong>start building with it.</strong>"
 
@@ -198,8 +198,8 @@ For MODE = generic:
   "mascot": "bronze" or "silver",
   "hook": { "headline": "...", "sub": "..." },
   "prompts": [ {"title": "1. <strong>...</strong> ...", "prompt": "..."}, ... 7 total ... ],
-  "cta": { "headline": "...", "instructionAbove": "search:", "searchTerm": "Kiro AI", "instructionBelow": "on the App Store.", "slogan": "stop asking AI questions.<br/><strong>start building with it.</strong>" },
-  "attribution": "@KIRO.APP"
+  "cta": { "headline": "...", "instructionAbove": "search:", "searchTerm": "Iro AI", "instructionBelow": "on the App Store.", "slogan": "stop asking AI questions.<br/><strong>start building with it.</strong>" },
+  "attribution": "@IRO.AI"
 }
 
 For MODE = path-audience or path-gap (note the pathContext field):
@@ -209,8 +209,8 @@ For MODE = path-audience or path-gap (note the pathContext field):
   "pathContext": { "pathKey": "ai-for-marketing" },
   "hook": { "headline": "...", "sub": "..." },
   "prompts": [ ... 7 total ... ],
-  "cta": { "headline": "...", "instructionAbove": "search:", "searchTerm": "Kiro AI", "instructionBelow": "on the App Store.", "slogan": "stop asking AI questions.<br/><strong>start building with it.</strong>" },
-  "attribution": "@KIRO.APP"
+  "cta": { "headline": "...", "instructionAbove": "search:", "searchTerm": "Iro AI", "instructionBelow": "on the App Store.", "slogan": "stop asking AI questions.<br/><strong>start building with it.</strong>" },
+  "attribution": "@IRO.AI"
 }
 
 PLATFORM is REQUIRED in every output. The engine rejects JSON without it.
@@ -300,6 +300,6 @@ Cycle through 10 paths so each gets a slideshow every ~3 weeks.
 
 **For path-gap:** the questions should make a senior person nod and a junior person sweat. Test: "Would a 3-year veteran in this field find this question worth their time?"
 
-**Pinned comment for path-gap posts:** "if you got more than 4 of these wrong, the AI for [path] path on Kiro covers all of it. free to try." Direct, doesn't oversell, gives the dropout reason.
+**Pinned comment for path-gap posts:** "if you got more than 4 of these wrong, the AI for [path] path on Iro covers all of it. free to try." Direct, doesn't oversell, gives the dropout reason.
 
 **ChatGPT vs Claude (PLATFORM choice):** Default to chatgpt for broad-reach posts — bigger TikTok name recognition. Use claude for technical/developer-leaning audiences (ai-agents, ai-automation, ai-for-business path-gap), or to differentiate when the rotation feels samey. The Claude-styled chat box is a small visual variety lever; don't overthink it. ~1 in 4 posts on Claude is a reasonable starting mix.

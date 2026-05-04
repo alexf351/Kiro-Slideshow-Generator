@@ -69,11 +69,11 @@ const DEFAULT_JSON = `{
   "cta": {
     "headline": "Want to actually <strong>learn AI</strong><br/>instead of just<br/>collecting prompts?",
     "instructionAbove": "search:",
-    "searchTerm": "Kiro AI",
+    "searchTerm": "Iro AI",
     "instructionBelow": "on the App Store.",
     "slogan": "stop asking AI questions.<br/><strong>start building with it.</strong>"
   },
-  "attribution": "@KIRO.APP"
+  "attribution": "@IRO.AI"
 }`;
 
 const STORAGE_KEY = 'kiro_slideshow_generator_state_v2';
@@ -534,7 +534,7 @@ export default function App() {
         <header className="px-5 md:px-10 pt-7 md:pt-9 pb-5 md:pb-6 border-b border-white/[0.05]">
           <div className="flex items-baseline gap-3">
             <h1 className="text-3xl md:text-5xl font-black tracking-[-0.04em] text-white leading-none">
-              kiro
+              iro
             </h1>
             <span className="text-[10px] md:text-[11px] font-bold uppercase tracking-[0.32em] text-[#00E5FF]">
               studio
@@ -619,7 +619,7 @@ export default function App() {
                   >
                     <img
                       src={`/${m}-kiro.webp`}
-                      alt={`${m} kiro`}
+                      alt={`${m} iro`}
                       className={
                         'w-20 h-20 md:w-36 md:h-36 object-contain transition-transform duration-200 ' +
                         (selected ? 'drop-shadow-[0_6px_20px_rgba(0,229,255,0.55)]' : 'group-hover:scale-105')
@@ -1031,7 +1031,7 @@ export default function App() {
             srcDoc={engineHtml}
             onLoad={handleIframeLoad}
             className="w-full h-full border-0 bg-[#1a1a1a]"
-            title="Kiro slideshow renderer"
+            title="Iro slideshow renderer"
           />
         </div>
       </main>

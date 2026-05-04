@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=1080, user-scalable=yes" />
-<title>Kiro Slideshow Engine</title>
+<title>Iro Slideshow Engine</title>
 <style>
   :root {
     --bg: #000000;
@@ -177,7 +177,7 @@
 <script>
 
 // ============================================================
-// PATH LIBRARY — all 10 Kiro learning paths, used for path-targeted slideshows
+// PATH LIBRARY — all 10 Iro learning paths, used for path-targeted slideshows
 // To add/remove paths in the future, edit this list once. The picker UI updates automatically.
 // ============================================================
 const PATHS = {
@@ -227,18 +227,18 @@ const SLIDES = {
   cta: {
     headline: "Want to actually <strong>learn AI</strong><br/>instead of just<br/>collecting prompts?",
     instructionAbove: "search:",
-    searchTerm: "Kiro AI",
+    searchTerm: "Iro AI",
     instructionBelow: "on the App Store.",
     slogan: "stop asking AI questions.<br/><strong>start building with it.</strong>"
   },
 
   // Attribution shown under each prompt's GPT box
-  attribution: "@KIRO.APP",
+  attribution: "@IRO.AI",
 };
 </script>
 
 <div class="hud">
-  Kiro engine · 1080×1920
+  Iro engine · 1080×1920
   <button onclick="document.body.classList.toggle('show-safezone')">Toggle safe zone</button>
   <button onclick="window.print()">Print</button>
   <button onclick="downloadAllSlides()" id="dl-btn">⬇ Download all 9 slides</button>
@@ -262,7 +262,7 @@ const SLIDES = {
   "hook": { ... },
   "prompts": [ ... ],
   "cta": { ... },
-  "attribution": "@KIRO.APP"
+  "attribution": "@IRO.AI"
 }
 
 — or —
@@ -373,7 +373,7 @@ function buildCTA(c, pathContext) {
       <div class="cta-scrim">
         <div class="cta-headline">${c.headline}</div>
         <div class="cta-instruction">search:</div>
-        <div class="cta-search">Kiro AI</div>
+        <div class="cta-search">Iro AI</div>
         <div class="cta-instruction">→ start with</div>
         <div class="cta-path">${path.name}</div>
         <div class="cta-slogan">${c.slogan}</div>
@@ -489,7 +489,7 @@ function parseSlidesInput(raw) {
     return null;
   }
   if (!parsed.attribution) {
-    parsed.attribution = '@KIRO.APP'; // default
+    parsed.attribution = '@IRO.AI'; // default
   }
 
   // Path context is OPTIONAL but if present, validate the pathKey matches a known path
@@ -582,7 +582,7 @@ async function downloadAllSlides() {
       const dataUrl = canvas.toDataURL('image/png');
       const link = document.createElement('a');
       link.href = dataUrl;
-      link.download = `kiro_${stamp}_slide_${String(i+1).padStart(2,'0')}.png`;
+      link.download = `iro_${stamp}_slide_${String(i+1).padStart(2,'0')}.png`;
       link.click();
       // Tiny delay so the browser doesn't block consecutive downloads
       await new Promise(r => setTimeout(r, 300));

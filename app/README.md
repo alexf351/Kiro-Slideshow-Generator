@@ -1,4 +1,4 @@
-# Kiro Slideshow Generator — Frontend
+# Iro Slideshow Generator — Frontend
 
 Vite + React + TypeScript + Tailwind shell around `kiro_slideshow_engine_v3.html`.
 

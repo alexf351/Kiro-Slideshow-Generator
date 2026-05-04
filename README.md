@@ -1,2 +1,2 @@
-# Kiro-Slideshow-Generator
-Create slideshow marketing content for Kiro
+# Iro-Slideshow-Generator
+Create slideshow marketing content for Iro AI
