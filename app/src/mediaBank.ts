@@ -9,6 +9,16 @@ const ITEMS_STORE = 'items';
 const SETS_STORE = 'sets';
 const POSTS_STORE = 'posts';
 
+export type MediaItemSource = {
+  provider: 'pexels' | 'unsplash' | 'upload';
+  // Where to credit the photo (only set for stock results). Pexels
+  // doesn't require attribution but we keep the link anyway so the
+  // Library can show it on hover / tap.
+  photographer?: string;
+  photographerUrl?: string;
+  photoUrl?: string;
+};
+
 export type MediaItem = {
   id: string;
   blob: Blob;
@@ -16,6 +26,8 @@ export type MediaItem = {
   name: string;
   addedAt: number;
   setIds: string[];
+  // Optional — older items predate this field and stay valid.
+  source?: MediaItemSource;
 };
 
 export type MediaSet = {
@@ -78,6 +90,7 @@ export async function addItems(files: File[]): Promise<MediaItem[]> {
     name: f.name || 'untitled',
     addedAt: now,
     setIds: [],
+    source: { provider: 'upload' },
   }));
   for (const item of items) store.put(item);
   await new Promise<void>((res, rej) => {
@@ -85,6 +98,34 @@ export async function addItems(files: File[]): Promise<MediaItem[]> {
     t.onerror = () => rej(t.error);
   });
   return items;
+}
+
+// Like addItems but for a stock-photo blob with attribution metadata
+// already known. Used by the stock search panel.
+export async function addStockItem(input: {
+  blob: Blob;
+  mimeType: string;
+  name: string;
+  source: MediaItemSource;
+  setIds?: string[];
+}): Promise<MediaItem> {
+  const db = await openDb();
+  const t = tx(db, [ITEMS_STORE], 'readwrite');
+  const item: MediaItem = {
+    id: newId(),
+    blob: input.blob,
+    mimeType: input.mimeType || 'image/jpeg',
+    name: input.name,
+    addedAt: Date.now(),
+    setIds: input.setIds ?? [],
+    source: input.source,
+  };
+  t.objectStore(ITEMS_STORE).put(item);
+  await new Promise<void>((res, rej) => {
+    t.oncomplete = () => res();
+    t.onerror = () => rej(t.error);
+  });
+  return item;
 }
 
 export async function listItems(filter?: { setId?: string }): Promise<MediaItem[]> {

@@ -86,6 +86,8 @@ type Persisted = {
   slideBgs: SlideBgMap;
   caption: string;
   preset: PresetKey;
+  pexelsKey: string;
+  unsplashKey: string;
 };
 
 function loadPersisted(): Persisted {
@@ -104,6 +106,8 @@ function loadPersisted(): Persisted {
         slideBgs: (p.slideBgs && typeof p.slideBgs === 'object' ? p.slideBgs : {}) as SlideBgMap,
         caption: typeof p.caption === 'string' ? p.caption : '',
         preset: PRESET_KEYS.includes(p.preset as PresetKey) ? (p.preset as PresetKey) : 'prompt_pack',
+        pexelsKey: typeof p.pexelsKey === 'string' ? p.pexelsKey : '',
+        unsplashKey: typeof p.unsplashKey === 'string' ? p.unsplashKey : '',
       };
     }
   } catch {}
@@ -115,6 +119,8 @@ function loadPersisted(): Persisted {
     slideBgs: {},
     caption: '',
     preset: 'prompt_pack',
+    pexelsKey: '',
+    unsplashKey: '',
   };
 }
 
@@ -204,6 +210,8 @@ export default function App() {
   const [slideBgs, setSlideBgs] = useState<SlideBgMap>(initial.slideBgs);
   const [caption, setCaption] = useState<string>(initial.caption);
   const [preset, setPreset] = useState<PresetKey>(initial.preset);
+  const [pexelsKey, setPexelsKey] = useState<string>(initial.pexelsKey);
+  const [unsplashKey, setUnsplashKey] = useState<string>(initial.unsplashKey);
   const [saveStatus, setSaveStatus] = useState<{ kind: 'idle' } | { kind: 'saving' } | { kind: 'ok' } | { kind: 'err'; msg: string }>({ kind: 'idle' });
   // Active "pick a background for slide X" request — when set, the Library
   // shows a banner + cancel button and the next tap on an item resolves the
@@ -225,10 +233,10 @@ export default function App() {
     try {
       localStorage.setItem(
         STORAGE_KEY,
-        JSON.stringify({ mascot, variant, platform, jsonText, slideBgs, caption, preset }),
+        JSON.stringify({ mascot, variant, platform, jsonText, slideBgs, caption, preset, pexelsKey, unsplashKey }),
       );
     } catch {}
-  }, [mascot, variant, platform, jsonText, slideBgs, caption, preset]);
+  }, [mascot, variant, platform, jsonText, slideBgs, caption, preset, pexelsKey, unsplashKey]);
 
   useEffect(() => {
     const onMessage = (e: MessageEvent) => {
@@ -853,6 +861,62 @@ export default function App() {
               <div className="mt-2 text-xs text-red-400">Save failed: {saveStatus.msg}</div>
             )}
           </section>
+
+          <section className="px-5 md:px-10 py-6 md:py-7 border-t border-white/[0.04]">
+            {sectionLabel(
+              'Settings',
+              <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-600">
+                · API keys
+              </span>,
+            )}
+            <p className="text-xs text-gray-500 leading-relaxed mb-4">
+              Pasted keys live in this browser only. Both signups are free.
+            </p>
+            <label className="flex flex-col gap-1.5 mb-3">
+              <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-500">
+                Pexels API key
+                <a
+                  href="https://www.pexels.com/api/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="ml-2 text-[#00E5FF]/80 hover:text-[#00E5FF] normal-case tracking-normal font-medium"
+                >
+                  get one →
+                </a>
+              </span>
+              <input
+                type="password"
+                autoComplete="off"
+                spellCheck={false}
+                value={pexelsKey}
+                onChange={(e) => setPexelsKey(e.target.value)}
+                placeholder="Paste your Pexels key"
+                className="bg-[#070b18] border border-white/[0.10] rounded-md px-3 py-2 text-sm font-mono text-gray-200 placeholder:text-gray-700 focus:border-[#00E5FF]/50 focus:outline-none"
+              />
+            </label>
+            <label className="flex flex-col gap-1.5">
+              <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-500">
+                Unsplash access key
+                <a
+                  href="https://unsplash.com/developers"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="ml-2 text-[#00E5FF]/80 hover:text-[#00E5FF] normal-case tracking-normal font-medium"
+                >
+                  get one →
+                </a>
+              </span>
+              <input
+                type="password"
+                autoComplete="off"
+                spellCheck={false}
+                value={unsplashKey}
+                onChange={(e) => setUnsplashKey(e.target.value)}
+                placeholder="Paste your Unsplash access key"
+                className="bg-[#070b18] border border-white/[0.10] rounded-md px-3 py-2 text-sm font-mono text-gray-200 placeholder:text-gray-700 focus:border-[#00E5FF]/50 focus:outline-none"
+              />
+            </label>
+          </section>
         </div>
       </aside>
 
@@ -879,7 +943,7 @@ export default function App() {
           (mobileView === 'library' ? 'block ' : 'hidden ') +
           (mainView === 'library' ? 'md:block' : 'md:hidden')
         }>
-          <Library pickMode={pickRequest} />
+          <Library pickMode={pickRequest} pexelsKey={pexelsKey} unsplashKey={unsplashKey} />
         </div>
         <div className={
           'absolute inset-0 ' +
