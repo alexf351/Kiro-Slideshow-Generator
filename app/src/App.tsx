@@ -130,19 +130,49 @@ function stripJsonWrappers(t: string): string {
 
 // Walks the parsed JSON and returns one row per visible slide, in render order.
 // `key` is what we use in slideBgs; `label` shows up in the picker UI.
+//
+// Different presets put their content in different array fields:
+//   prompt_pack → prompts[]   (key prompt:N)
+//   pain_story  → beats[]     (key beat:N)
+//   meme_pov    → panels[]    (key panel:N)
+// The picker is preset-agnostic; whichever array exists gets enumerated.
 type SlideMeta = { key: string; label: string };
+function clean(text: string): string {
+  return text.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+}
+function truncate(s: string, n: number): string {
+  return s.length > n ? s.slice(0, n - 3) + '…' : s;
+}
 function extractSlideMeta(parsed: unknown): SlideMeta[] {
   if (!parsed || typeof parsed !== 'object') return [];
-  const p = parsed as { hook?: { headline?: string }; prompts?: { title?: string }[]; cta?: unknown };
+  const p = parsed as {
+    hook?: { headline?: string; text?: string };
+    prompts?: { title?: string }[];
+    beats?: { text?: string }[];
+    panels?: { top?: string; bottom?: string }[];
+    cta?: unknown;
+  };
   const out: SlideMeta[] = [];
   if (p.hook) {
-    const h = (p.hook.headline || 'Hook').replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
-    out.push({ key: 'hook', label: h.length > 36 ? `Hook — ${h.slice(0, 33)}…` : `Hook — ${h}` });
+    const h = clean(p.hook.headline || p.hook.text || 'Hook');
+    out.push({ key: 'hook', label: truncate(`Hook — ${h}`, 40) });
   }
   if (Array.isArray(p.prompts)) {
     p.prompts.forEach((pr, i) => {
-      const t = (pr?.title || `Prompt ${i + 1}`).replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
-      out.push({ key: `prompt:${i}`, label: t.length > 40 ? t.slice(0, 37) + '…' : t });
+      const t = clean(pr?.title || `Prompt ${i + 1}`);
+      out.push({ key: `prompt:${i}`, label: truncate(t, 40) });
+    });
+  }
+  if (Array.isArray(p.beats)) {
+    p.beats.forEach((b, i) => {
+      const t = clean(b?.text || `Beat ${i + 1}`);
+      out.push({ key: `beat:${i}`, label: truncate(`${i + 1}. ${t}`, 40) });
+    });
+  }
+  if (Array.isArray(p.panels)) {
+    p.panels.forEach((pn, i) => {
+      const t = clean(pn?.top || pn?.bottom || `Panel ${i + 1}`);
+      out.push({ key: `panel:${i}`, label: truncate(`Panel ${i + 1} — ${t}`, 40) });
     });
   }
   if (p.cta) out.push({ key: 'cta', label: 'CTA' });
@@ -262,11 +292,21 @@ export default function App() {
     if (ctaBg && slides.cta && typeof slides.cta === 'object') {
       slides.cta = { ...(slides.cta as object), bg: ctaBg };
     }
-    if (Array.isArray(slides.prompts)) {
-      slides.prompts = await Promise.all(
-        (slides.prompts as Record<string, unknown>[]).map(async (p, i) => {
-          const bg = await resolveSlideBg(slideBgs[`prompt:${i}`]);
-          return bg ? { ...p, bg } : p;
+    // Walk every known content array. Each preset's content lives under
+    // a different key (prompt_pack→prompts, pain_story→beats, meme_pov
+    // →panels) and the slideBgs map uses a parallel key prefix.
+    const contentArrays: { field: string; prefix: string }[] = [
+      { field: 'prompts', prefix: 'prompt' },
+      { field: 'beats', prefix: 'beat' },
+      { field: 'panels', prefix: 'panel' },
+    ];
+    for (const { field, prefix } of contentArrays) {
+      const arr = slides[field];
+      if (!Array.isArray(arr)) continue;
+      slides[field] = await Promise.all(
+        (arr as Record<string, unknown>[]).map(async (item, i) => {
+          const bg = await resolveSlideBg(slideBgs[`${prefix}:${i}`]);
+          return bg ? { ...item, bg } : item;
         }),
       );
     }
