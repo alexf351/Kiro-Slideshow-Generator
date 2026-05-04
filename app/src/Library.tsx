@@ -12,21 +12,32 @@ import {
   type MediaItem,
   type MediaSet,
 } from './mediaBank';
+import StockSearch from './StockSearch';
 
 type Props = {
   // When set, the Library is in "pick a background" mode. Tapping any item
   // resolves with that item id; tapping Cancel resolves with null.
   pickMode: { slideLabel: string; resolve: (itemId: string | null) => void } | null;
+  // BYOK keys for the stock-photo Search Stock tab. Empty strings are
+  // valid; the StockSearch panel surfaces a "no key" warning itself.
+  pexelsKey: string;
+  unsplashKey: string;
 };
+
+type LibraryView = 'library' | 'stock';
 
 const ALL_FILTER = '__all__';
 
-export default function Library({ pickMode }: Props) {
+export default function Library({ pickMode, pexelsKey, unsplashKey }: Props) {
   const [items, setItems] = useState<MediaItem[]>([]);
   const [sets, setSets] = useState<MediaSet[]>([]);
   const [activeSet, setActiveSet] = useState<string>(ALL_FILTER);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState<string | null>(null);
+  // 'library' = the user's media bank. 'stock' = Pexels / Unsplash search
+  // panel. Pick mode forces 'library' since you can't pick a slide bg
+  // from a search result that hasn't been imported yet.
+  const [view, setView] = useState<LibraryView>('library');
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Object URLs for thumbnails. Revoked when the item list changes so we
@@ -157,7 +168,53 @@ export default function Library({ pickMode }: Props) {
     );
   };
 
+  // Library/Search top-level tab pill. Disabled in pick mode so the user
+  // can't side-track to the search panel mid-pick.
+  const tabBtn = (kind: LibraryView, label: string) => {
+    const active = view === kind;
+    return (
+      <button
+        key={kind}
+        type="button"
+        onClick={() => setView(kind)}
+        disabled={!!pickMode}
+        className={
+          'px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-[0.14em] transition-colors ' +
+          (active
+            ? 'bg-[#0e2b3a] text-[#00E5FF] border border-[#00E5FF]/40'
+            : 'bg-white/[0.03] text-gray-400 border border-white/10 hover:bg-white/[0.07] hover:text-gray-200') +
+          ' disabled:opacity-50 disabled:cursor-not-allowed'
+        }
+      >
+        {label}
+      </button>
+    );
+  };
+
   const selectionMode = selectedIds.size > 0;
+
+  // Pick mode forces the Library tab — searching stock makes no sense
+  // mid-pick because the user is choosing from existing items.
+  const effectiveView: LibraryView = pickMode ? 'library' : view;
+
+  if (effectiveView === 'stock') {
+    return (
+      <div className="h-full flex flex-col bg-[#070a14]">
+        <header className="shrink-0 px-5 md:px-8 pt-5 md:pt-7 pb-3 border-b border-white/[0.06]">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-xl md:text-2xl font-black tracking-tight text-white">Media Bank</h2>
+          </div>
+          <div className="flex gap-2">
+            {tabBtn('library', 'My Library')}
+            {tabBtn('stock', 'Search Stock')}
+          </div>
+        </header>
+        <div className="flex-1 min-h-0">
+          <StockSearch pexelsKey={pexelsKey} unsplashKey={unsplashKey} onImported={refresh} />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-full flex flex-col bg-[#070a14]">
@@ -188,6 +245,10 @@ export default function Library({ pickMode }: Props) {
           >
             Upload
           </button>
+        </div>
+        <div className="mt-3 flex gap-2">
+          {tabBtn('library', 'My Library')}
+          {tabBtn('stock', 'Search Stock')}
         </div>
         <input
           ref={fileInputRef}
