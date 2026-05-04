@@ -101,6 +101,35 @@ const MEME_POV_JSON = `{
   "attribution": "@IRO.AI"
 }`;
 
+const PRODUCT_DEMO_JSON = `{
+  "preset": "product_demo",
+  "hook": {
+    "headline": "Iro is the <strong>Duolingo for AI</strong>."
+  },
+  "features": [
+    {
+      "headline": "5 minutes a day.",
+      "subline": "AI lessons that fit between your morning coffee and your first meeting."
+    },
+    {
+      "headline": "Real practice. Not theory.",
+      "subline": "Every lesson ends with a real prompt you'd actually use."
+    },
+    {
+      "headline": "Progress you can feel.",
+      "subline": "Streaks, mastery levels, and weekly checkpoints. Like a fitness app for your brain."
+    }
+  ],
+  "cta": {
+    "headline": "Get good at AI.",
+    "instructionAbove": "search",
+    "searchTerm": "Iro AI",
+    "instructionBelow": "on the App Store.",
+    "slogan": "5 min/day. that's it."
+  },
+  "attribution": "@IRO.AI"
+}`;
+
 const ASPIRATIONAL_JSON = `{
   "preset": "aspirational",
   "hook": {
@@ -186,9 +215,9 @@ export const PRESETS: Record<PresetKey, PresetMeta> = {
   product_demo: {
     key: 'product_demo',
     label: 'Product Demo',
-    pitch: 'Phone mockup + screenshots. Branded benefit captions. (Coming soon.)',
-    status: 'planned',
-    defaultJson: PLACEHOLDER_JSON('product_demo'),
+    pitch: 'Phone mockup + Iro screenshots. Branded benefit captions per slide.',
+    status: 'ready',
+    defaultJson: PRODUCT_DEMO_JSON,
   },
   checklist: {
     key: 'checklist',
