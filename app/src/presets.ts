@@ -31,6 +31,10 @@ export type PresetMeta = {
   // hook, hashtags trail at the end. Loaded on demand via the
   // "Generate caption" button next to the Caption textarea.
   defaultCaption: string;
+  // Accent color used in the format-selector chip when the preset is
+  // active. Mirrors the engine's per-preset palette so the sidebar
+  // visually previews what the slides will look like.
+  accent: string;
 };
 
 const PROMPT_PACK_JSON = `{
@@ -258,6 +262,7 @@ export const PRESETS: Record<PresetKey, PresetMeta> = {
     status: 'ready',
     defaultJson: PROMPT_PACK_JSON,
     defaultCaption: PROMPT_PACK_CAPTION,
+    accent: '#00E5FF', // brand cyan
   },
   pain_story: {
     key: 'pain_story',
@@ -266,6 +271,7 @@ export const PRESETS: Record<PresetKey, PresetMeta> = {
     status: 'ready',
     defaultJson: PAIN_STORY_JSON,
     defaultCaption: PAIN_STORY_CAPTION,
+    accent: '#E8B4BC', // dusty rose, matches the editorial serif vibe
   },
   aspirational: {
     key: 'aspirational',
@@ -274,6 +280,7 @@ export const PRESETS: Record<PresetKey, PresetMeta> = {
     status: 'ready',
     defaultJson: ASPIRATIONAL_JSON,
     defaultCaption: ASPIRATIONAL_CAPTION,
+    accent: '#FFC857', // gold, matches the engine's <strong> highlight
   },
   meme_pov: {
     key: 'meme_pov',
@@ -282,6 +289,7 @@ export const PRESETS: Record<PresetKey, PresetMeta> = {
     status: 'ready',
     defaultJson: MEME_POV_JSON,
     defaultCaption: MEME_POV_CAPTION,
+    accent: '#FFFFFF', // pure white = the meme caption color
   },
   product_demo: {
     key: 'product_demo',
@@ -290,6 +298,7 @@ export const PRESETS: Record<PresetKey, PresetMeta> = {
     status: 'ready',
     defaultJson: PRODUCT_DEMO_JSON,
     defaultCaption: PRODUCT_DEMO_CAPTION,
+    accent: '#00E5FF', // brand cyan
   },
   checklist: {
     key: 'checklist',
@@ -298,5 +307,6 @@ export const PRESETS: Record<PresetKey, PresetMeta> = {
     status: 'ready',
     defaultJson: CHECKLIST_JSON,
     defaultCaption: CHECKLIST_CAPTION,
+    accent: '#22C55E', // green check
   },
 };

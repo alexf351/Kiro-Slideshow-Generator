@@ -179,11 +179,11 @@ export default function Library({ pickMode, pexelsKey, unsplashKey }: Props) {
         onClick={() => setView(kind)}
         disabled={!!pickMode}
         className={
-          'px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-[0.14em] transition-colors ' +
+          'relative px-4 py-2 rounded-full text-[11px] font-bold uppercase tracking-[0.18em] transition-all ' +
           (active
-            ? 'bg-[#0e2b3a] text-[#00E5FF] border border-[#00E5FF]/40'
-            : 'bg-white/[0.03] text-gray-400 border border-white/10 hover:bg-white/[0.07] hover:text-gray-200') +
-          ' disabled:opacity-50 disabled:cursor-not-allowed'
+            ? 'bg-[#00E5FF] text-[#0a0e1a] shadow-[0_4px_18px_-4px_rgba(0,229,255,0.55)]'
+            : 'bg-white/[0.04] text-gray-400 hover:bg-white/[0.09] hover:text-gray-100') +
+          ' disabled:opacity-40 disabled:cursor-not-allowed'
         }
       >
         {label}
@@ -287,10 +287,17 @@ export default function Library({ pickMode, pexelsKey, unsplashKey }: Props) {
         {visibleItems.length === 0 && (
           <label
             htmlFor="library-drop-input"
-            className="block w-full py-16 rounded-2xl border-2 border-dashed border-white/10 text-center text-gray-500 cursor-pointer hover:border-[#00E5FF]/60 hover:text-gray-300 transition-colors"
+            className="block w-full py-16 rounded-2xl border-2 border-dashed border-white/10 text-center text-gray-500 cursor-pointer hover:border-[#00E5FF]/40 hover:bg-[#0c1424]/60 transition-all group"
           >
-            <div className="text-base font-bold uppercase tracking-[0.16em] mb-1">No photos yet</div>
-            <div className="text-xs">Tap Upload, or drop image files here</div>
+            <div className="mx-auto mb-3 w-12 h-12 rounded-full bg-white/[0.04] border border-white/10 flex items-center justify-center text-2xl text-gray-500 group-hover:text-[#00E5FF] group-hover:border-[#00E5FF]/40 transition-colors">
+              +
+            </div>
+            <div className="text-sm font-bold uppercase tracking-[0.18em] mb-1 text-gray-300 group-hover:text-white">
+              No photos yet
+            </div>
+            <div className="text-xs text-gray-500">
+              Tap to upload, drop files here, or switch to Search Stock
+            </div>
           </label>
         )}
         <input

@@ -221,6 +221,11 @@ export default function App() {
     slideLabel: string;
     resolve: (mediaId: string | null) => void;
   } | null>(null);
+  // Thumbnails for the per-slide bg picker rows. Resolved async from
+  // IndexedDB (for media items) or used as-is (for direct URLs). Cleared
+  // and recreated whenever the slideBgs map changes; object URLs from
+  // previous resolutions get revoked in the cleanup below.
+  const [bgThumbs, setBgThumbs] = useState<Record<string, string>>({});
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
 
   // When tier changes, keep the current variant if the new tier has it; otherwise reset to base.
@@ -248,6 +253,38 @@ export default function App() {
     window.addEventListener('message', onMessage);
     return () => window.removeEventListener('message', onMessage);
   }, []);
+
+  // Resolve every entry in slideBgs to a thumbnail URL. Direct URLs pass
+  // through; media-bank IDs hit IndexedDB and become Blob object URLs
+  // we revoke on cleanup.
+  useEffect(() => {
+    let cancelled = false;
+    const created: string[] = [];
+
+    (async () => {
+      const next: Record<string, string> = {};
+      for (const [slideKey, bg] of Object.entries(slideBgs)) {
+        if (!bg) continue;
+        if (bg.type === 'url') {
+          next[slideKey] = bg.url;
+        } else {
+          const item = await getItem(bg.mediaId);
+          if (cancelled) return;
+          if (item) {
+            const url = URL.createObjectURL(item.blob);
+            next[slideKey] = url;
+            created.push(url);
+          }
+        }
+      }
+      if (!cancelled) setBgThumbs(next);
+    })();
+
+    return () => {
+      cancelled = true;
+      for (const url of created) URL.revokeObjectURL(url);
+    };
+  }, [slideBgs]);
 
   function parseJson(silent = false): Record<string, unknown> | null {
     const t = jsonText.trim();
@@ -452,25 +489,32 @@ export default function App() {
     </div>
   );
 
-  const mobileTabBtn = (kind: MobileView, label: string) => (
-    <button
-      type="button"
-      onClick={() => setMobileView(kind)}
-      className={
-        'flex-1 py-3 text-sm font-bold uppercase tracking-[0.18em] transition-colors ' +
-        (mobileView === kind
-          ? 'text-[#00E5FF] border-b-2 border-[#00E5FF]'
-          : 'text-gray-500 border-b-2 border-transparent hover:text-gray-300')
-      }
-    >
-      {label}
-    </button>
-  );
+  const mobileTabBtn = (kind: MobileView, label: string) => {
+    const active = mobileView === kind;
+    return (
+      <button
+        type="button"
+        onClick={() => setMobileView(kind)}
+        className={
+          'relative flex-1 py-3.5 text-[11px] font-bold uppercase tracking-[0.18em] transition-colors ' +
+          (active ? 'text-[#00E5FF]' : 'text-gray-500 hover:text-gray-300')
+        }
+      >
+        {label}
+        <span
+          className={
+            'absolute left-1/2 bottom-0 -translate-x-1/2 h-[2px] rounded-full transition-all duration-200 ' +
+            (active ? 'w-8 bg-[#00E5FF] shadow-[0_0_10px_rgba(0,229,255,0.7)]' : 'w-0 bg-transparent')
+          }
+        />
+      </button>
+    );
+  };
 
   return (
     <div className="flex flex-col md:flex-row h-screen bg-[#070a14] text-gray-100">
       {/* Mobile-only tab bar; hidden on md+ where the sidebar is always visible. */}
-      <nav className="md:hidden flex shrink-0 bg-[#0a0e1a] border-b border-white/[0.06]">
+      <nav className="md:hidden flex shrink-0 bg-gradient-to-b from-[#0a0e1a] to-[#080b16] border-b border-white/[0.05]">
         {mobileTabBtn('edit', 'Edit')}
         {mobileTabBtn('library', 'Library')}
         {mobileTabBtn('analytics', 'Stats')}
@@ -487,29 +531,23 @@ export default function App() {
         {/* subtle top accent */}
         <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#00E5FF]/40 to-transparent"></div>
 
-        <header className="px-5 md:px-10 pt-6 md:pt-10 pb-5 md:pb-7 border-b border-white/[0.06]">
-          <div className="flex items-center gap-4 md:gap-5">
-            <div className="w-[5px] md:w-[6px] h-14 md:h-20 rounded-full bg-gradient-to-b from-[#00E5FF] to-[#00A5D9] shadow-[0_0_20px_rgba(0,229,255,0.7)]"></div>
-            <div>
-              <h1 className="text-4xl md:text-6xl font-black tracking-tight text-white leading-none">KIRO</h1>
-              <p className="mt-2 md:mt-3 text-[11px] md:text-[13px] font-bold uppercase tracking-[0.28em] text-[#00E5FF]">
-                Slideshow Studio
-              </p>
-            </div>
+        <header className="px-5 md:px-10 pt-7 md:pt-9 pb-5 md:pb-6 border-b border-white/[0.05]">
+          <div className="flex items-baseline gap-3">
+            <h1 className="text-3xl md:text-5xl font-black tracking-[-0.04em] text-white leading-none">
+              kiro
+            </h1>
+            <span className="text-[10px] md:text-[11px] font-bold uppercase tracking-[0.32em] text-[#00E5FF]">
+              studio
+            </span>
           </div>
-          <p className="mt-4 md:mt-6 text-sm md:text-base text-gray-500 leading-relaxed">
-            Pick mascot · emote · platform. Paste JSON. Click render.
+          <p className="mt-3 md:mt-4 text-[12px] md:text-[13px] text-gray-500 leading-relaxed">
+            Pick a format. Paste content. Render.
           </p>
         </header>
 
         <div className="flex-1 overflow-y-auto custom-scrollbar">
-          <section className="px-5 md:px-10 py-6 md:py-7 border-b border-white/[0.04]">
-            {sectionLabel(
-              'Format',
-              <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-600">
-                · preset
-              </span>,
-            )}
+          <section className="px-5 md:px-10 py-6 md:py-7 border-b border-white/[0.05]">
+            {sectionLabel('Format')}
             <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
               {PRESET_KEYS.map((key) => {
                 const meta = PRESETS[key];
@@ -520,17 +558,29 @@ export default function App() {
                     key={key}
                     type="button"
                     onClick={() => setPreset(key)}
+                    style={selected ? {
+                      borderColor: meta.accent + '99',
+                      boxShadow: `0 0 0 1px ${meta.accent}26, 0 8px 24px -10px ${meta.accent}80`,
+                    } : undefined}
                     className={
-                      'relative px-3 py-3 rounded-xl text-left transition-all duration-200 ' +
+                      'group relative px-3 py-3 rounded-xl text-left transition-all duration-200 border ' +
                       (selected
-                        ? 'border border-[#00E5FF]/60 bg-gradient-to-br from-[#0e2b3a] to-[#091626] shadow-[0_0_0_1px_rgba(0,229,255,0.15),0_8px_24px_-8px_rgba(0,229,255,0.55)]'
-                        : 'border border-white/[0.08] bg-[#0b1224] hover:border-white/[0.18]')
+                        ? 'bg-gradient-to-br from-white/[0.04] to-white/[0.01]'
+                        : 'border-white/[0.07] bg-[#0b1224]/60 hover:border-white/[0.16] hover:bg-[#0c1428]')
                     }
                   >
-                    <div className={
-                      'text-[12px] font-bold uppercase tracking-[0.16em] ' +
-                      (selected ? 'text-[#00E5FF]' : 'text-gray-200')
-                    }>
+                    {/* tiny accent dot, always visible to telegraph the format's color */}
+                    <span
+                      style={{ background: meta.accent, boxShadow: selected ? `0 0 12px ${meta.accent}99` : undefined }}
+                      className="absolute top-3 right-3 w-1.5 h-1.5 rounded-full opacity-80"
+                    />
+                    <div
+                      style={selected ? { color: meta.accent } : undefined}
+                      className={
+                        'text-[12px] font-bold uppercase tracking-[0.16em] ' +
+                        (selected ? '' : 'text-gray-200 group-hover:text-white')
+                      }
+                    >
                       {meta.label}
                     </div>
                     {planned && (
@@ -551,7 +601,7 @@ export default function App() {
               }}
               className="mt-3 text-[11px] font-bold uppercase tracking-[0.14em] text-gray-500 hover:text-[#00E5FF]"
             >
-              Load default JSON for {PRESETS[preset].label}
+              Load default JSON for {PRESETS[preset].label} →
             </button>
           </section>
 
@@ -708,46 +758,76 @@ export default function App() {
               <div className="flex flex-col gap-2">
                 {slideMetas.map(({ key, label }) => {
                   const bg = slideBgs[key];
-                  let bgLabel = 'Mascot (default)';
-                  if (bg?.type === 'url') bgLabel = 'Custom: pasted URL';
-                  if (bg?.type === 'media') bgLabel = 'Custom: from library';
+                  const thumb = bgThumbs[key];
                   const set = !!bg;
+                  let bgLabel = 'Mascot default';
+                  if (bg?.type === 'url') bgLabel = 'Pasted URL';
+                  if (bg?.type === 'media') bgLabel = 'From library';
                   return (
                     <div
                       key={key}
-                      className="rounded-lg border border-white/[0.06] bg-[#0b1224] px-3 py-2.5"
+                      className={
+                        'rounded-xl border px-3 py-2.5 flex gap-3 transition-colors ' +
+                        (set
+                          ? 'border-[#00E5FF]/25 bg-gradient-to-br from-[#0e2030] to-[#0a1424]'
+                          : 'border-white/[0.07] bg-[#0b1224]/60')
+                      }
                     >
-                      <div className="text-[13px] text-gray-200 font-medium truncate">{label}</div>
-                      <div className={'text-[11px] mt-0.5 ' + (set ? 'text-[#00E5FF]' : 'text-gray-500')}>
-                        {bgLabel}
+                      {/* 9:16 thumbnail. Shows the assigned bg if any,
+                         otherwise a subtle "default" placeholder so the
+                         row keeps its visual rhythm regardless. */}
+                      <div className={
+                        'shrink-0 w-10 h-[60px] rounded-md overflow-hidden border ' +
+                        (set ? 'border-[#00E5FF]/40' : 'border-white/[0.08] bg-[#070b18]')
+                      }>
+                        {thumb ? (
+                          <img src={thumb} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <span className="text-[8px] uppercase tracking-[0.16em] text-gray-700">
+                              auto
+                            </span>
+                          </div>
+                        )}
                       </div>
-                      <div className="mt-2 flex flex-wrap gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => handlePickForSlide(key, label)}
-                          className="px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.14em] rounded-md
-                                     bg-white/[0.04] text-gray-300 hover:bg-[#00E5FF]/15 hover:text-[#00E5FF] border border-white/10"
+                      <div className="min-w-0 flex-1">
+                        <div className="text-[13px] text-gray-100 font-medium truncate">{label}</div>
+                        <div
+                          className={
+                            'text-[10px] mt-0.5 uppercase tracking-[0.14em] font-bold ' +
+                            (set ? 'text-[#00E5FF]' : 'text-gray-600')
+                          }
                         >
-                          From library
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handlePasteUrlForSlide(key)}
-                          className="px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.14em] rounded-md
-                                     bg-white/[0.04] text-gray-300 hover:bg-[#00E5FF]/15 hover:text-[#00E5FF] border border-white/10"
-                        >
-                          Paste URL
-                        </button>
-                        {set && (
+                          {bgLabel}
+                        </div>
+                        <div className="mt-1.5 flex flex-wrap gap-1.5">
                           <button
                             type="button"
-                            onClick={() => handleClearBgForSlide(key)}
-                            className="px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.14em] rounded-md
-                                       text-gray-500 hover:text-red-300"
+                            onClick={() => handlePickForSlide(key, label)}
+                            className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] rounded-md
+                                       bg-white/[0.04] text-gray-300 hover:bg-[#00E5FF]/15 hover:text-[#00E5FF] border border-white/10"
                           >
-                            Clear
+                            Library
                           </button>
-                        )}
+                          <button
+                            type="button"
+                            onClick={() => handlePasteUrlForSlide(key)}
+                            className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] rounded-md
+                                       bg-white/[0.04] text-gray-300 hover:bg-[#00E5FF]/15 hover:text-[#00E5FF] border border-white/10"
+                          >
+                            URL
+                          </button>
+                          {set && (
+                            <button
+                              type="button"
+                              onClick={() => handleClearBgForSlide(key)}
+                              className="px-2 py-1 text-[10px] font-bold uppercase tracking-[0.14em] rounded-md
+                                         text-gray-500 hover:text-red-300"
+                            >
+                              Clear
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   );
@@ -862,60 +942,49 @@ export default function App() {
             )}
           </section>
 
-          <section className="px-5 md:px-10 py-6 md:py-7 border-t border-white/[0.04]">
-            {sectionLabel(
-              'Settings',
-              <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-600">
-                · API keys
-              </span>,
-            )}
+          <section className="px-5 md:px-10 py-6 md:py-7 border-t border-white/[0.05]">
+            {sectionLabel('Settings')}
             <p className="text-xs text-gray-500 leading-relaxed mb-4">
               Pasted keys live in this browser only. Both signups are free.
             </p>
-            <label className="flex flex-col gap-1.5 mb-3">
-              <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-500">
-                Pexels API key
-                <a
-                  href="https://www.pexels.com/api/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="ml-2 text-[#00E5FF]/80 hover:text-[#00E5FF] normal-case tracking-normal font-medium"
-                >
-                  get one →
-                </a>
-              </span>
-              <input
-                type="password"
-                autoComplete="off"
-                spellCheck={false}
-                value={pexelsKey}
-                onChange={(e) => setPexelsKey(e.target.value)}
-                placeholder="Paste your Pexels key"
-                className="bg-[#070b18] border border-white/[0.10] rounded-md px-3 py-2 text-sm font-mono text-gray-200 placeholder:text-gray-700 focus:border-[#00E5FF]/50 focus:outline-none"
-              />
-            </label>
-            <label className="flex flex-col gap-1.5">
-              <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-500">
-                Unsplash access key
-                <a
-                  href="https://unsplash.com/developers"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="ml-2 text-[#00E5FF]/80 hover:text-[#00E5FF] normal-case tracking-normal font-medium"
-                >
-                  get one →
-                </a>
-              </span>
-              <input
-                type="password"
-                autoComplete="off"
-                spellCheck={false}
-                value={unsplashKey}
-                onChange={(e) => setUnsplashKey(e.target.value)}
-                placeholder="Paste your Unsplash access key"
-                className="bg-[#070b18] border border-white/[0.10] rounded-md px-3 py-2 text-sm font-mono text-gray-200 placeholder:text-gray-700 focus:border-[#00E5FF]/50 focus:outline-none"
-              />
-            </label>
+            {([
+              { label: 'Pexels API key', value: pexelsKey, setter: setPexelsKey, href: 'https://www.pexels.com/api/' },
+              { label: 'Unsplash access key', value: unsplashKey, setter: setUnsplashKey, href: 'https://unsplash.com/developers' },
+            ] as const).map(({ label, value, setter, href }) => {
+              const set = !!value;
+              return (
+                <label key={label} className="flex flex-col gap-1.5 mb-3 last:mb-0">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-gray-500 inline-flex items-center gap-2">
+                      {label}
+                      {set && (
+                        <span className="text-[#22C55E] inline-flex items-center gap-1 normal-case tracking-normal font-medium">
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#22C55E] shadow-[0_0_8px_rgba(34,197,94,0.7)]" />
+                          set
+                        </span>
+                      )}
+                    </span>
+                    <a
+                      href={href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[10px] font-medium text-[#00E5FF]/80 hover:text-[#00E5FF]"
+                    >
+                      get one →
+                    </a>
+                  </div>
+                  <input
+                    type="password"
+                    autoComplete="off"
+                    spellCheck={false}
+                    value={value}
+                    onChange={(e) => setter(e.target.value)}
+                    placeholder="Paste here"
+                    className="bg-[#070b18] border border-white/[0.10] rounded-md px-3 py-2 text-sm font-mono text-gray-200 placeholder:text-gray-700 focus:border-[#00E5FF]/40 focus:outline-none focus:shadow-[0_0_0_3px_rgba(0,229,255,0.08)] transition-shadow"
+                  />
+                </label>
+              );
+            })}
           </section>
         </div>
       </aside>
