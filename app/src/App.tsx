@@ -150,6 +150,7 @@ function extractSlideMeta(parsed: unknown): SlideMeta[] {
     prompts?: { title?: string }[];
     beats?: { text?: string }[];
     panels?: { top?: string; bottom?: string }[];
+    features?: { headline?: string }[];
     cta?: unknown;
   };
   const out: SlideMeta[] = [];
@@ -173,6 +174,12 @@ function extractSlideMeta(parsed: unknown): SlideMeta[] {
     p.panels.forEach((pn, i) => {
       const t = clean(pn?.top || pn?.bottom || `Panel ${i + 1}`);
       out.push({ key: `panel:${i}`, label: truncate(`Panel ${i + 1} — ${t}`, 40) });
+    });
+  }
+  if (Array.isArray(p.features)) {
+    p.features.forEach((f, i) => {
+      const t = clean(f?.headline || `Feature ${i + 1}`);
+      out.push({ key: `feature:${i}`, label: truncate(`Feature ${i + 1} — ${t}`, 40) });
     });
   }
   if (p.cta) out.push({ key: 'cta', label: 'CTA' });
@@ -299,6 +306,9 @@ export default function App() {
       { field: 'prompts', prefix: 'prompt' },
       { field: 'beats', prefix: 'beat' },
       { field: 'panels', prefix: 'panel' },
+      // For product_demo, item.bg becomes the screenshot inside the
+      // phone mockup — same picker UX, different rendering surface.
+      { field: 'features', prefix: 'feature' },
     ];
     for (const { field, prefix } of contentArrays) {
       const arr = slides[field];

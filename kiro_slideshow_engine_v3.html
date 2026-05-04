@@ -231,6 +231,114 @@
     color: rgba(255,255,255,0.6);
   }
 
+  /* ============================================================
+     PRESET: product_demo
+     Phone mockup with a real product screenshot inside, framed by
+     a brand gradient background. The slide.bg field (the value
+     you'd assign with the per-slide bg picker) is treated as the
+     screenshot URL — it gets embedded *inside* the mockup, not
+     painted as the slide background. The slide background itself
+     is always the brand gradient via .bg-solid.
+     ============================================================ */
+  .preset-product-demo .frame {
+    padding: 140px 80px 220px 80px;
+    display: flex; flex-direction: column;
+    justify-content: center; align-items: center;
+    text-align: center;
+  }
+  .preset-product-demo .bg-photo-scrim { display: none; }
+  .preset-product-demo .bg-solid {
+    background:
+      radial-gradient(ellipse 120% 80% at 50% 0%, rgba(0,229,255,0.20) 0%, transparent 60%),
+      radial-gradient(ellipse 100% 100% at 50% 100%, rgba(0,165,217,0.14) 0%, transparent 60%),
+      linear-gradient(180deg, #0a1428 0%, #050812 100%);
+  }
+  /* If the user supplied a real bg via the picker, ignore the
+     painted slide background — the picture lives inside the mockup
+     in this preset, the slide bg should stay branded. */
+  .preset-product-demo .bg-photo { display: none; }
+  .preset-product-demo .product-headline {
+    font-family: 'Inter', sans-serif;
+    font-size: 92px; font-weight: 800; line-height: 1.05;
+    letter-spacing: -0.02em; color: #fff;
+    margin-bottom: 72px; max-width: 900px;
+    text-shadow: 0 2px 16px rgba(0,0,0,0.5);
+  }
+  .preset-product-demo .product-headline strong { color: #00E5FF; font-weight: 900; }
+  .preset-product-demo .product-subline {
+    margin-top: 64px;
+    font-family: 'Inter', sans-serif;
+    font-size: 44px; font-weight: 500; line-height: 1.25;
+    color: rgba(255,255,255,0.85);
+    max-width: 900px;
+  }
+  .preset-product-demo .phone-mockup {
+    width: 600px; height: 1280px;
+    border-radius: 80px;
+    background: #14141c;
+    padding: 18px; position: relative;
+    box-shadow:
+      0 32px 80px rgba(0,0,0,0.7),
+      0 0 0 4px rgba(255,255,255,0.06),
+      inset 0 0 0 1px rgba(255,255,255,0.04);
+  }
+  .preset-product-demo .phone-screen {
+    width: 100%; height: 100%;
+    border-radius: 64px;
+    overflow: hidden;
+    background-color: #000;
+    background-size: cover;
+    background-position: center top;
+    background-repeat: no-repeat;
+  }
+  .preset-product-demo .phone-notch {
+    position: absolute;
+    top: 36px; left: 50%; transform: translateX(-50%);
+    width: 180px; height: 36px;
+    background: #000;
+    border-radius: 24px;
+    z-index: 2;
+  }
+  /* CTA reuses the headline / search-row pattern but skips the
+     mockup so the conversion message is uncluttered. */
+  .preset-product-demo .product-cta-headline {
+    font-family: 'Inter', sans-serif;
+    font-size: 132px; font-weight: 900; line-height: 1.0;
+    letter-spacing: -0.025em; color: #fff;
+    margin-bottom: 72px; max-width: 1000px;
+    text-shadow: 0 2px 16px rgba(0,0,0,0.55);
+  }
+  .preset-product-demo .product-cta-headline strong { color: #00E5FF; font-weight: 900; }
+  .preset-product-demo .product-cta-search-row {
+    display: flex; align-items: baseline; justify-content: center; gap: 28px;
+    margin-bottom: 28px;
+  }
+  .preset-product-demo .product-cta-instruction {
+    font-family: 'Inter', sans-serif;
+    font-size: 50px; font-weight: 500; color: rgba(255,255,255,0.85);
+  }
+  .preset-product-demo .product-cta-search {
+    font-family: 'Inter', sans-serif;
+    font-size: 130px; font-weight: 900; letter-spacing: -0.02em;
+    color: #00E5FF;
+    border-bottom: 6px solid #00E5FF;
+    padding-bottom: 6px;
+    text-shadow: 0 0 24px rgba(0,229,255,0.35);
+  }
+  .preset-product-demo .product-cta-slogan {
+    margin-top: 60px;
+    font-family: 'Inter', sans-serif;
+    font-size: 50px; font-weight: 600; font-style: italic;
+    color: rgba(0,229,255,0.85);
+  }
+  .preset-product-demo .product-attribution {
+    position: absolute; bottom: 80px; left: 0; right: 0;
+    text-align: center;
+    font-family: 'Inter', sans-serif;
+    font-size: 32px; font-weight: 700; letter-spacing: 0.22em;
+    color: rgba(0,229,255,0.55);
+  }
+
   /* CTA panel stays in the same image-dominant frame but uses a
      stacked caption-style block (search line + slogan) instead of
      top/bottom captions. */
@@ -718,6 +826,35 @@ const PRESETS = {
       return out;
     },
   },
+  product_demo: {
+    label: 'Product Demo',
+    slideClass: 'preset-product-demo',
+    showCounter: false,
+    // Branded gradient runs as the slide background regardless. The
+    // user-supplied images go inside the phone mockup, not under it.
+    fallbackBg: 'photo',
+    buildSlides(S) {
+      const out = [];
+      out.push({
+        html: buildProductHook(S.hook),
+        // Force the fallback path so the brand gradient renders, even
+        // if the user accidentally set a hook bg via the picker (which
+        // will be re-purposed as the screenshot inside the mockup).
+        bg: null,
+      });
+      (S.features || []).forEach((f) => {
+        out.push({
+          html: buildProductFeature(f),
+          bg: null,
+        });
+      });
+      out.push({
+        html: buildProductCTA(S.cta, S.attribution),
+        bg: null,
+      });
+      return out;
+    },
+  },
   aspirational: {
     label: 'Aspirational',
     slideClass: 'preset-aspirational',
@@ -993,6 +1130,53 @@ function buildAspirationalCTA(c, attribution) {
   const slogan = c.slogan ? `<div class="asp-cta-slogan">${c.slogan}</div>` : '';
   const attr = attribution ? `<div class="asp-attribution">${attribution}</div>` : '';
   return `<div class="asp-cta">${headline}${searchRow}${below}${slogan}</div>${attr}`;
+}
+
+// ============================================================
+// PRESET: product_demo builders
+// Hook + feature slides wrap a phone mockup around an Iro
+// screenshot. The screenshot URL travels as item.bg so the user
+// can assign one with the existing per-slide bg picker without
+// learning a new field name.
+// ============================================================
+function phoneMockup(screenshotUrl) {
+  const safeUrl = screenshotUrl ? String(screenshotUrl).replace(/'/g, "\\'") : '';
+  const screenStyle = safeUrl ? `style="background-image: url('${safeUrl}')"` : '';
+  return `<div class="phone-mockup">
+            <div class="phone-notch"></div>
+            <div class="phone-screen" ${screenStyle}></div>
+          </div>`;
+}
+
+function buildProductHook(h) {
+  if (!h) return '';
+  const headline = h.headline ? `<div class="product-headline">${h.headline}</div>` : '';
+  const screenshot = h.bg || h.screenshot || '';
+  const subline = h.supporting ? `<div class="product-subline">${h.supporting}</div>` : '';
+  return `${headline}${phoneMockup(screenshot)}${subline}`;
+}
+
+function buildProductFeature(f) {
+  if (!f) return '';
+  const headline = f.headline ? `<div class="product-headline">${f.headline}</div>` : '';
+  const screenshot = f.bg || f.screenshot || '';
+  const subline = f.subline ? `<div class="product-subline">${f.subline}</div>` : '';
+  return `${headline}${phoneMockup(screenshot)}${subline}`;
+}
+
+function buildProductCTA(c, attribution) {
+  if (!c) return '';
+  const headline = c.headline ? `<div class="product-cta-headline">${c.headline}</div>` : '';
+  let searchRow = '';
+  if (c.instructionAbove || c.searchTerm) {
+    const above = c.instructionAbove ? `<span class="product-cta-instruction">${c.instructionAbove}</span>` : '';
+    const term = c.searchTerm ? `<span class="product-cta-search">${c.searchTerm}</span>` : '';
+    searchRow = `<div class="product-cta-search-row">${above}${term}</div>`;
+  }
+  const below = c.instructionBelow ? `<div class="product-cta-instruction">${c.instructionBelow}</div>` : '';
+  const slogan = c.slogan ? `<div class="product-cta-slogan">${c.slogan}</div>` : '';
+  const attr = attribution ? `<div class="product-attribution">${attribution}</div>` : '';
+  return `${headline}${searchRow}${below}${slogan}${attr}`;
 }
 
 render();
