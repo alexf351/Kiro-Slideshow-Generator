@@ -566,7 +566,12 @@ export default function App() {
                         'w-20 h-20 md:w-36 md:h-36 object-contain transition-transform duration-200 ' +
                         (selected ? 'drop-shadow-[0_6px_20px_rgba(0,229,255,0.55)]' : 'group-hover:scale-105')
                       }
-                      loading="lazy"
+                      // Eager load + async decode — iOS Safari sometimes
+                      // skipped lazy-loaded tiles inside the scrollable
+                      // sidebar, leaving placeholders forever. There are
+                      // only six tiles, so the bandwidth cost is small.
+                      loading="eager"
+                      decoding="async"
                     />
                     <span className={
                       'text-[11px] md:text-[13px] font-bold uppercase tracking-[0.18em] ' +
@@ -604,7 +609,9 @@ export default function App() {
                         'w-20 h-20 md:w-32 md:h-32 object-contain transition-transform duration-200 ' +
                         (selected ? 'drop-shadow-[0_6px_20px_rgba(0,229,255,0.55)]' : 'group-hover:scale-105')
                       }
-                      loading="lazy"
+                      // See mascot tile note above re: iOS lazy-loading.
+                      loading="eager"
+                      decoding="async"
                     />
                     <span className={
                       'text-[11px] md:text-[13px] font-bold uppercase tracking-[0.18em] ' +
@@ -761,17 +768,29 @@ export default function App() {
                          resize-y custom-scrollbar transition-all duration-200"
               placeholder="Hook in the first line. Hashtags at the end. (Saved with the post when you tap Save to history.)"
             />
-            <button
-              type="button"
-              disabled={!caption}
-              onClick={() => {
-                if (!caption) return;
-                navigator.clipboard?.writeText(caption).catch(() => {});
-              }}
-              className="mt-2 text-[11px] font-bold uppercase tracking-[0.14em] text-gray-500 hover:text-[#00E5FF] disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              Copy caption
-            </button>
+            <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
+              <button
+                type="button"
+                onClick={() => {
+                  if (caption.trim() && !window.confirm(`Replace the caption with the ${PRESETS[preset].label} template?`)) return;
+                  setCaption(PRESETS[preset].defaultCaption);
+                }}
+                className="text-[11px] font-bold uppercase tracking-[0.14em] text-gray-500 hover:text-[#00E5FF]"
+              >
+                Generate from {PRESETS[preset].label}
+              </button>
+              <button
+                type="button"
+                disabled={!caption}
+                onClick={() => {
+                  if (!caption) return;
+                  navigator.clipboard?.writeText(caption).catch(() => {});
+                }}
+                className="text-[11px] font-bold uppercase tracking-[0.14em] text-gray-500 hover:text-[#00E5FF] disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Copy caption
+              </button>
+            </div>
           </section>
 
           <section className="px-5 md:px-10 py-6 md:py-7">

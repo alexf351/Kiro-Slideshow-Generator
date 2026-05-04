@@ -27,6 +27,10 @@ export type PresetMeta = {
   // Pretty-printed JSON the user can drop into the textarea as a starting
   // point for this format.
   defaultJson: string;
+  // Caption template tuned to the format's vibe — first line acts as the
+  // hook, hashtags trail at the end. Loaded on demand via the
+  // "Generate caption" button next to the Caption textarea.
+  defaultCaption: string;
 };
 
 const PROMPT_PACK_JSON = `{
@@ -188,6 +192,64 @@ const ASPIRATIONAL_JSON = `{
 }`;
 
 
+// Caption templates per preset. First line is the hook (TikTok shows
+// the first ~80 chars as the visible caption); the rest is body +
+// hashtags. Tuned to match each format's voice — the user can edit
+// after pulling them in via "Generate caption".
+
+const PROMPT_PACK_CAPTION = `save these before they get patched 🔖
+
+3 prompts I keep on rotation. each one has saved me hours.
+
+want to actually get good at AI? search "Iro AI" on the App Store.
+
+#aiprompts #chatgpt #claude #aitools #productivity`;
+
+const PAIN_STORY_CAPTION = `i used to feel like everyone was getting it but me.
+
+every morning the same thing — open the app, scroll, close, repeat. nothing was sticking. i was falling further behind every day.
+
+then i tried iro. 5 minutes a day. that was it. and somehow it worked.
+
+if you've felt this too, it's not just you.
+
+search "Iro AI" on the App Store ✨
+
+#aijourney #learningai #studytok #aitok #selfimprovement`;
+
+const ASPIRATIONAL_CAPTION = `stop watching them win.
+
+they had a tool you didn't. now you do.
+
+search "Iro AI" on the App Store. 5 min/day. that's it.
+
+#aitools #leveluptiktok #futureready #ai #productivity`;
+
+const MEME_POV_CAPTION = `the AI grindset is unmatched 😭😭
+
+search "Iro AI" if you're tired of watching everyone else figure it out.
+
+#aitok #pov #fyp #ai #relatable #aimemes`;
+
+const PRODUCT_DEMO_CAPTION = `this is the app I wish existed when I started learning AI.
+
+5 min/day. real prompts you'd actually use. progress you can feel.
+
+download Iro AI on the App Store ↓
+
+#ai #aitools #appsthatchangedmylife #learningai #fyp`;
+
+const CHECKLIST_CAPTION = `save this if any of these is you ⤴️
+
+✓ feel left behind in AI
+✓ tried to learn it before and quit
+✓ want to use it daily, not just read tweets about it
+✓ don't have hours to spare
+
+iro is for you. search "Iro AI" on the App Store.
+
+#aitok #aichecklist #fyp #learningai #productivity`;
+
 export const PRESETS: Record<PresetKey, PresetMeta> = {
   prompt_pack: {
     key: 'prompt_pack',
@@ -195,6 +257,7 @@ export const PRESETS: Record<PresetKey, PresetMeta> = {
     pitch: 'Save-bait list. Big numbered prompts in chat-style boxes.',
     status: 'ready',
     defaultJson: PROMPT_PACK_JSON,
+    defaultCaption: PROMPT_PACK_CAPTION,
   },
   pain_story: {
     key: 'pain_story',
@@ -202,6 +265,7 @@ export const PRESETS: Record<PresetKey, PresetMeta> = {
     pitch: 'Aesthetic photo bg + italic serif confession. Soft CTA.',
     status: 'ready',
     defaultJson: PAIN_STORY_JSON,
+    defaultCaption: PAIN_STORY_CAPTION,
   },
   aspirational: {
     key: 'aspirational',
@@ -209,6 +273,7 @@ export const PRESETS: Record<PresetKey, PresetMeta> = {
     pitch: 'Cinematic luxury. Bottom-anchored bold hooks, gold + cyan accents.',
     status: 'ready',
     defaultJson: ASPIRATIONAL_JSON,
+    defaultCaption: ASPIRATIONAL_CAPTION,
   },
   meme_pov: {
     key: 'meme_pov',
@@ -216,6 +281,7 @@ export const PRESETS: Record<PresetKey, PresetMeta> = {
     pitch: 'Image-dominant. Top/bottom captions with thick stroke, minimal branding.',
     status: 'ready',
     defaultJson: MEME_POV_JSON,
+    defaultCaption: MEME_POV_CAPTION,
   },
   product_demo: {
     key: 'product_demo',
@@ -223,6 +289,7 @@ export const PRESETS: Record<PresetKey, PresetMeta> = {
     pitch: 'Phone mockup + Iro screenshots. Branded benefit captions per slide.',
     status: 'ready',
     defaultJson: PRODUCT_DEMO_JSON,
+    defaultCaption: PRODUCT_DEMO_CAPTION,
   },
   checklist: {
     key: 'checklist',
@@ -230,5 +297,6 @@ export const PRESETS: Record<PresetKey, PresetMeta> = {
     pitch: 'Scannable “if you…” qualifier. Big tinted check / cross / warning icons.',
     status: 'ready',
     defaultJson: CHECKLIST_JSON,
+    defaultCaption: CHECKLIST_CAPTION,
   },
 };
