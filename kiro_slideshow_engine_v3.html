@@ -310,40 +310,37 @@
   .preset-product-demo .bg-photo { display: none; }
   .preset-product-demo .product-headline {
     font-family: 'Inter', sans-serif;
-    /* 72 px (was 76) — Inter line-boxes at this weight are taller than
-       the line-height value implies (half-leading), and the previous
-       size let 2-line headlines + a 2-line subline bleed past the safe
-       zone. Tighter both ways gives real visual buffer. */
-    font-size: 72px; font-weight: 800; line-height: 1.05;
+    font-size: 64px; font-weight: 800; line-height: 1.05;
     letter-spacing: -0.02em; color: #fff;
-    margin-bottom: 30px; max-width: 920px;
+    margin-bottom: 24px; max-width: 920px;
     text-shadow: 0 2px 16px rgba(0,0,0,0.5);
   }
   .preset-product-demo .product-headline strong { color: #00E5FF; font-weight: 900; }
   .preset-product-demo .product-subline {
-    margin-top: 30px;
+    margin-top: 24px;
     font-family: 'Inter', sans-serif;
-    font-size: 34px; font-weight: 500; line-height: 1.22;
+    font-size: 30px; font-weight: 500; line-height: 1.25;
     color: rgba(255,255,255,0.85);
     max-width: 880px;
   }
   .preset-product-demo .phone-mockup {
-    /* 360 × 768 (was 380 × 810). With centered layout this leaves
-       ~40 px of buffer above the headline AND below the subline in
-       the worst case (2-line headline + 2-line subline), so neither
-       edge looks tight against the safe-zone overlay. */
-    width: 360px; height: 768px;
-    border-radius: 48px;
+    /* Round 4 — 360 × 768 → 320 × 680. Each previous attempt's "math
+       fits" turned out tighter than the math because Inter's actual
+       line-box height runs ~10-15% larger than the line-height value.
+       This size leaves ~100 px buffer on each side of the safe zone
+       even in the worst case, so visual breathing room is unmistakable. */
+    width: 320px; height: 680px;
+    border-radius: 42px;
     background: #14141c;
-    padding: 11px; position: relative;
+    padding: 10px; position: relative;
     box-shadow:
-      0 22px 56px rgba(0,0,0,0.7),
+      0 18px 48px rgba(0,0,0,0.7),
       0 0 0 4px rgba(255,255,255,0.06),
       inset 0 0 0 1px rgba(255,255,255,0.04);
   }
   .preset-product-demo .phone-screen {
     width: 100%; height: 100%;
-    border-radius: 38px;
+    border-radius: 34px;
     overflow: hidden;
     background-color: #000;
     background-size: cover;
@@ -352,10 +349,10 @@
   }
   .preset-product-demo .phone-notch {
     position: absolute;
-    top: 20px; left: 50%; transform: translateX(-50%);
-    width: 108px; height: 22px;
+    top: 16px; left: 50%; transform: translateX(-50%);
+    width: 96px; height: 20px;
     background: #000;
-    border-radius: 16px;
+    border-radius: 14px;
     z-index: 2;
   }
   /* Product Demo CTA — App-Store-style download badge as the focal
