@@ -101,6 +101,29 @@ const MEME_POV_JSON = `{
   "attribution": "@IRO.AI"
 }`;
 
+const CHECKLIST_JSON = `{
+  "preset": "checklist",
+  "hook": {
+    "headline": "save this if you…",
+    "subline": "want to actually get good at AI."
+  },
+  "items": [
+    { "status": "check", "text": "feel left behind in AI" },
+    { "status": "check", "text": "tried to learn it before and quit" },
+    { "status": "check", "text": "want to use it daily, not just read tweets about it" },
+    { "status": "check", "text": "don't have hours to spare" },
+    { "status": "cross", "text": "want another endless YouTube playlist" }
+  ],
+  "cta": {
+    "headline": "if this is you<br/><strong>iro</strong> is for you.",
+    "instructionAbove": "search",
+    "searchTerm": "Iro AI",
+    "instructionBelow": "on the App Store.",
+    "slogan": "5 min/day. for real."
+  },
+  "attribution": "@IRO.AI"
+}`;
+
 const PRODUCT_DEMO_JSON = `{
   "preset": "product_demo",
   "hook": {
@@ -164,24 +187,6 @@ const ASPIRATIONAL_JSON = `{
   "attribution": "@IRO.AI"
 }`;
 
-// Placeholders for not-yet-shipped presets. Selecting one will currently
-// render as prompt_pack on the engine side; we keep the entries here so
-// the selector shows what's coming.
-const PLACEHOLDER_JSON = (preset: PresetKey) => `{
-  "preset": "${preset}",
-  "// note": "This preset isn't fully built yet — falls back to prompt_pack rendering.",
-  "platform": "claude",
-  "hook": { "headline": "Coming soon", "sub": "(${preset})" },
-  "prompts": [],
-  "cta": {
-    "headline": "Try a different preset for now.",
-    "instructionAbove": "search:",
-    "searchTerm": "Iro AI",
-    "instructionBelow": "on the App Store.",
-    "slogan": "more formats coming."
-  },
-  "attribution": "@IRO.AI"
-}`;
 
 export const PRESETS: Record<PresetKey, PresetMeta> = {
   prompt_pack: {
@@ -222,8 +227,8 @@ export const PRESETS: Record<PresetKey, PresetMeta> = {
   checklist: {
     key: 'checklist',
     label: 'Checklist',
-    pitch: 'Scannable “if you…” qualifier with status indicators. (Coming soon.)',
-    status: 'planned',
-    defaultJson: PLACEHOLDER_JSON('checklist'),
+    pitch: 'Scannable “if you…” qualifier. Big tinted check / cross / warning icons.',
+    status: 'ready',
+    defaultJson: CHECKLIST_JSON,
   },
 };

@@ -182,6 +182,12 @@ function extractSlideMeta(parsed: unknown): SlideMeta[] {
       out.push({ key: `feature:${i}`, label: truncate(`Feature ${i + 1} — ${t}`, 40) });
     });
   }
+  if (Array.isArray((p as { items?: { text?: string }[] }).items)) {
+    (p as { items: { text?: string }[] }).items.forEach((it, i) => {
+      const t = clean(it?.text || `Item ${i + 1}`);
+      out.push({ key: `item:${i}`, label: truncate(`${i + 1}. ${t}`, 40) });
+    });
+  }
   if (p.cta) out.push({ key: 'cta', label: 'CTA' });
   return out;
 }
@@ -309,6 +315,7 @@ export default function App() {
       // For product_demo, item.bg becomes the screenshot inside the
       // phone mockup — same picker UX, different rendering surface.
       { field: 'features', prefix: 'feature' },
+      { field: 'items', prefix: 'item' },
     ];
     for (const { field, prefix } of contentArrays) {
       const arr = slides[field];
