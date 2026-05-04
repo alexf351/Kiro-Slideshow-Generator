@@ -4,6 +4,7 @@ import Library from './Library';
 import Analytics from './Analytics';
 import { blobToDataUrl, getItem } from './mediaBank';
 import { addPost } from './posts';
+import { PRESETS, PRESET_KEYS, type PresetKey } from './presets';
 
 type Mascot = 'bronze' | 'silver' | 'gold' | 'platinum' | 'diamond' | 'iridescent';
 type Platform = 'claude' | 'chatgpt';
@@ -84,6 +85,7 @@ type Persisted = {
   jsonText: string;
   slideBgs: SlideBgMap;
   caption: string;
+  preset: PresetKey;
 };
 
 function loadPersisted(): Persisted {
@@ -101,10 +103,19 @@ function loadPersisted(): Persisted {
         jsonText: typeof p.jsonText === 'string' ? p.jsonText : DEFAULT_JSON,
         slideBgs: (p.slideBgs && typeof p.slideBgs === 'object' ? p.slideBgs : {}) as SlideBgMap,
         caption: typeof p.caption === 'string' ? p.caption : '',
+        preset: PRESET_KEYS.includes(p.preset as PresetKey) ? (p.preset as PresetKey) : 'prompt_pack',
       };
     }
   } catch {}
-  return { mascot: 'platinum', variant: 'base', platform: 'claude', jsonText: DEFAULT_JSON, slideBgs: {}, caption: '' };
+  return {
+    mascot: 'platinum',
+    variant: 'base',
+    platform: 'claude',
+    jsonText: DEFAULT_JSON,
+    slideBgs: {},
+    caption: '',
+    preset: 'prompt_pack',
+  };
 }
 
 // Strip wrappers like `const SLIDES =` / `;` / ```json fences before JSON.parse.
@@ -149,6 +160,7 @@ export default function App() {
   const [mainView, setMainView] = useState<MainView>('preview');
   const [slideBgs, setSlideBgs] = useState<SlideBgMap>(initial.slideBgs);
   const [caption, setCaption] = useState<string>(initial.caption);
+  const [preset, setPreset] = useState<PresetKey>(initial.preset);
   const [saveStatus, setSaveStatus] = useState<{ kind: 'idle' } | { kind: 'saving' } | { kind: 'ok' } | { kind: 'err'; msg: string }>({ kind: 'idle' });
   // Active "pick a background for slide X" request — when set, the Library
   // shows a banner + cancel button and the next tap on an item resolves the
@@ -170,10 +182,10 @@ export default function App() {
     try {
       localStorage.setItem(
         STORAGE_KEY,
-        JSON.stringify({ mascot, variant, platform, jsonText, slideBgs, caption }),
+        JSON.stringify({ mascot, variant, platform, jsonText, slideBgs, caption, preset }),
       );
     } catch {}
-  }, [mascot, variant, platform, jsonText, slideBgs, caption]);
+  }, [mascot, variant, platform, jsonText, slideBgs, caption, preset]);
 
   useEffect(() => {
     const onMessage = (e: MessageEvent) => {
@@ -235,7 +247,10 @@ export default function App() {
     }
     setStatus({ kind: 'rendering' });
 
-    const slides: Record<string, unknown> = { ...parsed, mascot: mascotKey(mascot, variant), platform };
+    // Sidebar preset always wins over whatever's in the pasted JSON — the
+    // dropdown is the explicit user choice, the JSON field is just a hint
+    // about which format the JSON was authored for.
+    const slides: Record<string, unknown> = { ...parsed, mascot: mascotKey(mascot, variant), platform, preset };
 
     // Resolve and inject bg per-slide. Done in parallel so big slideshows with
     // multiple uploaded photos don't render serially.
@@ -423,6 +438,58 @@ export default function App() {
         </header>
 
         <div className="flex-1 overflow-y-auto custom-scrollbar">
+          <section className="px-5 md:px-10 py-6 md:py-7 border-b border-white/[0.04]">
+            {sectionLabel(
+              'Format',
+              <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-600">
+                · preset
+              </span>,
+            )}
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+              {PRESET_KEYS.map((key) => {
+                const meta = PRESETS[key];
+                const selected = preset === key;
+                const planned = meta.status === 'planned';
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setPreset(key)}
+                    className={
+                      'relative px-3 py-3 rounded-xl text-left transition-all duration-200 ' +
+                      (selected
+                        ? 'border border-[#00E5FF]/60 bg-gradient-to-br from-[#0e2b3a] to-[#091626] shadow-[0_0_0_1px_rgba(0,229,255,0.15),0_8px_24px_-8px_rgba(0,229,255,0.55)]'
+                        : 'border border-white/[0.08] bg-[#0b1224] hover:border-white/[0.18]')
+                    }
+                  >
+                    <div className={
+                      'text-[12px] font-bold uppercase tracking-[0.16em] ' +
+                      (selected ? 'text-[#00E5FF]' : 'text-gray-200')
+                    }>
+                      {meta.label}
+                    </div>
+                    {planned && (
+                      <span className="mt-1 inline-block text-[9px] font-bold uppercase tracking-[0.14em] text-amber-300/80">
+                        Coming soon
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="mt-3 text-xs text-gray-500 leading-relaxed">{PRESETS[preset].pitch}</p>
+            <button
+              type="button"
+              onClick={() => {
+                if (jsonText.trim() && !window.confirm(`Replace the JSON with the ${PRESETS[preset].label} default?`)) return;
+                setJsonText(PRESETS[preset].defaultJson);
+              }}
+              className="mt-3 text-[11px] font-bold uppercase tracking-[0.14em] text-gray-500 hover:text-[#00E5FF]"
+            >
+              Load default JSON for {PRESETS[preset].label}
+            </button>
+          </section>
+
           <section className="px-5 md:px-10 py-6 md:py-7 border-b border-white/[0.04]">
             {sectionLabel('Mascot')}
             <div className="grid grid-cols-3 gap-3 md:gap-4">
