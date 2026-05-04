@@ -101,6 +101,40 @@ const MEME_POV_JSON = `{
   "attribution": "@IRO.AI"
 }`;
 
+const ASPIRATIONAL_JSON = `{
+  "preset": "aspirational",
+  "hook": {
+    "headline": "stop watching them <em>win</em>.",
+    "supporting": "while you fall further behind."
+  },
+  "beats": [
+    {
+      "label": "the gap",
+      "text": "they had a tool you <strong>didn't</strong>."
+    },
+    {
+      "label": "the discovery",
+      "text": "5 minutes a day. that was it."
+    },
+    {
+      "label": "the unlock",
+      "text": "<em>actually</em> understanding AI."
+    },
+    {
+      "label": "the outcome",
+      "text": "you stop <strong>watching</strong>. you start <em>building</em>."
+    }
+  ],
+  "cta": {
+    "headline": "stop scrolling.<br/>start <em>building</em>.",
+    "instructionAbove": "search",
+    "searchTerm": "Iro AI",
+    "instructionBelow": "on the App Store.",
+    "slogan": "the future is yours."
+  },
+  "attribution": "@IRO.AI"
+}`;
+
 // Placeholders for not-yet-shipped presets. Selecting one will currently
 // render as prompt_pack on the engine side; we keep the entries here so
 // the selector shows what's coming.
@@ -138,9 +172,9 @@ export const PRESETS: Record<PresetKey, PresetMeta> = {
   aspirational: {
     key: 'aspirational',
     label: 'Aspirational',
-    pitch: 'Cinematic luxury hooks, gold/cyan accents. (Coming soon.)',
-    status: 'planned',
-    defaultJson: PLACEHOLDER_JSON('aspirational'),
+    pitch: 'Cinematic luxury. Bottom-anchored bold hooks, gold + cyan accents.',
+    status: 'ready',
+    defaultJson: ASPIRATIONAL_JSON,
   },
   meme_pov: {
     key: 'meme_pov',
