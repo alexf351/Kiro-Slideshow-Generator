@@ -287,12 +287,11 @@
      is always the brand gradient via .bg-solid.
      ============================================================ */
   .preset-product-demo .frame {
-    /* Padding pinned to the TikTok 14% top / 24% bottom safe zone so a
-       1-line headline + mockup + 2-line subline all stay visible inside
-       it. Anchored top (justify-content: flex-start) instead of centered
-       so any overflow falls below the visible area, not above where the
-       headline lives. */
-    padding: 280px 80px 460px 80px;
+    /* Padding pinned exactly to the TikTok 14% top / 24% bottom safe
+       zone (269 px / 461 px on a 1920 canvas). Anchored to the top so
+       any unexpected overflow falls below the visible area instead of
+       above the headline. */
+    padding: 290px 80px 470px 80px;
     display: flex; flex-direction: column;
     justify-content: flex-start; align-items: center;
     text-align: center;
@@ -310,39 +309,39 @@
   .preset-product-demo .bg-photo { display: none; }
   .preset-product-demo .product-headline {
     font-family: 'Inter', sans-serif;
-    /* Down from 92 px / 72 px margin: a tighter headline lets the mockup
-       fit fully inside the safe zone alongside a 2-line subline. */
-    font-size: 76px; font-weight: 800; line-height: 1.04;
+    /* 72 px (was 76) — Inter line-boxes at this weight are taller than
+       the line-height value implies (half-leading), and the previous
+       size let 2-line headlines + a 2-line subline bleed past the safe
+       zone. Tighter both ways gives real visual buffer. */
+    font-size: 72px; font-weight: 800; line-height: 1.05;
     letter-spacing: -0.02em; color: #fff;
-    margin-bottom: 36px; max-width: 920px;
+    margin-bottom: 30px; max-width: 920px;
     text-shadow: 0 2px 16px rgba(0,0,0,0.5);
   }
   .preset-product-demo .product-headline strong { color: #00E5FF; font-weight: 900; }
   .preset-product-demo .product-subline {
-    margin-top: 36px;
+    margin-top: 30px;
     font-family: 'Inter', sans-serif;
-    /* Down from 44 px so 2-line sublines clear the bottom safe zone. */
-    font-size: 36px; font-weight: 500; line-height: 1.22;
+    font-size: 34px; font-weight: 500; line-height: 1.22;
     color: rgba(255,255,255,0.85);
     max-width: 880px;
   }
   .preset-product-demo .phone-mockup {
-    /* Down from 600 × 1280. The original size pushed the bottom of the
-       mockup well past the 24% safe-zone floor on TikTok. 440 × 938
-       keeps the iPhone 9:19.5-ish proportion but fits inside the safe
-       band even with a 1-line headline above and a 2-line subline below. */
-    width: 440px; height: 938px;
-    border-radius: 60px;
+    /* 380 × 810 (was 440 × 938). Sized so a worst-case slide — 2-line
+       headline + mockup + 2-line subline — leaves ~50 px of buffer
+       inside the 1160 px safe-zone height instead of bare-fit math. */
+    width: 380px; height: 810px;
+    border-radius: 52px;
     background: #14141c;
-    padding: 14px; position: relative;
+    padding: 12px; position: relative;
     box-shadow:
-      0 28px 70px rgba(0,0,0,0.7),
+      0 24px 60px rgba(0,0,0,0.7),
       0 0 0 4px rgba(255,255,255,0.06),
       inset 0 0 0 1px rgba(255,255,255,0.04);
   }
   .preset-product-demo .phone-screen {
     width: 100%; height: 100%;
-    border-radius: 48px;
+    border-radius: 42px;
     overflow: hidden;
     background-color: #000;
     background-size: cover;
@@ -351,11 +350,10 @@
   }
   .preset-product-demo .phone-notch {
     position: absolute;
-    /* Smaller notch to match the smaller mockup. */
-    top: 26px; left: 50%; transform: translateX(-50%);
-    width: 132px; height: 28px;
+    top: 22px; left: 50%; transform: translateX(-50%);
+    width: 114px; height: 24px;
     background: #000;
-    border-radius: 20px;
+    border-radius: 18px;
     z-index: 2;
   }
   /* Product Demo CTA — App-Store-style download badge as the focal
