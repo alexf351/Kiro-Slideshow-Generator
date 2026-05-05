@@ -265,18 +265,30 @@
     align-items: center; text-align: center; width: 100%;
   }
   .preset-aspirational .asp-cta.has-app-icon .asp-cta-search::after { display: none; }
-  /* Iro app icon — the trust signal above the App Store meta line.
-     130 × 130 with a cyan-tinted box-shadow so it reads as part of
-     the same gold/cyan palette as the rest of the lockup. */
+  /* Iro app icon — the trust signal in the brand stamp lockup.
+     Position controlled by the icon-{beside|under|over} modifier on
+     .asp-cta (driven by cta.appIconPosition in the JSON, default
+     "beside"). The base size + radius + shadow are shared; each
+     position only adjusts margins. */
   .preset-aspirational .asp-cta-app-icon {
     display: block;
     width: 130px; height: 130px;
-    margin: 36px auto 0 auto;
+    margin: 0 auto;
     border-radius: 30px;
     box-shadow:
       0 8px 28px rgba(0,0,0,0.55),
       0 0 0 1px rgba(255,255,255,0.08),
       0 0 32px rgba(0,229,255,0.18);
+  }
+  .preset-aspirational .asp-cta.icon-under .asp-cta-app-icon { margin-top: 36px; }
+  .preset-aspirational .asp-cta.icon-over  .asp-cta-app-icon { margin-bottom: 28px; }
+  .preset-aspirational .asp-cta.icon-beside .asp-cta-app-icon { margin: 0; }
+  /* "beside" pairs the icon and the brand wordmark in a single
+     centered row. Vertical-align centers a 130 px icon against the
+     huge "Iro AI" text. */
+  .preset-aspirational .asp-cta-stamp-row {
+    display: flex; align-items: center; justify-content: center;
+    gap: 32px;
   }
   .preset-aspirational .asp-cta-meta {
     margin-top: 56px;
@@ -1376,26 +1388,44 @@ function buildAspirationalCTA(c, attribution) {
     : '';
   const ruleTop = `<div class="asp-cta-rule"></div>`;
   const headline = c.headline ? `<div class="asp-cta-headline">${c.headline}</div>` : '';
-  // The search term itself is the trophy/stamp centerpiece — rendered
-  // huge with a cyan accent rule below.
-  const search = c.searchTerm ? `<div class="asp-cta-search">${c.searchTerm}</div>` : '';
-  // App icon. On by default for aspirational since it doubles as the
-  // trust signal under the brand stamp; opt out with cta.showAppIcon: false
-  // for a text-only luxury lockup.
+  // App icon — on by default. Position via cta.appIconPosition:
+  //   'beside' (default) — icon left of the wordmark in a single row
+  //   'under'            — icon stacked below the wordmark
+  //   'over'             — icon stacked above the wordmark
+  // Opt out entirely with cta.showAppIcon: false for a text-only stamp.
   const showIcon = c.showAppIcon !== false;
-  const appIcon = showIcon
+  const iconPos = (c.appIconPosition === 'under' || c.appIconPosition === 'over')
+    ? c.appIconPosition
+    : 'beside';
+  const iconHtml = showIcon
     ? `<img class="asp-cta-app-icon" src="${APP_ICON}" alt="Iro app icon" />`
     : '';
+  const searchEl = c.searchTerm ? `<div class="asp-cta-search">${c.searchTerm}</div>` : '';
+  // Lay out the brand stamp differently per position. 'beside' wraps
+  // icon + search in a flex row so they sit side-by-side; 'over' /
+  // 'under' just sandwich the icon before / after the search div, with
+  // CSS handling vertical centering via the .asp-cta flex column.
+  let stamp;
+  if (!showIcon || !c.searchTerm) {
+    stamp = searchEl;
+  } else if (iconPos === 'beside') {
+    stamp = `<div class="asp-cta-stamp-row">${iconHtml}${searchEl}</div>`;
+  } else if (iconPos === 'over') {
+    stamp = `${iconHtml}${searchEl}`;
+  } else {
+    stamp = `${searchEl}${iconHtml}`;
+  }
   // instructionBelow becomes a small uppercase meta line under the
   // brand lockup, e.g. "the app store · 5 min/day".
   const meta = c.instructionBelow ? `<div class="asp-cta-meta">${c.instructionBelow}</div>` : '';
   const ruleBottom = `<div class="asp-cta-rule asp-cta-rule-bottom"></div>`;
   const slogan = c.slogan ? `<div class="asp-cta-slogan">${c.slogan}</div>` : '';
   const attr = attribution ? `<div class="asp-attribution">${attribution}</div>` : '';
-  // The has-app-icon modifier on the wrapper hides the cyan accent
-  // bar under the search term so the icon doesn't compete with it.
-  const wrapperCls = 'asp-cta' + (showIcon ? ' has-app-icon' : '');
-  return `<div class="${wrapperCls}">${eyebrow}${ruleTop}${headline}${search}${appIcon}${meta}${ruleBottom}${slogan}</div>${attr}`;
+  // The has-app-icon modifier hides the cyan accent bar (the ::after on
+  // .asp-cta-search) so it doesn't compete with the icon. icon-{pos}
+  // scopes the per-position margin rules above.
+  const wrapperCls = 'asp-cta' + (showIcon ? ` has-app-icon icon-${iconPos}` : '');
+  return `<div class="${wrapperCls}">${eyebrow}${ruleTop}${headline}${stamp}${meta}${ruleBottom}${slogan}</div>${attr}`;
 }
 
 // ============================================================
