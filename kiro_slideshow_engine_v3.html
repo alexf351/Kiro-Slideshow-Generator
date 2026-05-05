@@ -1830,7 +1830,9 @@ async function downloadAllSlides() {
 
   // Fast path: previous tap captured the files but couldn't share because
   // activation expired. This tap has fresh activation — share immediately.
-  if (pendingShareFiles && typeof navigator.share === 'function') {
+  // Only relevant on mobile (the share path is mobile-only below).
+  const isMobileFast = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  if (isMobileFast && pendingShareFiles && typeof navigator.share === 'function') {
     try {
       label.textContent = 'Opening share sheet…';
       await navigator.share({ files: pendingShareFiles, title: 'Iro Slideshow' });
@@ -1854,7 +1856,17 @@ async function downloadAllSlides() {
 
     // Mobile path: Web Share API. iOS share sheet → "Save X Images" →
     // every PNG lands in Photos, in filename (and therefore slide) order.
-    const canShare = typeof navigator.canShare === 'function' && navigator.canShare({ files });
+    //
+    // Gated on mobile-only because desktop browsers (Chrome on Windows
+    // especially) report canShare({files}) as true, then either open a
+    // half-broken system share dialog or hang the share() promise
+    // entirely — leaving the button stuck on "Opening share sheet…".
+    // Desktop is much better served by the per-file download loop below,
+    // which writes the PNGs straight to ~/Downloads.
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    const canShare = isMobile
+      && typeof navigator.canShare === 'function'
+      && navigator.canShare({ files });
     if (canShare) {
       try {
         label.textContent = 'Opening share sheet…';
