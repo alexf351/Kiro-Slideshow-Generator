@@ -66,7 +66,7 @@ const PROMPT_PACK_JSON = `{
     "instructionBelow": "on the App Store.",
     "slogan": "stop asking AI questions.<br/><strong>start building with it.</strong>"
   },
-  "attribution": "@IRO.AI"
+  "attribution": "@tryiro"
 }`;
 
 const PAIN_STORY_JSON = `{
@@ -85,7 +85,7 @@ const PAIN_STORY_JSON = `{
     "instructionBelow": "on the App Store.",
     "slogan": "5 minutes a day. that's it."
   },
-  "attribution": "@IRO.AI"
+  "attribution": "@tryiro"
 }`;
 
 const MEME_POV_JSON = `{
@@ -106,7 +106,7 @@ const MEME_POV_JSON = `{
     "instructionBelow": "on the App Store",
     "slogan": "actually get good at AI."
   },
-  "attribution": "@IRO.AI"
+  "attribution": "@tryiro"
 }`;
 
 const CHECKLIST_JSON = `{
@@ -129,7 +129,7 @@ const CHECKLIST_JSON = `{
     "instructionBelow": "on the App Store.",
     "slogan": "5 min/day. for real."
   },
-  "attribution": "@IRO.AI"
+  "attribution": "@tryiro"
 }`;
 
 const PRODUCT_DEMO_JSON = `{
@@ -158,7 +158,7 @@ const PRODUCT_DEMO_JSON = `{
     "instructionBelow": "on the App Store.",
     "slogan": "5 min/day. that's it."
   },
-  "attribution": "@IRO.AI"
+  "attribution": "@tryiro"
 }`;
 
 const ASPIRATIONAL_JSON = `{
@@ -192,7 +192,7 @@ const ASPIRATIONAL_JSON = `{
     "instructionBelow": "on the App Store.",
     "slogan": "the future is yours."
   },
-  "attribution": "@IRO.AI"
+  "attribution": "@tryiro"
 }`;
 
 

@@ -36,7 +36,7 @@ The CTA always points to the same place. Keep these consistent:
 ```
 
 ### Attribution
-Always set `"attribution": "@IRO.AI"` at the top level.
+Always set `"attribution": "@tryiro"` at the top level.
 
 ### TikTok safe zone
 The 1080×1920 canvas obscures the top 14% (~270px), bottom 24% (~460px), and 12% on each side under TikTok's UI. The engine handles positioning, but **keep text short** — long lines wrap and crash into the safe zone. Aim:
@@ -68,7 +68,7 @@ The 1080×1920 canvas obscures the top 14% (~270px), bottom 24% (~460px), and 12
     prompt: string      // the actual prompt body, ≤ 200 chars
   }>,
   cta: { headline, instructionAbove, searchTerm, instructionBelow, slogan },
-  attribution: "@IRO.AI"
+  attribution: "@tryiro"
 }
 ```
 
@@ -103,7 +103,7 @@ The 1080×1920 canvas obscures the top 14% (~270px), bottom 24% (~460px), and 12
     "instructionBelow": "on the App Store.",
     "slogan": "stop asking AI questions.<br/><strong>start building with it.</strong>"
   },
-  "attribution": "@IRO.AI"
+  "attribution": "@tryiro"
 }
 ```
 
@@ -124,7 +124,7 @@ The 1080×1920 canvas obscures the top 14% (~270px), bottom 24% (~460px), and 12
   hook: { text: string },
   beats: Array<{ text: string }>,
   cta: { headline, instructionAbove, searchTerm, instructionBelow, slogan },
-  attribution: "@IRO.AI"
+  attribution: "@tryiro"
 }
 ```
 
@@ -146,7 +146,7 @@ The 1080×1920 canvas obscures the top 14% (~270px), bottom 24% (~460px), and 12
     "instructionBelow": "on the App Store.",
     "slogan": "5 minutes a day. that's it."
   },
-  "attribution": "@IRO.AI"
+  "attribution": "@tryiro"
 }
 ```
 
@@ -179,7 +179,7 @@ The 1080×1920 canvas obscures the top 14% (~270px), bottom 24% (~460px), and 12
     instructionBelow: string, // small uppercase meta line ("APP STORE · 5 MIN/DAY")
     slogan: string           // italic Georgia, gold
   },
-  attribution: "@IRO.AI"
+  attribution: "@tryiro"
 }
 ```
 
@@ -204,7 +204,7 @@ The 1080×1920 canvas obscures the top 14% (~270px), bottom 24% (~460px), and 12
     "instructionBelow": "App Store · 5 min/day",
     "slogan": "the future is yours."
   },
-  "attribution": "@IRO.AI"
+  "attribution": "@tryiro"
 }
 ```
 
@@ -234,7 +234,7 @@ The 1080×1920 canvas obscures the top 14% (~270px), bottom 24% (~460px), and 12
     slogan?: string,
     watermark?: string
   },
-  attribution: "@IRO.AI"
+  attribution: "@tryiro"
 }
 ```
 
@@ -264,7 +264,7 @@ The 1080×1920 canvas obscures the top 14% (~270px), bottom 24% (~460px), and 12
     "instructionBelow": "on the App Store",
     "slogan": "actually get good at AI."
   },
-  "attribution": "@IRO.AI"
+  "attribution": "@tryiro"
 }
 ```
 
@@ -295,7 +295,7 @@ The 1080×1920 canvas obscures the top 14% (~270px), bottom 24% (~460px), and 12
     instructionBelow?: string,
     slogan?: string
   },
-  attribution: "@IRO.AI"
+  attribution: "@tryiro"
 }
 ```
 
@@ -327,7 +327,7 @@ The 1080×1920 canvas obscures the top 14% (~270px), bottom 24% (~460px), and 12
     "instructionBelow": "5 min/day. that's it.",
     "slogan": "Free to download."
   },
-  "attribution": "@IRO.AI"
+  "attribution": "@tryiro"
 }
 ```
 
@@ -359,7 +359,7 @@ The 1080×1920 canvas obscures the top 14% (~270px), bottom 24% (~460px), and 12
     instructionBelow?: string,
     slogan?: string
   },
-  attribution: "@IRO.AI"
+  attribution: "@tryiro"
 }
 ```
 
@@ -393,7 +393,7 @@ Mixing 1-2 cross/warning items at the end with mostly checks is high-engagement.
     "instructionBelow": "on the App Store.",
     "slogan": "5 min/day. for real."
   },
-  "attribution": "@IRO.AI"
+  "attribution": "@tryiro"
 }
 ```
 
@@ -408,7 +408,7 @@ If they say "make me a `pain_story` about doom-scrolling AI tutorials," you:
 3. Stick to the slide count and field shape from the schema.
 4. Use 1-3 emphasized words per slide max.
 5. Always end with the CTA pointing to "Iro AI" on the App Store.
-6. Always set `"attribution": "@IRO.AI"`.
+6. Always set `"attribution": "@tryiro"`.
 7. Return only the JSON.
 
 If they don't specify a preset, ask which one — don't guess. Each format has very different rules.
@@ -418,5 +418,5 @@ If they don't specify a preset, ask which one — don't guess. Each format has v
 - Don't add fields the schema doesn't list (e.g. don't invent `subtitle` or `caption` inside slides).
 - Don't write commentary above or below the JSON.
 - Don't use markdown code fences around the JSON in your response — the user will paste raw, fences break the parser.
-- Don't change the brand: `Iro AI` (search term), `@IRO.AI` (attribution), App Store as the CTA destination.
+- Don't change the brand: `Iro AI` (search term), `@tryiro` (attribution), App Store as the CTA destination.
 - Don't write captions for the TikTok post itself — there's a separate Caption box in the app for that with its own templates.
