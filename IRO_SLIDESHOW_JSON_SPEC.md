@@ -177,7 +177,8 @@ The 1080×1920 canvas obscures the top 14% (~270px), bottom 24% (~460px), and 12
     instructionAbove: string, // becomes the gold uppercase eyebrow ("AVAILABLE ON")
     searchTerm: string,      // renders huge as the brand "stamp"
     instructionBelow: string, // small uppercase meta line ("APP STORE · 5 MIN/DAY")
-    slogan: string           // italic Georgia, gold
+    slogan: string,           // italic Georgia, gold
+    showAppIcon?: boolean    // defaults true — renders the Iro app icon below the brand stamp; set false for a text-only luxury lockup
   },
   attribution: "@tryiro"
 }
