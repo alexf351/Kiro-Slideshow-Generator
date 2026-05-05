@@ -12,6 +12,7 @@ export const PRESET_KEYS = [
   'meme_pov',
   'product_demo',
   'checklist',
+  'handwritten_pack',
 ] as const;
 
 export type PresetKey = (typeof PRESET_KEYS)[number];
@@ -128,6 +129,44 @@ const CHECKLIST_JSON = `{
     "searchTerm": "Iro AI",
     "instructionBelow": "on the App Store.",
     "slogan": "5 min/day. for real."
+  },
+  "attribution": "@tryiro"
+}`;
+
+const HANDWRITTEN_PACK_JSON = `{
+  "preset": "handwritten_pack",
+  "hook": {
+    "headline": "ChatGPT has 187 million users per day. Yet 97% of people don't know how to use it.",
+    "sub": "Copy these 5 prompts and use it as a pro:"
+  },
+  "prompts": [
+    {
+      "title": "1/ Grocery Receipt Analyzer",
+      "prompt": "Here's my grocery receipt [paste]. Show me where I overspent, cheaper alternatives, and how to cut my bill by 30%."
+    },
+    {
+      "title": "2/ Flight Finder",
+      "prompt": "Find the cheapest flights from [City A] to [City B] in the next [X weeks]. Include budget airlines, layover hacks, and hidden deals."
+    },
+    {
+      "title": "3/ Meeting Summarizer",
+      "prompt": "Here's my meeting transcript: [paste]. Pull out 3 key decisions, 5 action items with owners, and any unresolved questions."
+    },
+    {
+      "title": "4/ Email That Gets Replies",
+      "prompt": "Write a 3-line email to [recipient] about [topic]. Friendly but direct. End with one clear ask."
+    },
+    {
+      "title": "5/ Learn Anything Fast",
+      "prompt": "Teach me [topic] like I'm 12. One analogy I'd actually relate to. Then ask one question to check I understood."
+    }
+  ],
+  "cta": {
+    "headline": "want to actually get good at AI?",
+    "instructionAbove": "search",
+    "searchTerm": "Iro AI",
+    "instructionBelow": "on the App Store.",
+    "slogan": "5 min a day. that's it."
   },
   "attribution": "@tryiro"
 }`;
@@ -254,6 +293,14 @@ iro is for you. search "Iro AI" on the App Store.
 
 #aitok #aichecklist #fyp #learningai #productivity`;
 
+const HANDWRITTEN_PACK_CAPTION = `save these prompts. wrote them down so you don't have to. 🔖
+
+5 prompts that turn ChatGPT from a glorified search engine into something that actually saves you hours.
+
+want to get good at AI? search "Iro AI" on the App Store. 5 min a day, that's it.
+
+#aiprompts #chatgpt #savethis #aitok #productivity`;
+
 export const PRESETS: Record<PresetKey, PresetMeta> = {
   prompt_pack: {
     key: 'prompt_pack',
@@ -308,5 +355,14 @@ export const PRESETS: Record<PresetKey, PresetMeta> = {
     defaultJson: CHECKLIST_JSON,
     defaultCaption: CHECKLIST_CAPTION,
     accent: '#22C55E', // green check
+  },
+  handwritten_pack: {
+    key: 'handwritten_pack',
+    label: 'Handwritten Pack',
+    pitch: 'Cream paper + handwritten ink. Same prompt-pack structure, notebook aesthetic.',
+    status: 'ready',
+    defaultJson: HANDWRITTEN_PACK_JSON,
+    defaultCaption: HANDWRITTEN_PACK_CAPTION,
+    accent: '#1a2858', // ink-on-paper navy
   },
 };

@@ -572,6 +572,113 @@
     color: rgba(255,255,255,0.5);
   }
 
+  /* ============================================================
+     PRESET: handwritten_pack
+     Cream paper background, handwritten ink-on-paper aesthetic.
+     Same JSON shape as prompt_pack (hook + numbered prompts + CTA)
+     so content can be moved between formats easily — only the
+     visual treatment changes.
+     ============================================================ */
+  /* Caveat handwriting font from Google Fonts. Loaded via @import so
+     it's available before html2canvas captures (the existing
+     document.fonts.ready wait in downloadAllSlides covers it). */
+  @import url('https://fonts.googleapis.com/css2?family=Caveat:wght@500;600;700&display=swap');
+  .preset-handwritten-pack .frame {
+    padding: 220px 100px 240px 100px;
+    display: flex; flex-direction: column;
+    justify-content: flex-start; align-items: center;
+    text-align: center;
+  }
+  /* Override every slide-level layer this preset doesn't want:
+     mascot, vignette, photo, scrim — replaced with a solid paper
+     surface drawn in .bg-solid. */
+  .preset-handwritten-pack .bg-mascot,
+  .preset-handwritten-pack .bg-vignette,
+  .preset-handwritten-pack .bg-photo,
+  .preset-handwritten-pack .bg-photo-scrim { display: none; }
+  /* Cream paper with subtle radial darken at corners — fakes the
+     page-edge shadow you see on a phone photo of real paper.
+     Multi-layer gradient gives a slight texture without needing a
+     bitmap. */
+  .preset-handwritten-pack .bg-solid {
+    background:
+      radial-gradient(ellipse at 5% 5%, rgba(0,0,0,0.06) 0%, transparent 35%),
+      radial-gradient(ellipse at 95% 95%, rgba(0,0,0,0.07) 0%, transparent 35%),
+      radial-gradient(ellipse at 95% 5%, rgba(0,0,0,0.04) 0%, transparent 30%),
+      radial-gradient(ellipse at 5% 95%, rgba(0,0,0,0.04) 0%, transparent 30%),
+      linear-gradient(180deg, #f6efde 0%, #efe6cf 100%);
+  }
+  .preset-handwritten-pack .top-counter { display: none; }
+  /* Shared ink-on-paper text style. Caveat has a slight slant and
+     ballpoint feel matching the screenshots. */
+  .preset-handwritten-pack .hw-text {
+    font-family: 'Caveat', 'Bradley Hand', 'Patrick Hand', 'Comic Sans MS', cursive;
+    color: #1a2858;
+    font-weight: 600;
+  }
+  .preset-handwritten-pack .hw-hook {
+    font-family: 'Caveat', 'Bradley Hand', 'Patrick Hand', 'Comic Sans MS', cursive;
+    color: #1a2858;
+    font-size: 96px; font-weight: 700; line-height: 1.18;
+    letter-spacing: 0.005em; max-width: 920px;
+  }
+  .preset-handwritten-pack .hw-hook-sub {
+    margin-top: 56px;
+    font-family: 'Caveat', 'Bradley Hand', 'Patrick Hand', 'Comic Sans MS', cursive;
+    color: #1a2858;
+    font-size: 80px; font-weight: 700; line-height: 1.18;
+    max-width: 880px;
+  }
+  /* Numbered prompts: title left-aligned, body left-aligned with
+     curly quotes. Wider line-height for the airy notebook feel. */
+  .preset-handwritten-pack .hw-prompt-title {
+    align-self: flex-start;
+    font-family: 'Caveat', 'Bradley Hand', 'Patrick Hand', 'Comic Sans MS', cursive;
+    color: #1a2858;
+    font-size: 100px; font-weight: 700; line-height: 1.1;
+    margin-bottom: 80px; text-align: left;
+  }
+  .preset-handwritten-pack .hw-prompt-body {
+    align-self: flex-start;
+    font-family: 'Caveat', 'Bradley Hand', 'Patrick Hand', 'Comic Sans MS', cursive;
+    color: #1a2858;
+    font-size: 88px; font-weight: 600; line-height: 1.32;
+    text-align: left; max-width: 920px;
+  }
+  /* CTA: same handwriting style with the search term emphasized. */
+  .preset-handwritten-pack .hw-cta-headline {
+    font-family: 'Caveat', 'Bradley Hand', 'Patrick Hand', 'Comic Sans MS', cursive;
+    color: #1a2858;
+    font-size: 96px; font-weight: 700; line-height: 1.18;
+    margin-bottom: 64px; max-width: 920px;
+  }
+  .preset-handwritten-pack .hw-cta-search-line {
+    font-family: 'Caveat', 'Bradley Hand', 'Patrick Hand', 'Comic Sans MS', cursive;
+    color: #1a2858;
+    font-size: 84px; font-weight: 700; line-height: 1.2;
+    margin-bottom: 48px;
+  }
+  .preset-handwritten-pack .hw-cta-search {
+    font-weight: 700;
+    /* Hand-underline simulated with a slightly-off-baseline
+       border-bottom in the same ink color. */
+    border-bottom: 6px solid #1a2858;
+    padding-bottom: 4px;
+  }
+  .preset-handwritten-pack .hw-cta-slogan {
+    font-family: 'Caveat', 'Bradley Hand', 'Patrick Hand', 'Comic Sans MS', cursive;
+    color: #1a2858;
+    font-size: 72px; font-weight: 600; line-height: 1.2; font-style: italic;
+    opacity: 0.85;
+  }
+  .preset-handwritten-pack .hw-attribution {
+    position: absolute;
+    bottom: 90px; left: 0; right: 0; text-align: center;
+    font-family: 'Caveat', 'Bradley Hand', 'Patrick Hand', 'Comic Sans MS', cursive;
+    color: #1a2858;
+    font-size: 52px; font-weight: 600; opacity: 0.55;
+  }
+
   /* CTA panel stays in the same image-dominant frame but uses a
      stacked caption-style block (search line + slogan) instead of
      top/bottom captions. */
@@ -1086,6 +1193,25 @@ const PRESETS = {
       return out;
     },
   },
+  handwritten_pack: {
+    label: 'Handwritten Pack',
+    slideClass: 'preset-handwritten-pack',
+    showCounter: false,
+    // Always solid paper background — bg-photo / mascot are explicitly
+    // hidden in the preset's CSS. fallbackBg: 'photo' keeps the
+    // wrapper logic simple (slide.bg is null for every slide), so the
+    // .bg-solid layer renders unconditionally.
+    fallbackBg: 'photo',
+    buildSlides(S) {
+      const out = [];
+      out.push({ html: buildHandwrittenHook(S.hook), bg: null });
+      (S.prompts || []).forEach((p) => {
+        out.push({ html: buildHandwrittenPrompt(p), bg: null });
+      });
+      out.push({ html: buildHandwrittenCTA(S.cta, S.attribution), bg: null });
+      return out;
+    },
+  },
   product_demo: {
     label: 'Product Demo',
     slideClass: 'preset-product-demo',
@@ -1527,6 +1653,50 @@ function buildChecklistCTA(c, attribution) {
   const slogan = c.slogan ? `<div class="check-cta-slogan">${c.slogan}</div>` : '';
   const attr = attribution ? `<div class="check-attribution">${attribution}</div>` : '';
   return `${headline}${searchRow}${below}${slogan}${attr}`;
+}
+
+// ============================================================
+// PRESET: handwritten_pack builders
+// Same JSON shape as prompt_pack (hook with headline+sub, prompts
+// array with title+prompt, standard CTA). Visual treatment is
+// cream paper + Caveat handwritten ink, no chat boxes / mascot /
+// counter.
+// ============================================================
+function buildHandwrittenHook(h) {
+  if (!h) return '';
+  const headline = h.headline ? `<div class="hw-hook">${h.headline}</div>` : '';
+  // Reuse the prompt_pack `sub` field name for symmetry.
+  const sub = h.sub ? `<div class="hw-hook-sub">${h.sub}</div>` : '';
+  return `${headline}${sub}`;
+}
+
+function buildHandwrittenPrompt(p) {
+  if (!p) return '';
+  const title = p.title ? `<div class="hw-prompt-title">${p.title}</div>` : '';
+  // Wrap the prompt body in curly quotes to match the screenshot
+  // aesthetic ("Here's my grocery receipt..."). The user's JSON
+  // doesn't need to include the quotes.
+  const body = p.prompt
+    ? `<div class="hw-prompt-body">&ldquo;${p.prompt}&rdquo;</div>`
+    : '';
+  return `${title}${body}`;
+}
+
+function buildHandwrittenCTA(c, attribution) {
+  if (!c) return '';
+  const headline = c.headline ? `<div class="hw-cta-headline">${c.headline}</div>` : '';
+  // Render search line as one continuous handwritten phrase with the
+  // search term hand-underlined.
+  const searchParts = [];
+  if (c.instructionAbove) searchParts.push(c.instructionAbove);
+  if (c.searchTerm) searchParts.push(`<span class="hw-cta-search">${c.searchTerm}</span>`);
+  if (c.instructionBelow) searchParts.push(c.instructionBelow);
+  const searchLine = searchParts.length
+    ? `<div class="hw-cta-search-line">${searchParts.join(' ')}</div>`
+    : '';
+  const slogan = c.slogan ? `<div class="hw-cta-slogan">${c.slogan}</div>` : '';
+  const attr = attribution ? `<div class="hw-attribution">${attribution}</div>` : '';
+  return `${headline}${searchLine}${slogan}${attr}`;
 }
 
 render();
