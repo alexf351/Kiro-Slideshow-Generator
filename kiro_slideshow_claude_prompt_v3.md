@@ -199,7 +199,7 @@ For MODE = generic:
   "hook": { "headline": "...", "sub": "..." },
   "prompts": [ {"title": "1. <strong>...</strong> ...", "prompt": "..."}, ... 7 total ... ],
   "cta": { "headline": "...", "instructionAbove": "search:", "searchTerm": "Iro AI", "instructionBelow": "on the App Store.", "slogan": "stop asking AI questions.<br/><strong>start building with it.</strong>" },
-  "attribution": "@IRO.AI"
+  "attribution": "@tryiro"
 }
 
 For MODE = path-audience or path-gap (note the pathContext field):
@@ -210,7 +210,7 @@ For MODE = path-audience or path-gap (note the pathContext field):
   "hook": { "headline": "...", "sub": "..." },
   "prompts": [ ... 7 total ... ],
   "cta": { "headline": "...", "instructionAbove": "search:", "searchTerm": "Iro AI", "instructionBelow": "on the App Store.", "slogan": "stop asking AI questions.<br/><strong>start building with it.</strong>" },
-  "attribution": "@IRO.AI"
+  "attribution": "@tryiro"
 }
 
 PLATFORM is REQUIRED in every output. The engine rejects JSON without it.

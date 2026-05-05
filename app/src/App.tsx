@@ -73,7 +73,7 @@ const DEFAULT_JSON = `{
     "instructionBelow": "on the App Store.",
     "slogan": "stop asking AI questions.<br/><strong>start building with it.</strong>"
   },
-  "attribution": "@IRO.AI"
+  "attribution": "@tryiro"
 }`;
 
 const STORAGE_KEY = 'kiro_slideshow_generator_state_v2';
