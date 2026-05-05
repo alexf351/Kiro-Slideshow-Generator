@@ -401,6 +401,73 @@ Mixing 1-2 cross/warning items at the end with mostly checks is high-engagement.
 
 ---
 
+## Preset 7: `handwritten_pack`
+
+**Use case:** "ChatGPT prompts on lined paper" aesthetic. Same content shape as `prompt_pack` (numbered prompts) but rendered like handwritten notes on cream paper. High organic / save-bait performance, very different visual from the chat-box format.
+**Voice:** Title case for prompt titles ("1/ Grocery Receipt Analyzer"), normal sentence case for the prompt body. Keep it conversational like you're literally jotting it down. Use `[paste]`, `[City A]`, `[X weeks]` style bracket placeholders inside the prompt text — they look intentional in handwriting.
+**Slide count:** 1 hook + 3-7 prompts + 1 CTA (5-9 total).
+**Renders:** Cream paper background, navy-ink Caveat handwriting font, no chat boxes, no mascot, no top counter. Prompt titles render numbered "1/ Title" style, prompt body renders inside curly quotes (engine adds the quotes — your JSON shouldn't include them).
+
+### Schema
+```ts
+{
+  preset: "handwritten_pack",
+  hook: {
+    headline: string,  // long-form opening like "ChatGPT has 187M users / day. Yet 97% don't know how to use it." — multi-line OK
+    sub: string         // call-to-action line like "Copy these 5 prompts and use it as a pro:"
+  },
+  prompts: Array<{
+    title: string,      // "1/ Grocery Receipt Analyzer" — number + slash + title-cased name
+    prompt: string      // the actual prompt body, ≤ 200 chars; engine wraps it in curly quotes
+  }>,
+  cta: {
+    headline: string,        // short hand-written hook line
+    instructionAbove: string,// like "search"
+    searchTerm: string,      // "Iro AI" — gets a hand-underline
+    instructionBelow: string,// like "on the App Store."
+    slogan: string           // italic Caveat tagline
+  },
+  attribution: "@tryiro"
+}
+```
+
+### Working example
+```json
+{
+  "preset": "handwritten_pack",
+  "hook": {
+    "headline": "ChatGPT has 187 million users per day. Yet 97% of people don't know how to use it.",
+    "sub": "Copy these 5 prompts and use it as a pro:"
+  },
+  "prompts": [
+    {
+      "title": "1/ Grocery Receipt Analyzer",
+      "prompt": "Here's my grocery receipt [paste]. Show me where I overspent, cheaper alternatives, and how to cut my bill by 30%."
+    },
+    {
+      "title": "2/ Flight Finder",
+      "prompt": "Find the cheapest flights from [City A] to [City B] in the next [X weeks]. Include budget airlines, layover hacks, and hidden deals."
+    },
+    {
+      "title": "3/ Meeting Summarizer",
+      "prompt": "Here's my meeting transcript: [paste]. Pull out 3 key decisions, 5 action items with owners, and any unresolved questions."
+    }
+  ],
+  "cta": {
+    "headline": "want to actually get good at AI?",
+    "instructionAbove": "search",
+    "searchTerm": "Iro AI",
+    "instructionBelow": "on the App Store.",
+    "slogan": "5 min a day. that's it."
+  },
+  "attribution": "@tryiro"
+}
+```
+
+**Don't:** put `<strong>` / `<em>` / `<br/>` in handwritten_pack text — handwriting fonts don't have a meaningful bold variant and HTML tags will render literally as accent text. Just write the plain sentence; the visual interest comes from the font + paper, not inline accents.
+
+---
+
 ## When the user gives you a topic
 
 If they say "make me a `pain_story` about doom-scrolling AI tutorials," you:
