@@ -2,9 +2,12 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import engineHtml from '../../kiro_slideshow_engine_v3.html?raw';
 import Library from './Library';
 import Analytics from './Analytics';
-import { blobToDataUrl, getItem } from './mediaBank';
+import { addStockItem, blobToDataUrl, getItem } from './mediaBank';
 import { addPost } from './posts';
 import { PRESETS, PRESET_KEYS, type PresetKey } from './presets';
+import CloneFromTikTok from './CloneFromTikTok';
+import { CLAUDE_MODELS, type ClaudeModelId } from './anthropic';
+import { buildIroEditPrompt, editImage, OpenAIImageError, type OpenAIImageQuality } from './openaiImage';
 
 type Mascot = 'bronze' | 'silver' | 'gold' | 'platinum' | 'diamond' | 'iridescent';
 type Platform = 'claude' | 'chatgpt';
@@ -88,7 +91,12 @@ type Persisted = {
   preset: PresetKey;
   pexelsKey: string;
   unsplashKey: string;
+  anthropicKey: string;
+  claudeModel: ClaudeModelId;
+  openaiKey: string;
 };
+
+const CLAUDE_MODEL_IDS = CLAUDE_MODELS.map((m) => m.id) as readonly ClaudeModelId[];
 
 function loadPersisted(): Persisted {
   try {
@@ -108,6 +116,11 @@ function loadPersisted(): Persisted {
         preset: PRESET_KEYS.includes(p.preset as PresetKey) ? (p.preset as PresetKey) : 'prompt_pack',
         pexelsKey: typeof p.pexelsKey === 'string' ? p.pexelsKey : '',
         unsplashKey: typeof p.unsplashKey === 'string' ? p.unsplashKey : '',
+        anthropicKey: typeof p.anthropicKey === 'string' ? p.anthropicKey : '',
+        claudeModel: CLAUDE_MODEL_IDS.includes(p.claudeModel as ClaudeModelId)
+          ? (p.claudeModel as ClaudeModelId)
+          : 'claude-opus-4-7',
+        openaiKey: typeof p.openaiKey === 'string' ? p.openaiKey : '',
       };
     }
   } catch {}
@@ -121,6 +134,9 @@ function loadPersisted(): Persisted {
     preset: 'prompt_pack',
     pexelsKey: '',
     unsplashKey: '',
+    anthropicKey: '',
+    claudeModel: 'claude-opus-4-7',
+    openaiKey: '',
   };
 }
 
@@ -212,6 +228,16 @@ export default function App() {
   const [preset, setPreset] = useState<PresetKey>(initial.preset);
   const [pexelsKey, setPexelsKey] = useState<string>(initial.pexelsKey);
   const [unsplashKey, setUnsplashKey] = useState<string>(initial.unsplashKey);
+  const [anthropicKey, setAnthropicKey] = useState<string>(initial.anthropicKey);
+  const [claudeModel, setClaudeModel] = useState<ClaudeModelId>(initial.claudeModel);
+  const [openaiKey, setOpenaiKey] = useState<string>(initial.openaiKey);
+  // Last successful clone's structural analysis, surfaced as a small
+  // info card under the clone panel so the user can see what Claude
+  // pattern-matched before they tweak.
+  const [lastCloneNote, setLastCloneNote] = useState<string | null>(null);
+  // Per-slide-key flag while an AI-edit is in flight. Greys out the
+  // AI-edit button + shows a spinner.
+  const [editingBg, setEditingBg] = useState<Record<string, boolean>>({});
   const [saveStatus, setSaveStatus] = useState<{ kind: 'idle' } | { kind: 'saving' } | { kind: 'ok' } | { kind: 'err'; msg: string }>({ kind: 'idle' });
   // Active "pick a background for slide X" request — when set, the Library
   // shows a banner + cancel button and the next tap on an item resolves the
@@ -238,10 +264,36 @@ export default function App() {
     try {
       localStorage.setItem(
         STORAGE_KEY,
-        JSON.stringify({ mascot, variant, platform, jsonText, slideBgs, caption, preset, pexelsKey, unsplashKey }),
+        JSON.stringify({
+          mascot,
+          variant,
+          platform,
+          jsonText,
+          slideBgs,
+          caption,
+          preset,
+          pexelsKey,
+          unsplashKey,
+          anthropicKey,
+          claudeModel,
+          openaiKey,
+        }),
       );
     } catch {}
-  }, [mascot, variant, platform, jsonText, slideBgs, caption, preset, pexelsKey, unsplashKey]);
+  }, [
+    mascot,
+    variant,
+    platform,
+    jsonText,
+    slideBgs,
+    caption,
+    preset,
+    pexelsKey,
+    unsplashKey,
+    anthropicKey,
+    claudeModel,
+    openaiKey,
+  ]);
 
   useEffect(() => {
     const onMessage = (e: MessageEvent) => {
@@ -468,6 +520,87 @@ export default function App() {
     handleRender();
   }
 
+  // Wired to the CloneFromTikTok panel. Takes the clone result and
+  // populates everything in one shot: JSON, preset, caption, per-slide
+  // bgs. We don't auto-render so the user can eyeball the output first
+  // — they hit "Render slides" themselves.
+  function handleCloned(input: {
+    preset: PresetKey;
+    jsonText: string;
+    caption: string;
+    bgByKey: Record<string, string>;
+    source: { url: string; author: { uniqueId: string }; slides: { index: number }[] };
+    cloneAnalysis: { structuralFingerprint: string; hookStyle: string; density: string; ctaShape: string; niche: string; voiceTone: string };
+  }) {
+    setPreset(input.preset);
+    setJsonText(input.jsonText);
+    setCaption(input.caption);
+    // Replace the slideBgs map entirely with the clone's assignments
+    // — leftover bg picks from the prior post would just confuse the
+    // result.
+    const next: SlideBgMap = {};
+    for (const [k, mediaId] of Object.entries(input.bgByKey)) {
+      next[k] = { type: 'media', mediaId };
+    }
+    setSlideBgs(next);
+    setLastCloneNote(
+      `Source: @${input.source.author.uniqueId} · ${input.source.slides.length} slide${input.source.slides.length === 1 ? '' : 's'} — ` +
+        `${input.cloneAnalysis.structuralFingerprint}`,
+    );
+  }
+
+  // AI-edit pass on an existing slide bg. Pulls the current media
+  // item's blob, sends it + an Iro-tailored prompt to gpt-image-1,
+  // saves the result back into the media bank, and points the slide
+  // at the new item. Opt-in (needs an OpenAI key in Settings) because
+  // it's pay-per-image.
+  async function handleAiEditBg(slideKey: string, slideLabel: string) {
+    if (!openaiKey) {
+      window.alert('Add an OpenAI API key under Settings to use AI-edit.');
+      return;
+    }
+    const bg = slideBgs[slideKey];
+    if (!bg || bg.type !== 'media') {
+      window.alert('AI-edit works on backgrounds picked from the Library or cloned from TikTok. Assign one first.');
+      return;
+    }
+    const item = await getItem(bg.mediaId);
+    if (!item) {
+      window.alert('Could not load the source image for that slide.');
+      return;
+    }
+    const quality = (window.prompt('Image quality? low / medium / high (low ≈ $0.04, high ≈ $0.19)', 'medium') || 'medium')
+      .trim()
+      .toLowerCase() as OpenAIImageQuality;
+    if (!['low', 'medium', 'high'].includes(quality)) return;
+
+    setEditingBg((prev) => ({ ...prev, [slideKey]: true }));
+    try {
+      const editedBlob = await editImage({
+        apiKey: openaiKey,
+        sourceImage: item.blob,
+        quality,
+        prompt: buildIroEditPrompt({ slideRoleLabel: slideLabel, sourceCaption: lastCloneNote || caption }),
+      });
+      const newItem = await addStockItem({
+        blob: editedBlob,
+        mimeType: editedBlob.type || 'image/png',
+        name: `iro-edit-${slideKey}-${Date.now()}`,
+        source: { provider: 'upload' },
+      });
+      setSlideBgs((prev) => ({ ...prev, [slideKey]: { type: 'media', mediaId: newItem.id } }));
+    } catch (e) {
+      const msg = e instanceof OpenAIImageError ? e.message : (e as Error).message || 'AI-edit failed.';
+      window.alert(`AI-edit failed: ${msg}`);
+    } finally {
+      setEditingBg((prev) => {
+        const next = { ...prev };
+        delete next[slideKey];
+        return next;
+      });
+    }
+  }
+
   const tileBase =
     'group relative flex flex-col items-center gap-3 p-5 rounded-2xl ' +
     'transition-all duration-200 ease-out';
@@ -546,6 +679,20 @@ export default function App() {
         </header>
 
         <div className="flex-1 overflow-y-auto custom-scrollbar">
+          <section className="px-5 md:px-10 pt-6 md:pt-7 pb-3 md:pb-4">
+            <CloneFromTikTok
+              anthropicKey={anthropicKey}
+              model={claudeModel}
+              onModelChange={setClaudeModel}
+              onCloned={handleCloned}
+            />
+            {lastCloneNote && (
+              <div className="mt-2 text-[11px] text-gray-500 leading-relaxed">
+                <strong className="text-gray-400">Last clone:</strong> {lastCloneNote}
+              </div>
+            )}
+          </section>
+
           <section className="px-5 md:px-10 py-6 md:py-7 border-b border-white/[0.05]">
             {sectionLabel('Format')}
             <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
@@ -817,6 +964,19 @@ export default function App() {
                           >
                             URL
                           </button>
+                          {set && bg?.type === 'media' && openaiKey && (
+                            <button
+                              type="button"
+                              onClick={() => handleAiEditBg(key, label)}
+                              disabled={!!editingBg[key]}
+                              title="Send this image to gpt-image-1 with an Iro-tailored edit prompt. Pay-per-image."
+                              className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] rounded-md
+                                         bg-white/[0.04] text-gray-300 hover:bg-[#00E5FF]/15 hover:text-[#00E5FF] border border-white/10
+                                         disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {editingBg[key] ? 'AI…' : 'AI-edit'}
+                            </button>
+                          )}
                           {set && (
                             <button
                               type="button"
@@ -945,12 +1105,42 @@ export default function App() {
           <section className="px-5 md:px-10 py-6 md:py-7 border-t border-white/[0.05]">
             {sectionLabel('Settings')}
             <p className="text-xs text-gray-500 leading-relaxed mb-4">
-              Pasted keys live in this browser only. Both signups are free.
+              Pasted keys live in this browser only. Pexels &amp; Unsplash are free; Anthropic &amp; OpenAI are pay-per-use.
             </p>
+
+            <label className="flex flex-col gap-1.5 mb-3">
+              <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-gray-500">
+                Claude model (for cloning)
+              </span>
+              <select
+                value={claudeModel}
+                onChange={(e) => setClaudeModel(e.target.value as ClaudeModelId)}
+                className="bg-[#070b18] border border-white/[0.10] rounded-md px-3 py-2 text-sm text-gray-200 focus:border-[#00E5FF]/40 focus:outline-none"
+              >
+                {CLAUDE_MODELS.map((m) => (
+                  <option key={m.id} value={m.id}>{m.label}</option>
+                ))}
+              </select>
+            </label>
+
             {([
-              { label: 'Pexels API key', value: pexelsKey, setter: setPexelsKey, href: 'https://www.pexels.com/api/' },
-              { label: 'Unsplash access key', value: unsplashKey, setter: setUnsplashKey, href: 'https://unsplash.com/developers' },
-            ] as const).map(({ label, value, setter, href }) => {
+              {
+                label: 'Anthropic API key',
+                value: anthropicKey,
+                setter: setAnthropicKey,
+                href: 'https://console.anthropic.com/settings/keys',
+                note: 'Required for "Clone from TikTok". Pay-per-token.',
+              },
+              {
+                label: 'OpenAI API key (optional)',
+                value: openaiKey,
+                setter: setOpenaiKey,
+                href: 'https://platform.openai.com/api-keys',
+                note: 'Only needed for AI-edit of slide backgrounds. ~$0.04–$0.19 per image.',
+              },
+              { label: 'Pexels API key', value: pexelsKey, setter: setPexelsKey, href: 'https://www.pexels.com/api/', note: 'Free.' },
+              { label: 'Unsplash access key', value: unsplashKey, setter: setUnsplashKey, href: 'https://unsplash.com/developers', note: 'Free.' },
+            ] as const).map(({ label, value, setter, href, note }) => {
               const set = !!value;
               return (
                 <label key={label} className="flex flex-col gap-1.5 mb-3 last:mb-0">
@@ -982,6 +1172,7 @@ export default function App() {
                     placeholder="Paste here"
                     className="bg-[#070b18] border border-white/[0.10] rounded-md px-3 py-2 text-sm font-mono text-gray-200 placeholder:text-gray-700 focus:border-[#00E5FF]/40 focus:outline-none focus:shadow-[0_0_0_3px_rgba(0,229,255,0.08)] transition-shadow"
                   />
+                  {note && <span className="text-[10px] text-gray-600 leading-relaxed">{note}</span>}
                 </label>
               );
             })}
