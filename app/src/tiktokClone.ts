@@ -149,11 +149,20 @@ export async function scrapeTikTok(url: string): Promise<ScrapeResult> {
   const res = await fetch(`${SCRAPE_ENDPOINT}?url=${encodeURIComponent(url)}`);
   if (!res.ok) {
     let detail = '';
+    let diagnostics: Array<{ ua: string; status: number; hasBlob: boolean; scopeKeys: string[]; resolvedTo: string }> = [];
     try {
-      const j = (await res.json()) as { error?: string };
+      const j = (await res.json()) as { error?: string; diagnostics?: typeof diagnostics };
       detail = j?.error || '';
+      if (Array.isArray(j?.diagnostics)) diagnostics = j.diagnostics;
     } catch {}
-    throw new Error(detail || `Scrape failed (${res.status})`);
+    // Compact the diagnostics into the error message so the user can
+    // see WHY each UA attempt failed without opening devtools.
+    const diagSummary = diagnostics
+      .map((d) => `[${d.ua}] status=${d.status} blob=${d.hasBlob} scopes=${d.scopeKeys.join(',') || 'none'}`)
+      .join(' · ');
+    throw new Error(
+      (detail || `Scrape failed (${res.status})`) + (diagSummary ? `\n\n${diagSummary}` : ''),
+    );
   }
   return (await res.json()) as ScrapeResult;
 }
