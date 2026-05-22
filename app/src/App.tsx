@@ -238,6 +238,12 @@ export default function App() {
   // Per-slide-key flag while an AI-edit is in flight. Greys out the
   // AI-edit button + shows a spinner.
   const [editingBg, setEditingBg] = useState<Record<string, boolean>>({});
+  // Which slide row's source menu is open. Only one open at a time —
+  // opening another closes the previous.
+  const [openBgMenuKey, setOpenBgMenuKey] = useState<string | null>(null);
+  // Hidden <input type="file"> per slide so each row can trigger its
+  // own file picker without sharing state with other rows.
+  const slideFileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const [saveStatus, setSaveStatus] = useState<{ kind: 'idle' } | { kind: 'saving' } | { kind: 'ok' } | { kind: 'err'; msg: string }>({ kind: 'idle' });
   // Active "pick a background for slide X" request — when set, the Library
   // shows a banner + cancel button and the next tap on an item resolves the
@@ -464,6 +470,60 @@ export default function App() {
       delete next[slideKey];
       return next;
     });
+  }
+
+  // Save a File/Blob from a direct upload (or a clipboard paste) into
+  // the media bank and assign it as this slide's bg. Used by the
+  // per-slide Upload + Paste menu items so the user can drop an image
+  // they generated in Midjourney / ChatGPT / Nano Banana straight onto
+  // a slide without bouncing through the Library tab.
+  async function saveAndAssignBlob(slideKey: string, blob: Blob, name: string) {
+    const item = await addStockItem({
+      blob,
+      mimeType: blob.type || 'image/png',
+      name,
+      source: { provider: 'upload' },
+    });
+    setSlideBgs((prev) => ({ ...prev, [slideKey]: { type: 'media', mediaId: item.id } }));
+  }
+
+  async function handleUploadForSlide(slideKey: string, file: File) {
+    if (!file.type.startsWith('image/')) {
+      window.alert('Pick an image file.');
+      return;
+    }
+    try {
+      await saveAndAssignBlob(slideKey, file, file.name || `slide-${slideKey}`);
+    } catch (e) {
+      window.alert(`Upload failed: ${(e as Error).message}`);
+    }
+  }
+
+  // Reads the system clipboard, finds the first image item, saves it
+  // as this slide's bg. Requires the page to be focused; modern
+  // browsers prompt for clipboard-read permission on first use.
+  async function handlePasteImageForSlide(slideKey: string) {
+    if (typeof navigator === 'undefined' || !navigator.clipboard || !('read' in navigator.clipboard)) {
+      window.alert(
+        'Your browser doesn\'t allow reading images from the clipboard. Use the Upload option instead.',
+      );
+      return;
+    }
+    try {
+      const items = await navigator.clipboard.read();
+      for (const item of items) {
+        const imageType = item.types.find((t) => t.startsWith('image/'));
+        if (!imageType) continue;
+        const blob = await item.getType(imageType);
+        await saveAndAssignBlob(slideKey, blob, `pasted-${Date.now()}.${imageType.split('/')[1] || 'png'}`);
+        return;
+      }
+      window.alert('No image found on the clipboard. Copy an image first, then try again.');
+    } catch (e) {
+      // Permissions denied / no user gesture / unsupported MIME — surface a
+      // clear message rather than silently failing.
+      window.alert(`Could not read clipboard: ${(e as Error).message}`);
+    }
   }
 
   // Asks the engine to render a small PNG of the hook slide and ship it
@@ -909,20 +969,64 @@ export default function App() {
                   const set = !!bg;
                   let bgLabel = 'Mascot default';
                   if (bg?.type === 'url') bgLabel = 'Pasted URL';
-                  if (bg?.type === 'media') bgLabel = 'From library';
+                  if (bg?.type === 'media') bgLabel = 'My library';
+                  const menuOpen = openBgMenuKey === key;
+                  const editing = !!editingBg[key];
+
+                  const menuItem = (
+                    text: string,
+                    onClick: () => void,
+                    opts?: { danger?: boolean; sub?: string; disabled?: boolean },
+                  ) => (
+                    <button
+                      key={text}
+                      type="button"
+                      disabled={opts?.disabled}
+                      onClick={() => {
+                        setOpenBgMenuKey(null);
+                        onClick();
+                      }}
+                      className={
+                        'flex flex-col items-start px-3 py-2 text-left text-[12px] transition-colors ' +
+                        (opts?.danger
+                          ? 'text-red-300 hover:bg-red-500/10'
+                          : 'text-gray-200 hover:bg-[#00E5FF]/10 hover:text-[#00E5FF]') +
+                        (opts?.disabled ? ' opacity-40 cursor-not-allowed pointer-events-none' : '')
+                      }
+                    >
+                      <span className="font-medium">{text}</span>
+                      {opts?.sub && (
+                        <span className="text-[10px] text-gray-500 normal-case">{opts.sub}</span>
+                      )}
+                    </button>
+                  );
+
                   return (
                     <div
                       key={key}
                       className={
-                        'rounded-xl border px-3 py-2.5 flex gap-3 transition-colors ' +
+                        'relative rounded-xl border px-3 py-2.5 flex gap-3 transition-colors ' +
                         (set
                           ? 'border-[#00E5FF]/25 bg-gradient-to-br from-[#0e2030] to-[#0a1424]'
                           : 'border-white/[0.07] bg-[#0b1224]/60')
                       }
                     >
-                      {/* 9:16 thumbnail. Shows the assigned bg if any,
-                         otherwise a subtle "default" placeholder so the
-                         row keeps its visual rhythm regardless. */}
+                      {/* Hidden per-slide file input — triggered by the
+                         "Upload from device" menu item. */}
+                      <input
+                        ref={(el) => {
+                          slideFileInputRefs.current[key] = el;
+                        }}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) void handleUploadForSlide(key, file);
+                          e.target.value = '';
+                        }}
+                      />
+
                       <div className={
                         'shrink-0 w-10 h-[60px] rounded-md overflow-hidden border ' +
                         (set ? 'border-[#00E5FF]/40' : 'border-white/[0.08] bg-[#070b18]')
@@ -947,48 +1051,61 @@ export default function App() {
                         >
                           {bgLabel}
                         </div>
-                        <div className="mt-1.5 flex flex-wrap gap-1.5">
+                        <div className="mt-1.5">
                           <button
                             type="button"
-                            onClick={() => handlePickForSlide(key, label)}
-                            className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] rounded-md
+                            onClick={() => setOpenBgMenuKey(menuOpen ? null : key)}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] rounded-md
                                        bg-white/[0.04] text-gray-300 hover:bg-[#00E5FF]/15 hover:text-[#00E5FF] border border-white/10"
                           >
-                            Library
+                            {editing ? 'AI editing…' : 'Image source'} <span aria-hidden>▾</span>
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => handlePasteUrlForSlide(key)}
-                            className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] rounded-md
-                                       bg-white/[0.04] text-gray-300 hover:bg-[#00E5FF]/15 hover:text-[#00E5FF] border border-white/10"
-                          >
-                            URL
-                          </button>
-                          {set && bg?.type === 'media' && openaiKey && (
-                            <button
-                              type="button"
-                              onClick={() => handleAiEditBg(key, label)}
-                              disabled={!!editingBg[key]}
-                              title="Send this image to gpt-image-1 with an Iro-tailored edit prompt. Pay-per-image."
-                              className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] rounded-md
-                                         bg-white/[0.04] text-gray-300 hover:bg-[#00E5FF]/15 hover:text-[#00E5FF] border border-white/10
-                                         disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                              {editingBg[key] ? 'AI…' : 'AI-edit'}
-                            </button>
-                          )}
-                          {set && (
-                            <button
-                              type="button"
-                              onClick={() => handleClearBgForSlide(key)}
-                              className="px-2 py-1 text-[10px] font-bold uppercase tracking-[0.14em] rounded-md
-                                         text-gray-500 hover:text-red-300"
-                            >
-                              Clear
-                            </button>
-                          )}
                         </div>
                       </div>
+
+                      {menuOpen && (
+                        <>
+                          {/* Click-outside catcher. Pointer-events on the
+                             popover stay live because it's stacked above
+                             this overlay via z-index. */}
+                          <button
+                            type="button"
+                            aria-label="Close menu"
+                            onClick={() => setOpenBgMenuKey(null)}
+                            className="fixed inset-0 z-30 bg-transparent cursor-default"
+                          />
+                          <div className="absolute right-3 top-3 z-40 w-60 rounded-xl border border-white/10 bg-[#0a0e1a] shadow-[0_18px_44px_-10px_rgba(0,0,0,0.7)] overflow-hidden flex flex-col">
+                            {menuItem('Upload from device', () => slideFileInputRefs.current[key]?.click(), {
+                              sub: 'Pick a file — Midjourney / ChatGPT / Nano Banana export, whatever.',
+                            })}
+                            {menuItem('Paste from clipboard', () => void handlePasteImageForSlide(key), {
+                              sub: 'Copy an image first, then tap this. Cmd/Ctrl+V style.',
+                            })}
+                            {menuItem('Pick from My Library', () => handlePickForSlide(key, label), {
+                              sub: 'Uploads, stock results, cloned TikTok photos.',
+                            })}
+                            {menuItem('Paste image URL', () => handlePasteUrlForSlide(key), {
+                              sub: 'Direct link to a publicly reachable image.',
+                            })}
+                            {set && bg?.type === 'media' && openaiKey && menuItem(
+                              editing ? 'AI-editing…' : 'AI-edit current image',
+                              () => void handleAiEditBg(key, label),
+                              {
+                                sub: 'gpt-image-1 · pay-per-image · drops Iro vibe into the current photo.',
+                                disabled: editing,
+                              },
+                            )}
+                            {set && bg?.type === 'media' && !openaiKey && menuItem(
+                              'AI-edit (needs OpenAI key)',
+                              () => window.alert('Add an OpenAI API key under Settings to enable AI-edit.'),
+                              { sub: 'Pay-per-image. Optional.', disabled: false },
+                            )}
+                            {set && menuItem('Clear (use mascot default)', () => handleClearBgForSlide(key), {
+                              danger: true,
+                            })}
+                          </div>
+                        </>
+                      )}
                     </div>
                   );
                 })}
