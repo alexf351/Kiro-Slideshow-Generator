@@ -278,15 +278,46 @@ const CLONING_INSTRUCTIONS = [
 ].join('\n');
 
 // Strip wrappers from a pasted manual response — markdown fences,
-// "Here's the JSON:" preambles, trailing commentary. Keeps the
-// outermost {...} block.
+// "Here's the JSON:" preambles, trailing commentary. Also normalizes
+// smart quotes that iOS / mobile clients substitute into copied text,
+// since JSON.parse silently rejects U+201C/U+201D (curly double
+// quotes) and U+2018/U+2019 (curly single quotes when used as
+// delimiters). Keeps the outermost {...} block.
 function extractJsonObject(text: string): string {
   let t = text.trim();
   t = t.replace(/^```(?:json|javascript|js)?\s*/i, '').replace(/```\s*$/, '').trim();
+  // Curly double quotes → ASCII straight double quotes. Required when
+  // the user copied from a rich-text source (e.g. the Claude.ai chat
+  // bubble on iOS) that auto-substituted them.
+  t = t.replace(/[“”]/g, '"');
+  // Curly single quotes → ASCII apostrophe. Apostrophes are valid
+  // inside JSON strings without escaping, so this is safe even when
+  // they appear in content like "they'll" / "what's".
+  t = t.replace(/[‘’]/g, "'");
   const first = t.indexOf('{');
   const last = t.lastIndexOf('}');
   if (first === -1 || last === -1 || last < first) return t;
   return t.slice(first, last + 1);
+}
+
+// Shared parser for paste-back JSON. Wraps JSON.parse with a more
+// useful error message that calls out the most common iOS / mobile
+// failure modes (smart quotes already normalized by extractJsonObject,
+// truncated paste, prose still wrapped around the object).
+function parseManualJson(responseText: string): unknown {
+  const jsonText = extractJsonObject(responseText);
+  try {
+    return JSON.parse(jsonText);
+  } catch (e) {
+    const msg = (e as Error).message || '';
+    const hint =
+      jsonText.length < 50
+        ? 'Looks like only a snippet got copied. Long-press in Claude.ai → Select All → Copy and try again.'
+        : !jsonText.includes('"preset"')
+          ? 'No "preset" key found — make sure you copied the entire JSON object Claude.ai returned, not just part of it.'
+          : 'Sometimes iOS substitutes other Unicode characters (em dashes, ellipses) into copied text. Try copying again, or paste into a plain-text editor first to strip formatting.';
+    throw new Error(`Couldn't parse as JSON: ${msg}\n\n${hint}`);
+  }
 }
 
 // Same shape Claude returns via tool_use. Used by both the API path
@@ -453,16 +484,7 @@ export async function applyManualResponse(
   source: ScrapeResult,
   onStage?: (stage: CloneStage) => void,
 ): Promise<CloneResult> {
-  const jsonText = extractJsonObject(responseText);
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(jsonText);
-  } catch (e) {
-    throw new Error(
-      'That doesn\'t parse as JSON. Make sure you copied Claude.ai\'s full response — only the JSON object, no extra text.',
-    );
-  }
-  const clone = validateClone(parsed);
+  const clone = validateClone(parseManualJson(responseText));
   onStage?.({ kind: 'analyzed', clone });
   const mediaItems = await fetchSourceImagesIntoLibrary(source, onStage);
   const result: CloneResult = { source, clone, mediaItems };
@@ -743,12 +765,5 @@ export function buildManualProposePrompt(
 }
 
 export function applyProposeManualResponse(responseText: string): ClaudeProposeOutput {
-  const jsonText = extractJsonObject(responseText);
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(jsonText);
-  } catch {
-    throw new Error('That doesn\'t parse as JSON. Copy Claude.ai\'s full JSON reply only.');
-  }
-  return validateProposal(parsed);
+  return validateProposal(parseManualJson(responseText));
 }
