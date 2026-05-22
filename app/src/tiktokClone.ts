@@ -149,17 +149,36 @@ export async function scrapeTikTok(url: string): Promise<ScrapeResult> {
   const res = await fetch(`${SCRAPE_ENDPOINT}?url=${encodeURIComponent(url)}`);
   if (!res.ok) {
     let detail = '';
-    let diagnostics: Array<{ ua: string; status: number; hasBlob: boolean; scopeKeys: string[]; resolvedTo: string }> = [];
+    let diagnostics: Array<{
+      ua: string;
+      status: number;
+      hasBlob: boolean;
+      scopeKeys: string[];
+      resolvedTo: string;
+      finalUrl?: string;
+      followedCanonical?: boolean;
+    }> = [];
     try {
       const j = (await res.json()) as { error?: string; diagnostics?: typeof diagnostics };
       detail = j?.error || '';
       if (Array.isArray(j?.diagnostics)) diagnostics = j.diagnostics;
     } catch {}
-    // Compact the diagnostics into the error message so the user can
-    // see WHY each UA attempt failed without opening devtools.
+    // Compact each UA attempt onto its own line so the diagnostic is
+    // readable in the UI. Includes the final landed URL so we can
+    // see if a TikTok redirect dumped us somewhere unexpected.
     const diagSummary = diagnostics
-      .map((d) => `[${d.ua}] status=${d.status} blob=${d.hasBlob} scopes=${d.scopeKeys.join(',') || 'none'}`)
-      .join(' · ');
+      .map((d) => {
+        const parts = [
+          `[${d.ua}]`,
+          `status=${d.status}`,
+          `blob=${d.hasBlob}`,
+          d.followedCanonical ? 'follow=yes' : '',
+          `scopes=${d.scopeKeys.join(',') || 'none'}`,
+          d.finalUrl ? `→ ${d.finalUrl}` : '',
+        ].filter(Boolean);
+        return parts.join(' ');
+      })
+      .join('\n');
     throw new Error(
       (detail || `Scrape failed (${res.status})`) + (diagSummary ? `\n\n${diagSummary}` : ''),
     );

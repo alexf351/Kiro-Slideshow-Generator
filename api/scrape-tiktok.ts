@@ -135,6 +135,13 @@ function findItemStruct(blob: unknown): Record<string, unknown> | null {
       const detail = scope[key] as { itemInfo?: { itemStruct?: Record<string, unknown> } } | undefined;
       if (detail?.itemInfo?.itemStruct) return detail.itemInfo.itemStruct;
     }
+    // Last-ditch: walk every scope and look for anything that has
+    // .itemInfo.itemStruct underneath. Future-proofs against another
+    // TikTok rename.
+    for (const key of Object.keys(scope)) {
+      const v = scope[key] as { itemInfo?: { itemStruct?: Record<string, unknown> } } | undefined;
+      if (v?.itemInfo?.itemStruct) return v.itemInfo.itemStruct;
+    }
   }
 
   // Legacy SIGI_STATE shape: { ItemModule: { [id]: itemStruct } }
@@ -145,6 +152,21 @@ function findItemStruct(blob: unknown): Record<string, unknown> | null {
   }
 
   return null;
+}
+
+// TikTok's /t/<code>/ share URLs sometimes serve a JS-redirect page
+// instead of a real HTTP 302, so fetch().redirect="follow" leaves us
+// on the intermediate page (which has no post data). Every TikTok
+// page — including those intermediates — embeds
+// <link rel="canonical" href="https://www.tiktok.com/@user/(photo|video)/<id>">
+// so we can recover the real URL even when the redirect didn't take.
+function extractCanonicalPostUrl(html: string): string | null {
+  const m = html.match(/<link[^>]+rel=["']canonical["'][^>]+href=["']([^"']+)["']/i);
+  if (!m) return null;
+  const href = m[1];
+  // Only follow if it points to a single-post page on tiktok.com.
+  if (!/https?:\/\/(www\.)?tiktok\.com\/@[^/]+\/(photo|video)\/\d+/.test(href)) return null;
+  return href;
 }
 
 // When the scrape fails, returning what we DID find helps debug
@@ -229,24 +251,58 @@ type FetchAttempt = {
   scopeKeys: string[];
   item: Record<string, unknown> | null;
   canonicalUrl: string;
+  // The URL we landed on after redirects + the canonical-link
+  // follow-up. Helps debug when TikTok routes us through a JS-
+  // redirect intermediate.
+  finalUrl: string;
+  // Set when we had to re-fetch via the <link rel="canonical"> path
+  // because the first fetch landed on an intermediate page.
+  followedCanonical: boolean;
 };
 
 // Fetch + parse with one UA. Doesn't throw — returns enough info that
 // the caller can decide whether to fall back to the other UA.
 async function attemptFetch(rawUrl: string, ua: string, uaLabel: string): Promise<FetchAttempt> {
   const canonicalUrl = await resolveTikTokUrl(rawUrl, ua).catch(() => rawUrl);
-  const pageRes = await fetch(canonicalUrl, { headers: headersFor(ua), redirect: 'follow' });
+  let pageRes = await fetch(canonicalUrl, { headers: headersFor(ua), redirect: 'follow' });
+  let finalUrl = pageRes.url || canonicalUrl;
   if (!pageRes.ok) {
-    return { ua, uaLabel, status: pageRes.status, hasBlob: false, scopeKeys: [], item: null, canonicalUrl };
+    return {
+      ua, uaLabel, status: pageRes.status,
+      hasBlob: false, scopeKeys: [], item: null,
+      canonicalUrl, finalUrl, followedCanonical: false,
+    };
   }
-  const html = await pageRes.text();
-  const blob = extractEmbeddedJson(html);
-  if (!blob) {
-    return { ua, uaLabel, status: pageRes.status, hasBlob: false, scopeKeys: [], item: null, canonicalUrl };
+  let html = await pageRes.text();
+  let blob = extractEmbeddedJson(html);
+  let item = blob ? findItemStruct(blob) : null;
+  let followedCanonical = false;
+
+  // If the first fetch didn't get us a post object, check whether
+  // the page has a <link rel="canonical"> pointing somewhere else
+  // (the JS-redirect intermediate case). If so, follow it once and
+  // re-parse.
+  if (!item) {
+    const canonicalHref = extractCanonicalPostUrl(html);
+    if (canonicalHref && canonicalHref !== finalUrl) {
+      followedCanonical = true;
+      const r2 = await fetch(canonicalHref, { headers: headersFor(ua), redirect: 'follow' });
+      if (r2.ok) {
+        pageRes = r2;
+        finalUrl = r2.url || canonicalHref;
+        html = await r2.text();
+        blob = extractEmbeddedJson(html);
+        item = blob ? findItemStruct(blob) : null;
+      }
+    }
   }
-  const diag = diagnoseBlob(blob);
-  const item = findItemStruct(blob);
-  return { ua, uaLabel, status: pageRes.status, hasBlob: true, scopeKeys: diag.scopeKeys, item, canonicalUrl };
+
+  const diag = blob ? diagnoseBlob(blob) : { scopeKeys: [], topKeys: [] };
+  return {
+    ua, uaLabel, status: pageRes.status,
+    hasBlob: !!blob, scopeKeys: diag.scopeKeys, item,
+    canonicalUrl, finalUrl, followedCanonical,
+  };
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
@@ -298,6 +354,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
         hasBlob: a.hasBlob,
         scopeKeys: a.scopeKeys,
         resolvedTo: a.canonicalUrl,
+        finalUrl: a.finalUrl,
+        followedCanonical: a.followedCanonical,
       })),
     });
   } catch (e) {
