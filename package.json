@@ -1,0 +1,10 @@
+{
+  "name": "kiro-slideshow-generator",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Root package for Vercel serverless functions (api/). The actual web app lives in app/.",
+  "devDependencies": {
+    "@types/node": "^25.9.1",
+    "@vercel/node": "^3.2.24"
+  }
+}

@@ -2,15 +2,20 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import engineHtml from '../../kiro_slideshow_engine_v3.html?raw';
 import Library from './Library';
 import Analytics from './Analytics';
-import { blobToDataUrl, getItem } from './mediaBank';
-import { addPost } from './posts';
+import Patterns from './Patterns';
+import Propose from './Propose';
+import { addStockItem, blobToDataUrl, getItem } from './mediaBank';
+import { addPost, type CloneAnalysisSnapshot } from './posts';
 import { PRESETS, PRESET_KEYS, type PresetKey } from './presets';
+import CloneFromTikTok from './CloneFromTikTok';
+import { CLAUDE_MODELS, type ClaudeModelId } from './anthropic';
+import { buildIroEditPrompt, editImage, OpenAIImageError, type OpenAIImageQuality } from './openaiImage';
 
 type Mascot = 'bronze' | 'silver' | 'gold' | 'platinum' | 'diamond' | 'iridescent';
 type Platform = 'claude' | 'chatgpt';
 type Status = { kind: 'idle' } | { kind: 'rendering' } | { kind: 'ok'; at: number } | { kind: 'err'; msg: string };
-type MobileView = 'edit' | 'library' | 'analytics' | 'preview';
-type MainView = 'preview' | 'library' | 'analytics';
+type MobileView = 'edit' | 'library' | 'patterns' | 'analytics' | 'preview';
+type MainView = 'preview' | 'library' | 'patterns' | 'analytics';
 
 // Per-slide background. Either a media-bank item id (resolved to a data URL at
 // render time) or a pasted URL we hand straight through to the engine.
@@ -88,7 +93,17 @@ type Persisted = {
   preset: PresetKey;
   pexelsKey: string;
   unsplashKey: string;
+  anthropicKey: string;
+  claudeModel: ClaudeModelId;
+  openaiKey: string;
+  // When true, the hook + cta slides render with photo + mascot only,
+  // no baked-in text. The user types the hook + CTA natively in
+  // TikTok's editor after upload — the algorithm reads native text
+  // better than image-baked text per the article.
+  nativeTextOverlay: boolean;
 };
+
+const CLAUDE_MODEL_IDS = CLAUDE_MODELS.map((m) => m.id) as readonly ClaudeModelId[];
 
 function loadPersisted(): Persisted {
   try {
@@ -108,6 +123,12 @@ function loadPersisted(): Persisted {
         preset: PRESET_KEYS.includes(p.preset as PresetKey) ? (p.preset as PresetKey) : 'prompt_pack',
         pexelsKey: typeof p.pexelsKey === 'string' ? p.pexelsKey : '',
         unsplashKey: typeof p.unsplashKey === 'string' ? p.unsplashKey : '',
+        anthropicKey: typeof p.anthropicKey === 'string' ? p.anthropicKey : '',
+        claudeModel: CLAUDE_MODEL_IDS.includes(p.claudeModel as ClaudeModelId)
+          ? (p.claudeModel as ClaudeModelId)
+          : 'claude-opus-4-7',
+        openaiKey: typeof p.openaiKey === 'string' ? p.openaiKey : '',
+        nativeTextOverlay: p.nativeTextOverlay === true,
       };
     }
   } catch {}
@@ -121,6 +142,10 @@ function loadPersisted(): Persisted {
     preset: 'prompt_pack',
     pexelsKey: '',
     unsplashKey: '',
+    anthropicKey: '',
+    claudeModel: 'claude-opus-4-7',
+    openaiKey: '',
+    nativeTextOverlay: false,
   };
 }
 
@@ -212,6 +237,31 @@ export default function App() {
   const [preset, setPreset] = useState<PresetKey>(initial.preset);
   const [pexelsKey, setPexelsKey] = useState<string>(initial.pexelsKey);
   const [unsplashKey, setUnsplashKey] = useState<string>(initial.unsplashKey);
+  const [anthropicKey, setAnthropicKey] = useState<string>(initial.anthropicKey);
+  const [claudeModel, setClaudeModel] = useState<ClaudeModelId>(initial.claudeModel);
+  const [openaiKey, setOpenaiKey] = useState<string>(initial.openaiKey);
+  const [nativeTextOverlay, setNativeTextOverlay] = useState<boolean>(initial.nativeTextOverlay);
+  // Bumped by Patterns → "Clone again". CloneFromTikTok watches this
+  // and prefills its URL input + expands. Resets to empty string
+  // when the panel consumes it.
+  const [prefillCloneUrl, setPrefillCloneUrl] = useState('');
+  // Last successful clone/proposal's structural analysis. Surfaced as
+  // a small info card under the Clone panel + carried into the saved
+  // Post (handleSaveToHistory) so the Patterns view + future Propose
+  // runs can read it back as context.
+  const [lastCloneNote, setLastCloneNote] = useState<string | null>(null);
+  const [lastCloneAnalysis, setLastCloneAnalysis] = useState<CloneAnalysisSnapshot | null>(null);
+  const [lastCloneSourceUrl, setLastCloneSourceUrl] = useState<string>('');
+  const [lastOrigin, setLastOrigin] = useState<'manual' | 'clone' | 'propose'>('manual');
+  // Per-slide-key flag while an AI-edit is in flight. Greys out the
+  // AI-edit button + shows a spinner.
+  const [editingBg, setEditingBg] = useState<Record<string, boolean>>({});
+  // Which slide row's source menu is open. Only one open at a time —
+  // opening another closes the previous.
+  const [openBgMenuKey, setOpenBgMenuKey] = useState<string | null>(null);
+  // Hidden <input type="file"> per slide so each row can trigger its
+  // own file picker without sharing state with other rows.
+  const slideFileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const [saveStatus, setSaveStatus] = useState<{ kind: 'idle' } | { kind: 'saving' } | { kind: 'ok' } | { kind: 'err'; msg: string }>({ kind: 'idle' });
   // Active "pick a background for slide X" request — when set, the Library
   // shows a banner + cancel button and the next tap on an item resolves the
@@ -238,10 +288,38 @@ export default function App() {
     try {
       localStorage.setItem(
         STORAGE_KEY,
-        JSON.stringify({ mascot, variant, platform, jsonText, slideBgs, caption, preset, pexelsKey, unsplashKey }),
+        JSON.stringify({
+          mascot,
+          variant,
+          platform,
+          jsonText,
+          slideBgs,
+          caption,
+          preset,
+          pexelsKey,
+          unsplashKey,
+          anthropicKey,
+          claudeModel,
+          openaiKey,
+          nativeTextOverlay,
+        }),
       );
     } catch {}
-  }, [mascot, variant, platform, jsonText, slideBgs, caption, preset, pexelsKey, unsplashKey]);
+  }, [
+    mascot,
+    variant,
+    platform,
+    jsonText,
+    slideBgs,
+    caption,
+    preset,
+    pexelsKey,
+    unsplashKey,
+    anthropicKey,
+    claudeModel,
+    openaiKey,
+    nativeTextOverlay,
+  ]);
 
   useEffect(() => {
     const onMessage = (e: MessageEvent) => {
@@ -350,6 +428,27 @@ export default function App() {
     if (ctaBg && slides.cta && typeof slides.cta === 'object') {
       slides.cta = { ...(slides.cta as object), bg: ctaBg };
     }
+
+    // Native-overlay mode: blank the text fields on hook + cta so the
+    // engine renders bg + mascot only. The user types the actual hook
+    // and CTA copy in TikTok's editor after upload — algorithm reads
+    // native text overlays better than baked-in PNG text per the
+    // article. Middle slides keep their baked-in text since the
+    // algorithm cares less there.
+    if (nativeTextOverlay) {
+      if (slides.hook && typeof slides.hook === 'object') {
+        slides.hook = {
+          ...(slides.hook as Record<string, unknown>),
+          headline: '', sub: '', text: '', supporting: '', subline: '',
+        };
+      }
+      if (slides.cta && typeof slides.cta === 'object') {
+        slides.cta = {
+          ...(slides.cta as Record<string, unknown>),
+          headline: '', instructionAbove: '', searchTerm: '', instructionBelow: '', slogan: '',
+        };
+      }
+    }
     // Walk every known content array. Each preset's content lives under
     // a different key (prompt_pack→prompts, pain_story→beats, meme_pov
     // →panels) and the slideBgs map uses a parallel key prefix.
@@ -414,6 +513,68 @@ export default function App() {
     });
   }
 
+  // Triggered by Patterns → "Clone again". Switches the user back to
+  // the Edit pane and feeds the source URL into the Clone panel.
+  function handleCloneAgain(sourceUrl: string) {
+    setMainView('preview');
+    setMobileView('edit');
+    setPrefillCloneUrl(sourceUrl);
+  }
+
+  // Save a File/Blob from a direct upload (or a clipboard paste) into
+  // the media bank and assign it as this slide's bg. Used by the
+  // per-slide Upload + Paste menu items so the user can drop an image
+  // they generated in Midjourney / ChatGPT / Nano Banana straight onto
+  // a slide without bouncing through the Library tab.
+  async function saveAndAssignBlob(slideKey: string, blob: Blob, name: string) {
+    const item = await addStockItem({
+      blob,
+      mimeType: blob.type || 'image/png',
+      name,
+      source: { provider: 'upload' },
+    });
+    setSlideBgs((prev) => ({ ...prev, [slideKey]: { type: 'media', mediaId: item.id } }));
+  }
+
+  async function handleUploadForSlide(slideKey: string, file: File) {
+    if (!file.type.startsWith('image/')) {
+      window.alert('Pick an image file.');
+      return;
+    }
+    try {
+      await saveAndAssignBlob(slideKey, file, file.name || `slide-${slideKey}`);
+    } catch (e) {
+      window.alert(`Upload failed: ${(e as Error).message}`);
+    }
+  }
+
+  // Reads the system clipboard, finds the first image item, saves it
+  // as this slide's bg. Requires the page to be focused; modern
+  // browsers prompt for clipboard-read permission on first use.
+  async function handlePasteImageForSlide(slideKey: string) {
+    if (typeof navigator === 'undefined' || !navigator.clipboard || !('read' in navigator.clipboard)) {
+      window.alert(
+        'Your browser doesn\'t allow reading images from the clipboard. Use the Upload option instead.',
+      );
+      return;
+    }
+    try {
+      const items = await navigator.clipboard.read();
+      for (const item of items) {
+        const imageType = item.types.find((t) => t.startsWith('image/'));
+        if (!imageType) continue;
+        const blob = await item.getType(imageType);
+        await saveAndAssignBlob(slideKey, blob, `pasted-${Date.now()}.${imageType.split('/')[1] || 'png'}`);
+        return;
+      }
+      window.alert('No image found on the clipboard. Copy an image first, then try again.');
+    } catch (e) {
+      // Permissions denied / no user gesture / unsupported MIME — surface a
+      // clear message rather than silently failing.
+      window.alert(`Could not read clipboard: ${(e as Error).message}`);
+    }
+  }
+
   // Asks the engine to render a small PNG of the hook slide and ship it
   // back via postMessage. Resolves to null if the engine never replies
   // (timeout) or hasn't rendered any slides yet — we still save the post,
@@ -454,6 +615,14 @@ export default function App() {
         mascot: mascotKey(mascot, variant),
         platform,
         thumbnailBlob: thumb,
+        // New fields — populated when the post originated from a
+        // clone or a propose. Manual edits land here as undefined,
+        // which is fine — they just won't show up in Patterns.
+        preset,
+        sourceTikTokUrl: lastCloneSourceUrl || undefined,
+        cloneAnalysis: lastCloneAnalysis,
+        niche: lastCloneAnalysis?.niche,
+        origin: lastOrigin,
       });
       setSaveStatus({ kind: 'ok' });
       setTimeout(() => setSaveStatus({ kind: 'idle' }), 2500);
@@ -466,6 +635,118 @@ export default function App() {
     // Push current sidebar state into the engine on initial load so the
     // preview matches the controls instead of showing the engine's default.
     handleRender();
+  }
+
+  // Wired to the CloneFromTikTok panel. Takes the clone result and
+  // populates everything in one shot: JSON, preset, caption, per-slide
+  // bgs. We don't auto-render so the user can eyeball the output first
+  // — they hit "Render slides" themselves.
+  function handleCloned(input: {
+    preset: PresetKey;
+    jsonText: string;
+    caption: string;
+    bgByKey: Record<string, string>;
+    source: { url: string; author: { uniqueId: string }; slides: { index: number }[] };
+    cloneAnalysis: CloneAnalysisSnapshot;
+  }) {
+    setPreset(input.preset);
+    setJsonText(input.jsonText);
+    setCaption(input.caption);
+    const next: SlideBgMap = {};
+    for (const [k, mediaId] of Object.entries(input.bgByKey)) {
+      next[k] = { type: 'media', mediaId };
+    }
+    setSlideBgs(next);
+    setLastCloneNote(
+      `Source: @${input.source.author.uniqueId} · ${input.source.slides.length} slide${input.source.slides.length === 1 ? '' : 's'} — ` +
+        `${input.cloneAnalysis.structuralFingerprint}`,
+    );
+    setLastCloneAnalysis(input.cloneAnalysis);
+    setLastCloneSourceUrl(input.source.url);
+    setLastOrigin('clone');
+  }
+
+  // Wired to the Propose panel. Unlike clone, propose has no source
+  // URL and no source images — the user picks bgs from their own
+  // library afterward (or copies the image prompts into Midjourney /
+  // ChatGPT / Pexels).
+  function handleProposed(input: {
+    preset: PresetKey;
+    jsonText: string;
+    caption: string;
+    cloneAnalysis: CloneAnalysisSnapshot;
+    imageQueries: string[];
+    rationale: string;
+  }) {
+    setPreset(input.preset);
+    setJsonText(input.jsonText);
+    setCaption(input.caption);
+    // Propose doesn't auto-assign bgs. Leave the existing slideBgs
+    // map in place — the user may want to reuse photos from a recent
+    // clone.
+    const fingerprint = input.cloneAnalysis.structuralFingerprint || 'fresh proposal';
+    setLastCloneNote(`Proposal · ${fingerprint}${input.rationale ? ' — ' + input.rationale : ''}`);
+    setLastCloneAnalysis(input.cloneAnalysis);
+    setLastCloneSourceUrl('');
+    setLastOrigin('propose');
+    if (input.imageQueries.length > 0) {
+      // Stash the image prompts in the clipboard-friendly format so
+      // the user has them ready to paste into Midjourney/ChatGPT.
+      // Best-effort — no toast if it fails.
+      void navigator.clipboard?.writeText(input.imageQueries.map((q, i) => `${i + 1}. ${q}`).join('\n')).catch(() => {});
+    }
+  }
+
+  // AI-edit pass on an existing slide bg. Pulls the current media
+  // item's blob, sends it + an Iro-tailored prompt to gpt-image-1,
+  // saves the result back into the media bank, and points the slide
+  // at the new item. Opt-in (needs an OpenAI key in Settings) because
+  // it's pay-per-image.
+  async function handleAiEditBg(slideKey: string, slideLabel: string) {
+    if (!openaiKey) {
+      window.alert('Add an OpenAI API key under Settings to use AI-edit.');
+      return;
+    }
+    const bg = slideBgs[slideKey];
+    if (!bg || bg.type !== 'media') {
+      window.alert('AI-edit works on backgrounds picked from the Library or cloned from TikTok. Assign one first.');
+      return;
+    }
+    const item = await getItem(bg.mediaId);
+    if (!item) {
+      window.alert('Could not load the source image for that slide.');
+      return;
+    }
+    const quality = (window.prompt('Image quality? low / medium / high (low ≈ $0.04, high ≈ $0.19)', 'medium') || 'medium')
+      .trim()
+      .toLowerCase() as OpenAIImageQuality;
+    if (!['low', 'medium', 'high'].includes(quality)) return;
+
+    setEditingBg((prev) => ({ ...prev, [slideKey]: true }));
+    try {
+      const editedBlob = await editImage({
+        apiKey: openaiKey,
+        sourceImage: item.blob,
+        quality,
+        prompt: buildIroEditPrompt({ slideRoleLabel: slideLabel, sourceCaption: lastCloneNote || caption }),
+      });
+      const newItem = await addStockItem({
+        blob: editedBlob,
+        mimeType: editedBlob.type || 'image/png',
+        name: `iro-edit-${slideKey}-${Date.now()}`,
+        source: { provider: 'upload' },
+      });
+      setSlideBgs((prev) => ({ ...prev, [slideKey]: { type: 'media', mediaId: newItem.id } }));
+    } catch (e) {
+      const msg = e instanceof OpenAIImageError ? e.message : (e as Error).message || 'AI-edit failed.';
+      window.alert(`AI-edit failed: ${msg}`);
+    } finally {
+      setEditingBg((prev) => {
+        const next = { ...prev };
+        delete next[slideKey];
+        return next;
+      });
+    }
   }
 
   const tileBase =
@@ -496,7 +777,7 @@ export default function App() {
         type="button"
         onClick={() => setMobileView(kind)}
         className={
-          'relative flex-1 py-3.5 text-[11px] font-bold uppercase tracking-[0.18em] transition-colors ' +
+          'relative flex-1 py-3.5 text-[10px] font-bold uppercase tracking-[0.10em] transition-colors ' +
           (active ? 'text-[#00E5FF]' : 'text-gray-500 hover:text-gray-300')
         }
       >
@@ -516,7 +797,8 @@ export default function App() {
       {/* Mobile-only tab bar; hidden on md+ where the sidebar is always visible. */}
       <nav className="md:hidden flex shrink-0 bg-gradient-to-b from-[#0a0e1a] to-[#080b16] border-b border-white/[0.05]">
         {mobileTabBtn('edit', 'Edit')}
-        {mobileTabBtn('library', 'Library')}
+        {mobileTabBtn('library', 'Lib')}
+        {mobileTabBtn('patterns', 'Patterns')}
         {mobileTabBtn('analytics', 'Stats')}
         {mobileTabBtn('preview', 'Preview')}
       </nav>
@@ -546,6 +828,28 @@ export default function App() {
         </header>
 
         <div className="flex-1 overflow-y-auto custom-scrollbar">
+          <section className="px-5 md:px-10 pt-6 md:pt-7 pb-3 md:pb-4 flex flex-col gap-3">
+            <CloneFromTikTok
+              anthropicKey={anthropicKey}
+              model={claudeModel}
+              onModelChange={setClaudeModel}
+              onCloned={handleCloned}
+              prefillUrl={prefillCloneUrl}
+              onPrefillConsumed={() => setPrefillCloneUrl('')}
+            />
+            <Propose
+              anthropicKey={anthropicKey}
+              model={claudeModel}
+              onModelChange={setClaudeModel}
+              onProposed={handleProposed}
+            />
+            {lastCloneNote && (
+              <div className="text-[11px] text-gray-500 leading-relaxed">
+                <strong className="text-gray-400">Last {lastOrigin}:</strong> {lastCloneNote}
+              </div>
+            )}
+          </section>
+
           <section className="px-5 md:px-10 py-6 md:py-7 border-b border-white/[0.05]">
             {sectionLabel('Format')}
             <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
@@ -762,20 +1066,64 @@ export default function App() {
                   const set = !!bg;
                   let bgLabel = 'Mascot default';
                   if (bg?.type === 'url') bgLabel = 'Pasted URL';
-                  if (bg?.type === 'media') bgLabel = 'From library';
+                  if (bg?.type === 'media') bgLabel = 'My library';
+                  const menuOpen = openBgMenuKey === key;
+                  const editing = !!editingBg[key];
+
+                  const menuItem = (
+                    text: string,
+                    onClick: () => void,
+                    opts?: { danger?: boolean; sub?: string; disabled?: boolean },
+                  ) => (
+                    <button
+                      key={text}
+                      type="button"
+                      disabled={opts?.disabled}
+                      onClick={() => {
+                        setOpenBgMenuKey(null);
+                        onClick();
+                      }}
+                      className={
+                        'flex flex-col items-start px-3 py-2 text-left text-[12px] transition-colors ' +
+                        (opts?.danger
+                          ? 'text-red-300 hover:bg-red-500/10'
+                          : 'text-gray-200 hover:bg-[#00E5FF]/10 hover:text-[#00E5FF]') +
+                        (opts?.disabled ? ' opacity-40 cursor-not-allowed pointer-events-none' : '')
+                      }
+                    >
+                      <span className="font-medium">{text}</span>
+                      {opts?.sub && (
+                        <span className="text-[10px] text-gray-500 normal-case">{opts.sub}</span>
+                      )}
+                    </button>
+                  );
+
                   return (
                     <div
                       key={key}
                       className={
-                        'rounded-xl border px-3 py-2.5 flex gap-3 transition-colors ' +
+                        'relative rounded-xl border px-3 py-2.5 flex gap-3 transition-colors ' +
                         (set
                           ? 'border-[#00E5FF]/25 bg-gradient-to-br from-[#0e2030] to-[#0a1424]'
                           : 'border-white/[0.07] bg-[#0b1224]/60')
                       }
                     >
-                      {/* 9:16 thumbnail. Shows the assigned bg if any,
-                         otherwise a subtle "default" placeholder so the
-                         row keeps its visual rhythm regardless. */}
+                      {/* Hidden per-slide file input — triggered by the
+                         "Upload from device" menu item. */}
+                      <input
+                        ref={(el) => {
+                          slideFileInputRefs.current[key] = el;
+                        }}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) void handleUploadForSlide(key, file);
+                          e.target.value = '';
+                        }}
+                      />
+
                       <div className={
                         'shrink-0 w-10 h-[60px] rounded-md overflow-hidden border ' +
                         (set ? 'border-[#00E5FF]/40' : 'border-white/[0.08] bg-[#070b18]')
@@ -800,35 +1148,61 @@ export default function App() {
                         >
                           {bgLabel}
                         </div>
-                        <div className="mt-1.5 flex flex-wrap gap-1.5">
+                        <div className="mt-1.5">
                           <button
                             type="button"
-                            onClick={() => handlePickForSlide(key, label)}
-                            className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] rounded-md
+                            onClick={() => setOpenBgMenuKey(menuOpen ? null : key)}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] rounded-md
                                        bg-white/[0.04] text-gray-300 hover:bg-[#00E5FF]/15 hover:text-[#00E5FF] border border-white/10"
                           >
-                            Library
+                            {editing ? 'AI editing…' : 'Image source'} <span aria-hidden>▾</span>
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => handlePasteUrlForSlide(key)}
-                            className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] rounded-md
-                                       bg-white/[0.04] text-gray-300 hover:bg-[#00E5FF]/15 hover:text-[#00E5FF] border border-white/10"
-                          >
-                            URL
-                          </button>
-                          {set && (
-                            <button
-                              type="button"
-                              onClick={() => handleClearBgForSlide(key)}
-                              className="px-2 py-1 text-[10px] font-bold uppercase tracking-[0.14em] rounded-md
-                                         text-gray-500 hover:text-red-300"
-                            >
-                              Clear
-                            </button>
-                          )}
                         </div>
                       </div>
+
+                      {menuOpen && (
+                        <>
+                          {/* Click-outside catcher. Pointer-events on the
+                             popover stay live because it's stacked above
+                             this overlay via z-index. */}
+                          <button
+                            type="button"
+                            aria-label="Close menu"
+                            onClick={() => setOpenBgMenuKey(null)}
+                            className="fixed inset-0 z-30 bg-transparent cursor-default"
+                          />
+                          <div className="absolute right-3 top-3 z-40 w-60 rounded-xl border border-white/10 bg-[#0a0e1a] shadow-[0_18px_44px_-10px_rgba(0,0,0,0.7)] overflow-hidden flex flex-col">
+                            {menuItem('Upload from device', () => slideFileInputRefs.current[key]?.click(), {
+                              sub: 'Pick a file — Midjourney / ChatGPT / Nano Banana export, whatever.',
+                            })}
+                            {menuItem('Paste from clipboard', () => void handlePasteImageForSlide(key), {
+                              sub: 'Copy an image first, then tap this. Cmd/Ctrl+V style.',
+                            })}
+                            {menuItem('Pick from My Library', () => handlePickForSlide(key, label), {
+                              sub: 'Uploads, stock results, cloned TikTok photos.',
+                            })}
+                            {menuItem('Paste image URL', () => handlePasteUrlForSlide(key), {
+                              sub: 'Direct link to a publicly reachable image.',
+                            })}
+                            {set && bg?.type === 'media' && openaiKey && menuItem(
+                              editing ? 'AI-editing…' : 'AI-edit current image',
+                              () => void handleAiEditBg(key, label),
+                              {
+                                sub: 'gpt-image-1 · pay-per-image · drops Iro vibe into the current photo.',
+                                disabled: editing,
+                              },
+                            )}
+                            {set && bg?.type === 'media' && !openaiKey && menuItem(
+                              'AI-edit (needs OpenAI key)',
+                              () => window.alert('Add an OpenAI API key under Settings to enable AI-edit.'),
+                              { sub: 'Pay-per-image. Optional.', disabled: false },
+                            )}
+                            {set && menuItem('Clear (use mascot default)', () => handleClearBgForSlide(key), {
+                              danger: true,
+                            })}
+                          </div>
+                        </>
+                      )}
                     </div>
                   );
                 })}
@@ -882,14 +1256,14 @@ export default function App() {
           </section>
 
           <section className="px-5 md:px-10 py-6 md:py-7">
-            <div className="grid grid-cols-2 gap-2 mb-4">
+            <div className="grid grid-cols-3 gap-2 mb-4">
               <button
                 type="button"
                 onClick={() => {
                   setMainView('library');
                   setMobileView('library');
                 }}
-                className="py-3 rounded-xl text-xs md:text-sm font-bold uppercase tracking-[0.14em]
+                className="py-3 rounded-xl text-[11px] md:text-xs font-bold uppercase tracking-[0.12em]
                            border border-white/[0.10] bg-white/[0.03] text-gray-300
                            hover:border-[#00E5FF]/40 hover:text-[#00E5FF] transition-all"
               >
@@ -898,16 +1272,53 @@ export default function App() {
               <button
                 type="button"
                 onClick={() => {
+                  setMainView('patterns');
+                  setMobileView('patterns');
+                }}
+                className="py-3 rounded-xl text-[11px] md:text-xs font-bold uppercase tracking-[0.12em]
+                           border border-white/[0.10] bg-white/[0.03] text-gray-300
+                           hover:border-[#FFC857]/40 hover:text-[#FFC857] transition-all"
+              >
+                Patterns
+              </button>
+              <button
+                type="button"
+                onClick={() => {
                   setMainView('analytics');
                   setMobileView('analytics');
                 }}
-                className="py-3 rounded-xl text-xs md:text-sm font-bold uppercase tracking-[0.14em]
+                className="py-3 rounded-xl text-[11px] md:text-xs font-bold uppercase tracking-[0.12em]
                            border border-white/[0.10] bg-white/[0.03] text-gray-300
                            hover:border-[#00E5FF]/40 hover:text-[#00E5FF] transition-all"
               >
                 Analytics
               </button>
             </div>
+
+            {/* Native-overlay toggle. When on, the hook + cta slides
+               export with bg + mascot only — the user types the actual
+               hook/CTA copy in TikTok's editor after upload. Per the
+               article, native text overlays get better algorithm
+               treatment than baked-in PNG text on the highest-stakes
+               slides. Middle slides keep their baked text. */}
+            <label className="flex items-start gap-3 mb-4 p-3 rounded-xl border border-white/[0.06] bg-white/[0.02] cursor-pointer hover:border-white/[0.12] transition-colors">
+              <input
+                type="checkbox"
+                checked={nativeTextOverlay}
+                onChange={(e) => setNativeTextOverlay(e.target.checked)}
+                className="mt-0.5 w-4 h-4 accent-[#00E5FF] cursor-pointer"
+              />
+              <span className="flex-1">
+                <span className="block text-[12px] font-bold text-gray-200">
+                  Native TikTok text overlay
+                </span>
+                <span className="block text-[10px] text-gray-500 mt-0.5 leading-relaxed">
+                  Strip hook + CTA text from the render so you can type them natively in TikTok's editor.
+                  Algorithm reads native text better than baked-in image text.
+                </span>
+              </span>
+            </label>
+
             <button
               type="button"
               onClick={handleRender}
@@ -945,12 +1356,42 @@ export default function App() {
           <section className="px-5 md:px-10 py-6 md:py-7 border-t border-white/[0.05]">
             {sectionLabel('Settings')}
             <p className="text-xs text-gray-500 leading-relaxed mb-4">
-              Pasted keys live in this browser only. Both signups are free.
+              Pasted keys live in this browser only. Pexels &amp; Unsplash are free; Anthropic &amp; OpenAI are pay-per-use.
             </p>
+
+            <label className="flex flex-col gap-1.5 mb-3">
+              <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-gray-500">
+                Claude model (for cloning)
+              </span>
+              <select
+                value={claudeModel}
+                onChange={(e) => setClaudeModel(e.target.value as ClaudeModelId)}
+                className="bg-[#070b18] border border-white/[0.10] rounded-md px-3 py-2 text-sm text-gray-200 focus:border-[#00E5FF]/40 focus:outline-none"
+              >
+                {CLAUDE_MODELS.map((m) => (
+                  <option key={m.id} value={m.id}>{m.label}</option>
+                ))}
+              </select>
+            </label>
+
             {([
-              { label: 'Pexels API key', value: pexelsKey, setter: setPexelsKey, href: 'https://www.pexels.com/api/' },
-              { label: 'Unsplash access key', value: unsplashKey, setter: setUnsplashKey, href: 'https://unsplash.com/developers' },
-            ] as const).map(({ label, value, setter, href }) => {
+              {
+                label: 'Anthropic API key',
+                value: anthropicKey,
+                setter: setAnthropicKey,
+                href: 'https://console.anthropic.com/settings/keys',
+                note: 'Required for "Clone from TikTok". Pay-per-token.',
+              },
+              {
+                label: 'OpenAI API key (optional)',
+                value: openaiKey,
+                setter: setOpenaiKey,
+                href: 'https://platform.openai.com/api-keys',
+                note: 'Only needed for AI-edit of slide backgrounds. ~$0.04–$0.19 per image.',
+              },
+              { label: 'Pexels API key', value: pexelsKey, setter: setPexelsKey, href: 'https://www.pexels.com/api/', note: 'Free.' },
+              { label: 'Unsplash access key', value: unsplashKey, setter: setUnsplashKey, href: 'https://unsplash.com/developers', note: 'Free.' },
+            ] as const).map(({ label, value, setter, href, note }) => {
               const set = !!value;
               return (
                 <label key={label} className="flex flex-col gap-1.5 mb-3 last:mb-0">
@@ -982,6 +1423,7 @@ export default function App() {
                     placeholder="Paste here"
                     className="bg-[#070b18] border border-white/[0.10] rounded-md px-3 py-2 text-sm font-mono text-gray-200 placeholder:text-gray-700 focus:border-[#00E5FF]/40 focus:outline-none focus:shadow-[0_0_0_3px_rgba(0,229,255,0.08)] transition-shadow"
                   />
+                  {note && <span className="text-[10px] text-gray-600 leading-relaxed">{note}</span>}
                 </label>
               );
             })}
@@ -1013,6 +1455,13 @@ export default function App() {
           (mainView === 'library' ? 'md:block' : 'md:hidden')
         }>
           <Library pickMode={pickRequest} pexelsKey={pexelsKey} unsplashKey={unsplashKey} />
+        </div>
+        <div className={
+          'absolute inset-0 ' +
+          (mobileView === 'patterns' ? 'block ' : 'hidden ') +
+          (mainView === 'patterns' ? 'md:block' : 'md:hidden')
+        }>
+          <Patterns onCloneAgain={handleCloneAgain} />
         </div>
         <div className={
           'absolute inset-0 ' +
