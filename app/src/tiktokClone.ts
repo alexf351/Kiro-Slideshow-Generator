@@ -232,54 +232,67 @@ function buildUserMessage(source: ScrapeResult, opts: { guidance?: string; prefe
   return lines.join('\n');
 }
 
-export async function cloneFromTikTok(opts: CloneOptions): Promise<CloneResult> {
-  const stage = opts.onStage || (() => {});
+const CLONING_INSTRUCTIONS = [
+  '## Cloning-specific instructions',
+  '',
+  'You are being used inside the Iro Slideshow Generator\'s "Clone from TikTok" flow. ' +
+    'The user pastes a TikTok URL; we scrape it and feed you the structure plus caption. ' +
+    'Your job is fidelity: match the source post\'s rhythm and density, then swap the ' +
+    'topic to Iro AI.',
+  '',
+  'Slide counts to aim for, by preset (matches the IRO_SLIDESHOW_JSON_SPEC above): ' +
+    'prompt_pack 1+3-7+1 (hook+prompts+cta), pain_story 1+3-5+1, aspirational 1+3-5+1, ' +
+    'meme_pov 1-3 (CTA optional), product_demo 1+3-4+1, checklist 1+5-7+1, ' +
+    'handwritten_pack 1+3-7+1.',
+  '',
+  'If the source post has a different slide count than the preset\'s typical range, ' +
+    'lean toward the source count — fidelity beats convention.',
+].join('\n');
 
-  stage({ kind: 'scraping' });
-  const source = await scrapeTikTok(opts.url);
-  stage({ kind: 'scraped', source });
+// Strip wrappers from a pasted manual response — markdown fences,
+// "Here's the JSON:" preambles, trailing commentary. Keeps the
+// outermost {...} block.
+function extractJsonObject(text: string): string {
+  let t = text.trim();
+  t = t.replace(/^```(?:json|javascript|js)?\s*/i, '').replace(/```\s*$/, '').trim();
+  const first = t.indexOf('{');
+  const last = t.lastIndexOf('}');
+  if (first === -1 || last === -1 || last < first) return t;
+  return t.slice(first, last + 1);
+}
 
-  stage({ kind: 'reasoning' });
-  const response = await callClaude({
-    apiKey: opts.apiKey,
-    model: opts.model,
-    // Cache-marked system block — IRO spec is ~5k tokens, gets reused
-    // verbatim across clones, so ephemeral caching pays back fast.
-    system: [
-      {
-        type: 'text',
-        text:
-          ironSpec +
-          '\n\n## Cloning-specific instructions\n\n' +
-          'You are being used inside the Iro Slideshow Generator\'s "Clone from TikTok" ' +
-          'flow. The user pastes a TikTok URL; we scrape it and feed you the structure ' +
-          'plus caption. Your job is fidelity: match the source post\'s rhythm and ' +
-          'density, then swap the topic to Iro AI. Always call the emit_clone tool.\n\n' +
-          'Slide counts to aim for, by preset (matches the IRO_SLIDESHOW_JSON_SPEC ' +
-          'above): prompt_pack 1+3-7+1 (hook+prompts+cta), pain_story 1+3-5+1, ' +
-          'aspirational 1+3-5+1, meme_pov 1-3 (CTA optional), product_demo 1+3-4+1, ' +
-          'checklist 1+5-7+1, handwritten_pack 1+3-7+1.\n\n' +
-          'If the source post has a different slide count than the preset\'s typical ' +
-          'range, lean toward the source count — fidelity beats convention.',
-        cache_control: { type: 'ephemeral' },
-      },
-    ],
-    messages: [{ role: 'user', content: buildUserMessage(source, opts) }],
-    tools: [EMIT_CLONE_TOOL],
-    toolChoice: { type: 'tool', name: 'emit_clone' },
-    maxTokens: 4096,
-  });
-
-  const clone = extractToolUse<ClaudeCloneOutput>(response, 'emit_clone');
-  if (!PRESET_KEYS.includes(clone.preset)) {
-    throw new Error(`Claude returned an unknown preset: ${clone.preset}`);
+// Same shape Claude returns via tool_use. Used by both the API path
+// (auto-parsed from the tool input) and the manual path (parsed from
+// pasted text).
+function validateClone(parsed: unknown): ClaudeCloneOutput {
+  if (!parsed || typeof parsed !== 'object') throw new Error('Response is not a JSON object.');
+  const p = parsed as Partial<ClaudeCloneOutput>;
+  if (!p.preset || !PRESET_KEYS.includes(p.preset as PresetKey)) {
+    throw new Error(`Missing or unknown preset (got: ${String(p.preset)}).`);
   }
-  stage({ kind: 'analyzed', clone });
+  if (!p.slides || typeof p.slides !== 'object') {
+    throw new Error('Missing "slides" object in response.');
+  }
+  return {
+    preset: p.preset as PresetKey,
+    slides: p.slides as Record<string, unknown>,
+    caption: typeof p.caption === 'string' ? p.caption : '',
+    cloneAnalysis: (p.cloneAnalysis as CloneAnalysis) || {
+      structuralFingerprint: '', hookStyle: '', density: '', ctaShape: '', niche: '', voiceTone: '',
+    },
+    bgAssignments: Array.isArray(p.bgAssignments) ? p.bgAssignments : [],
+  };
+}
 
-  // Stage 3: download every source image, save to media bank.
+// Stage 3 of either pipeline: pull every source slide image through
+// the CORS-friendly proxy and stash it in the media bank.
+async function fetchSourceImagesIntoLibrary(
+  source: ScrapeResult,
+  onStage?: (stage: CloneStage) => void,
+): Promise<Array<MediaItem | null>> {
   const mediaItems: Array<MediaItem | null> = new Array(source.slides.length).fill(null);
   let done = 0;
-  stage({ kind: 'fetching_images', done, total: source.slides.length });
+  onStage?.({ kind: 'fetching_images', done, total: source.slides.length });
   await Promise.all(
     source.slides.map(async (slide, i) => {
       try {
@@ -302,13 +315,130 @@ export async function cloneFromTikTok(opts: CloneOptions): Promise<CloneResult> 
         // pick one manually from the Library.
       } finally {
         done++;
-        stage({ kind: 'fetching_images', done, total: source.slides.length });
+        onStage?.({ kind: 'fetching_images', done, total: source.slides.length });
       }
     }),
   );
+  return mediaItems;
+}
 
+export async function cloneFromTikTok(opts: CloneOptions): Promise<CloneResult> {
+  const stage = opts.onStage || (() => {});
+
+  stage({ kind: 'scraping' });
+  const source = await scrapeTikTok(opts.url);
+  stage({ kind: 'scraped', source });
+
+  stage({ kind: 'reasoning' });
+  const response = await callClaude({
+    apiKey: opts.apiKey,
+    model: opts.model,
+    // Cache-marked system block — IRO spec is ~5k tokens, gets reused
+    // verbatim across clones, so ephemeral caching pays back fast.
+    system: [
+      {
+        type: 'text',
+        text: ironSpec + '\n\n' + CLONING_INSTRUCTIONS + '\n\nAlways call the emit_clone tool.',
+        cache_control: { type: 'ephemeral' },
+      },
+    ],
+    messages: [{ role: 'user', content: buildUserMessage(source, opts) }],
+    tools: [EMIT_CLONE_TOOL],
+    toolChoice: { type: 'tool', name: 'emit_clone' },
+    maxTokens: 4096,
+  });
+
+  const clone = validateClone(extractToolUse<ClaudeCloneOutput>(response, 'emit_clone'));
+  stage({ kind: 'analyzed', clone });
+
+  const mediaItems = await fetchSourceImagesIntoLibrary(source, stage);
   const result: CloneResult = { source, clone, mediaItems };
   stage({ kind: 'done', result });
+  return result;
+}
+
+// Manual-mode path: scrape the URL and return both the source and a
+// self-contained prompt the user can paste into claude.ai. We don't
+// call any API here — only the scrape + image proxy endpoints, which
+// run on Vercel and don't bill per token.
+export async function prepareManualClone(opts: {
+  url: string;
+  guidance?: string;
+  preferredPreset?: PresetKey;
+}): Promise<{ source: ScrapeResult; prompt: string }> {
+  const source = await scrapeTikTok(opts.url);
+  return { source, prompt: buildManualPrompt(source, opts) };
+}
+
+// Builds the single self-contained prompt the user pastes into
+// claude.ai. Bundles the IRO spec + cloning instructions + the
+// scraped source + an explicit JSON schema (since claude.ai can't
+// receive our tool definition).
+export function buildManualPrompt(
+  source: ScrapeResult,
+  opts: { guidance?: string; preferredPreset?: PresetKey },
+): string {
+  const skeleton = {
+    preset: '<one of: ' + PRESET_KEYS.join(' | ') + '>',
+    slides: '<preset-specific JSON — must match the schema above EXACTLY for the chosen preset>',
+    caption: '<TikTok caption tailored to Iro. First line is the hook. End with 4-6 niche hashtags.>',
+    cloneAnalysis: {
+      structuralFingerprint: '<one sentence: the post\'s shape>',
+      hookStyle: '<question / stat / confession / POV / list teaser / ...>',
+      density: '<text density per slide>',
+      ctaShape: '<how the CTA lands>',
+      niche: '<niche of the source>',
+      voiceTone: '<voice register>',
+    },
+    bgAssignments: '<array of source-slide indexes (0-based) or null, one per RENDERED slide in render order (hook → middle → cta)>',
+  };
+
+  return [
+    '# IRO SLIDESHOW SPEC',
+    '',
+    ironSpec,
+    '',
+    '# ' + CLONING_INSTRUCTIONS,
+    '',
+    '# SOURCE POST DATA',
+    '',
+    buildUserMessage(source, opts),
+    '',
+    '# OUTPUT FORMAT',
+    '',
+    'Output ONLY a single JSON object matching the shape below. No commentary, no markdown ' +
+      'fences, nothing before or after. The user is going to copy your message verbatim and ' +
+      'paste it back into a JSON parser.',
+    '',
+    '```json',
+    JSON.stringify(skeleton, null, 2),
+    '```',
+  ].join('\n');
+}
+
+// Manual-mode finish: takes the user's paste-back of the Claude.ai
+// reply, parses it, validates it, and runs Stage 3 (image fetch). The
+// `source` argument is whatever prepareManualClone returned earlier
+// — we need it to know which images to download.
+export async function applyManualResponse(
+  responseText: string,
+  source: ScrapeResult,
+  onStage?: (stage: CloneStage) => void,
+): Promise<CloneResult> {
+  const jsonText = extractJsonObject(responseText);
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(jsonText);
+  } catch (e) {
+    throw new Error(
+      'That doesn\'t parse as JSON. Make sure you copied Claude.ai\'s full response — only the JSON object, no extra text.',
+    );
+  }
+  const clone = validateClone(parsed);
+  onStage?.({ kind: 'analyzed', clone });
+  const mediaItems = await fetchSourceImagesIntoLibrary(source, onStage);
+  const result: CloneResult = { source, clone, mediaItems };
+  onStage?.({ kind: 'done', result });
   return result;
 }
 
