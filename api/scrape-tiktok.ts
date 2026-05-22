@@ -2,8 +2,7 @@
 // about the post (caption, author, per-slide image URLs for photo
 // slideshows, video cover for videos). The browser can't fetch
 // tiktok.com directly because of CORS, so the React app calls this
-// endpoint and we proxy the request server-side with a desktop
-// User-Agent.
+// endpoint and we proxy the request server-side.
 //
 // Response shape — see ScrapeResult below. Image URLs returned here are
 // raw TikTok CDN URLs; the client should fetch them through
@@ -34,19 +33,36 @@ type ScrapeResult = {
   rawTitle: string | null;
 };
 
-// Tested in the wild: an iOS Safari UA gets the page HTML with the
-// embedded data blob intact. Desktop Chrome UAs sometimes get bot-
-// challenged on slideshow URLs and return a stripped page.
-const SCRAPE_HEADERS: Record<string, string> = {
-  'User-Agent':
-    'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 ' +
-    '(KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1',
-  'Accept':
-    'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-  'Accept-Language': 'en-US,en;q=0.9',
-  'Cache-Control': 'no-cache',
-};
+// We try desktop Chrome first because it gets the full SSR'd page
+// (including the data blob). Mobile UAs often get served the
+// "tap to open in app" interstitial which has little data. iOS Safari
+// stays as a fallback for the rare cases when desktop hits a bot
+// challenge.
+const UA_DESKTOP =
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 ' +
+  '(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
+const UA_MOBILE =
+  'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 ' +
+  '(KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1';
 
+function headersFor(ua: string): Record<string, string> {
+  return {
+    'User-Agent': ua,
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+    'Accept-Language': 'en-US,en;q=0.9',
+    'Cache-Control': 'no-cache',
+    // TikTok's SSR sniffs this — without it desktop UAs sometimes get
+    // a stripped page.
+    'Sec-Fetch-Dest': 'document',
+    'Sec-Fetch-Mode': 'navigate',
+    'Sec-Fetch-Site': 'none',
+    'Upgrade-Insecure-Requests': '1',
+  };
+}
+
+// Hosts and path prefixes that 302 to the canonical /@user/photo/123
+// URL. We follow them explicitly so the rest of the pipeline always
+// sees a real post URL.
 const SHORTLINK_HOSTS = new Set(['vm.tiktok.com', 'vt.tiktok.com', 'm.tiktok.com']);
 
 function isTikTokUrl(u: string): boolean {
@@ -58,16 +74,21 @@ function isTikTokUrl(u: string): boolean {
   }
 }
 
-// vm.tiktok.com / vt.tiktok.com redirect to the canonical
-// www.tiktok.com/@user/photo/123 (or /video/123) page; follow once.
-async function resolveTikTokUrl(input: string): Promise<string> {
-  const parsed = new URL(input);
-  if (!SHORTLINK_HOSTS.has(parsed.hostname)) return input;
+function looksLikeShortlink(parsedUrl: URL): boolean {
+  if (SHORTLINK_HOSTS.has(parsedUrl.hostname)) return true;
+  // www.tiktok.com/t/<code>/ is the modern share-link format. Same
+  // 302 behaviour as vm.tiktok.com.
+  if (/^\/t\/[A-Za-z0-9]+\/?$/.test(parsedUrl.pathname)) return true;
+  return false;
+}
 
+async function resolveTikTokUrl(input: string, ua: string): Promise<string> {
+  const parsed = new URL(input);
+  if (!looksLikeShortlink(parsed)) return input;
   const res = await fetch(input, {
     method: 'GET',
     redirect: 'follow',
-    headers: SCRAPE_HEADERS,
+    headers: headersFor(ua),
   });
   return res.url || input;
 }
@@ -94,17 +115,26 @@ function extractEmbeddedJson(html: string): unknown | null {
   return null;
 }
 
-// Pull the itemStruct out of the rehydration JSON. The keypath has
-// shifted across TikTok refactors; try the modern path first, then a
-// couple of older fallbacks.
+// All scope keys TikTok has used for "this is the post page" data
+// across recent refactors. We probe each in order — first hit wins.
+const DETAIL_SCOPE_KEYS = [
+  'webapp.video-detail',
+  'webapp.image-detail',
+  'webapp.image-post-detail',
+  'webapp.photo-detail',
+  'webapp.post-detail',
+];
+
 function findItemStruct(blob: unknown): Record<string, unknown> | null {
   if (!blob || typeof blob !== 'object') return null;
   const root = blob as Record<string, unknown>;
 
   const scope = root['__DEFAULT_SCOPE__'] as Record<string, unknown> | undefined;
   if (scope) {
-    const detail = scope['webapp.video-detail'] as { itemInfo?: { itemStruct?: Record<string, unknown> } } | undefined;
-    if (detail?.itemInfo?.itemStruct) return detail.itemInfo.itemStruct;
+    for (const key of DETAIL_SCOPE_KEYS) {
+      const detail = scope[key] as { itemInfo?: { itemStruct?: Record<string, unknown> } } | undefined;
+      if (detail?.itemInfo?.itemStruct) return detail.itemInfo.itemStruct;
+    }
   }
 
   // Legacy SIGI_STATE shape: { ItemModule: { [id]: itemStruct } }
@@ -117,10 +147,20 @@ function findItemStruct(blob: unknown): Record<string, unknown> | null {
   return null;
 }
 
+// When the scrape fails, returning what we DID find helps debug
+// without needing to fork the function. Surfaces the top-level
+// __DEFAULT_SCOPE__ keys so we can see if TikTok renamed something.
+function diagnoseBlob(blob: unknown): { scopeKeys: string[]; topKeys: string[] } {
+  if (!blob || typeof blob !== 'object') return { scopeKeys: [], topKeys: [] };
+  const root = blob as Record<string, unknown>;
+  const scope = root['__DEFAULT_SCOPE__'];
+  const scopeKeys =
+    scope && typeof scope === 'object' ? Object.keys(scope as Record<string, unknown>) : [];
+  return { scopeKeys, topKeys: Object.keys(root) };
+}
+
 function pickImageUrl(urlList: string[] | undefined): string | null {
   if (!urlList || urlList.length === 0) return null;
-  // TikTok returns multiple CDN mirrors; the last is usually the
-  // highest-quality WebP. Prefer it; fall back to the first.
   return urlList[urlList.length - 1] || urlList[0];
 }
 
@@ -181,9 +221,35 @@ function buildResult(canonicalUrl: string, item: Record<string, unknown>): Scrap
   };
 }
 
+type FetchAttempt = {
+  ua: string;
+  uaLabel: string;
+  status: number;
+  hasBlob: boolean;
+  scopeKeys: string[];
+  item: Record<string, unknown> | null;
+  canonicalUrl: string;
+};
+
+// Fetch + parse with one UA. Doesn't throw — returns enough info that
+// the caller can decide whether to fall back to the other UA.
+async function attemptFetch(rawUrl: string, ua: string, uaLabel: string): Promise<FetchAttempt> {
+  const canonicalUrl = await resolveTikTokUrl(rawUrl, ua).catch(() => rawUrl);
+  const pageRes = await fetch(canonicalUrl, { headers: headersFor(ua), redirect: 'follow' });
+  if (!pageRes.ok) {
+    return { ua, uaLabel, status: pageRes.status, hasBlob: false, scopeKeys: [], item: null, canonicalUrl };
+  }
+  const html = await pageRes.text();
+  const blob = extractEmbeddedJson(html);
+  if (!blob) {
+    return { ua, uaLabel, status: pageRes.status, hasBlob: false, scopeKeys: [], item: null, canonicalUrl };
+  }
+  const diag = diagnoseBlob(blob);
+  const item = findItemStruct(blob);
+  return { ua, uaLabel, status: pageRes.status, hasBlob: true, scopeKeys: diag.scopeKeys, item, canonicalUrl };
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
-  // Cache hits should be rare (each clone hits a different URL) but
-  // still help when the user re-runs the same source while iterating.
   res.setHeader('Cache-Control', 'public, max-age=300, s-maxage=300');
 
   if (req.method !== 'GET') {
@@ -202,30 +268,38 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
   }
 
   try {
-    const canonicalUrl = await resolveTikTokUrl(rawUrl);
-    const pageRes = await fetch(canonicalUrl, { headers: SCRAPE_HEADERS, redirect: 'follow' });
-    if (!pageRes.ok) {
-      res.status(502).json({
-        error: `TikTok responded ${pageRes.status} for ${canonicalUrl}. The post may be private, deleted, or geo-restricted.`,
-      });
-      return;
+    // Try desktop first (full SSR), fall back to mobile if desktop
+    // got blocked or returned a stripped page.
+    const attempts: FetchAttempt[] = [];
+    for (const [ua, label] of [
+      [UA_DESKTOP, 'desktop-chrome'] as const,
+      [UA_MOBILE, 'ios-safari'] as const,
+    ]) {
+      const attempt = await attemptFetch(rawUrl, ua, label);
+      attempts.push(attempt);
+      if (attempt.item) {
+        res.status(200).json(buildResult(attempt.canonicalUrl, attempt.item));
+        return;
+      }
     }
-    const html = await pageRes.text();
-    const blob = extractEmbeddedJson(html);
-    if (!blob) {
-      res.status(502).json({
-        error:
-          'Could not find the TikTok data blob in the page. TikTok may have changed their HTML or blocked our scraper.',
-      });
-      return;
-    }
-    const item = findItemStruct(blob);
-    if (!item) {
-      res.status(404).json({ error: 'No post data found at that URL.' });
-      return;
-    }
-    const result = buildResult(canonicalUrl, item);
-    res.status(200).json(result);
+
+    // Both attempts failed. Surface the diagnostic so we can iterate.
+    const last = attempts[attempts.length - 1];
+    res.status(404).json({
+      error:
+        last.status >= 400
+          ? `TikTok responded ${last.status} on both desktop + mobile UAs. The post may be private, deleted, age-restricted, or geo-blocked.`
+          : last.hasBlob
+            ? 'The TikTok page loaded but didn\'t contain a recognizable post object. The URL might point to a profile, hashtag, or live page instead of a single post.'
+            : 'TikTok returned a page without an embedded data blob — likely a "tap to open in app" interstitial or a bot challenge. Try a canonical /@user/photo/<id> or /@user/video/<id> URL.',
+      diagnostics: attempts.map((a) => ({
+        ua: a.uaLabel,
+        status: a.status,
+        hasBlob: a.hasBlob,
+        scopeKeys: a.scopeKeys,
+        resolvedTo: a.canonicalUrl,
+      })),
+    });
   } catch (e) {
     res.status(500).json({ error: `Scrape failed: ${(e as Error).message}` });
   }
