@@ -467,3 +467,260 @@ export function renderOrderKeys(slides: Record<string, unknown>): Array<{ key: s
   if (slides.cta) keys.push({ key: 'cta' });
   return keys;
 }
+
+// ---------- Phase 3 of the article: Propose from library ----------
+//
+// Reads the user's pattern library (every past post that carried a
+// CloneAnalysis) + the last N days of published posts (anti-repeat),
+// asks Claude to synthesise a fresh post that USES a proven pattern
+// but doesn't repeat recent angles. Output is the same JSON-for-the-
+// engine shape as cloning, minus bgAssignments (there's no source
+// URL — the user picks bgs from their own library).
+
+export type PatternSnapshot = {
+  id: string;
+  postedAt: number;
+  preset: string;
+  niche?: string;
+  cloneAnalysis: CloneAnalysis;
+  // Short caption excerpt for context, ≤200 chars.
+  captionExcerpt: string;
+};
+
+export type RecentPostSnapshot = {
+  daysAgo: number;
+  niche?: string;
+  preset: string;
+  hookStyle: string;
+  captionExcerpt: string;
+};
+
+export type ProposeInput = {
+  patterns: PatternSnapshot[];
+  recentPostings: RecentPostSnapshot[];
+};
+
+export type ClaudeProposeOutput = {
+  preset: PresetKey;
+  slides: Record<string, unknown>;
+  caption: string;
+  cloneAnalysis: CloneAnalysis;
+  // One short image search query per rendered slide in render order
+  // (hook → middle → cta). User feeds these into Pexels/Midjourney/
+  // Nano Banana/wherever to source the actual bg images.
+  imageQueries: string[];
+  // Which library pattern (by id) inspired the angle. null when
+  // proposing from scratch.
+  inspirationPatternId: string | null;
+  // One-sentence "why this angle + why now" so the user can sanity-
+  // check before publishing.
+  rationale: string;
+};
+
+export type ProposeStage =
+  | { kind: 'reasoning' }
+  | { kind: 'done'; proposal: ClaudeProposeOutput };
+
+export type ProposeOptions = {
+  apiKey: string;
+  model: ClaudeModelId;
+  input: ProposeInput;
+  guidance?: string;
+  preferredPreset?: PresetKey;
+  onStage?: (stage: ProposeStage) => void;
+};
+
+const EMIT_PROPOSE_TOOL = {
+  name: 'emit_propose',
+  description:
+    'Emit a fresh Iro slideshow proposal. Built from the pattern library, anti-repeated against recent posts.',
+  input_schema: {
+    type: 'object',
+    required: ['preset', 'slides', 'caption', 'cloneAnalysis', 'imageQueries', 'rationale'],
+    properties: {
+      preset: { type: 'string', enum: PRESET_KEYS },
+      slides: { type: 'object', additionalProperties: true, description: 'Preset-specific JSON, IRO spec exactly.' },
+      caption: { type: 'string', description: 'TikTok caption. First line is the hook.' },
+      cloneAnalysis: {
+        type: 'object',
+        required: ['structuralFingerprint', 'hookStyle', 'density', 'ctaShape', 'niche', 'voiceTone'],
+        properties: {
+          structuralFingerprint: { type: 'string' },
+          hookStyle: { type: 'string' },
+          density: { type: 'string' },
+          ctaShape: { type: 'string' },
+          niche: { type: 'string' },
+          voiceTone: { type: 'string' },
+        },
+      },
+      imageQueries: {
+        type: 'array',
+        items: { type: 'string' },
+        description: 'One short image-search / generation prompt per RENDERED slide (hook → middle → cta).',
+      },
+      inspirationPatternId: {
+        type: ['string', 'null'],
+        description: 'The id of the past pattern this proposal riffs on, or null if from scratch.',
+      },
+      rationale: {
+        type: 'string',
+        description: 'One sentence: why this angle and why now.',
+      },
+    },
+  },
+};
+
+const PROPOSE_INSTRUCTIONS = [
+  '## Propose-from-library instructions',
+  '',
+  'You are being used inside the Iro Slideshow Generator\'s "Propose" flow. The user is ' +
+    'NOT giving you a source URL — instead, you have their pattern library (everything ' +
+    'they\'ve cloned or proposed in the past, with structural fingerprints) and a list of ' +
+    'recently published posts.',
+  '',
+  'Your job:',
+  '1. Pick a strong pattern from the library that the user has had success with.',
+  '2. Synthesize a FRESH angle on Iro AI that uses that pattern\'s rhythm and density.',
+  '3. Honor the anti-repeat rule: do NOT reuse a hook style, niche, or angle that has ' +
+    'appeared in the last 14 days of recent posts.',
+  '4. Prefer niches that haven\'t been touched in 30+ days when the library is dense.',
+  '5. Always call the emit_propose tool.',
+  '',
+  'If the library is empty or sparse (<3 patterns), propose a clean post from scratch and ' +
+    'set inspirationPatternId to null. The IRO spec above defines every preset\'s schema — ' +
+    'follow it exactly.',
+].join('\n');
+
+function buildProposeUserMessage(
+  input: ProposeInput,
+  opts: { guidance?: string; preferredPreset?: PresetKey },
+): string {
+  const lines: string[] = [];
+  lines.push('# Pattern library');
+  if (input.patterns.length === 0) {
+    lines.push('(empty — no past clones with structural analysis yet. Propose from scratch.)');
+  } else {
+    input.patterns.forEach((p) => {
+      const days = Math.max(0, Math.floor((Date.now() - p.postedAt) / 86400000));
+      lines.push(`- [${p.id}] ${days}d ago · preset=${p.preset} · niche=${p.niche || 'unknown'}`);
+      lines.push(`  hook: ${p.cloneAnalysis.hookStyle}`);
+      lines.push(`  density: ${p.cloneAnalysis.density}`);
+      lines.push(`  cta: ${p.cloneAnalysis.ctaShape}`);
+      lines.push(`  voice: ${p.cloneAnalysis.voiceTone}`);
+      if (p.captionExcerpt) lines.push(`  caption: ${p.captionExcerpt}`);
+    });
+  }
+  lines.push('');
+  lines.push('# Last 14 days of published posts (avoid repeating)');
+  if (input.recentPostings.length === 0) {
+    lines.push('(none yet)');
+  } else {
+    input.recentPostings.forEach((r) => {
+      lines.push(`- ${r.daysAgo}d ago · preset=${r.preset} · niche=${r.niche || 'unknown'} · hook=${r.hookStyle}`);
+      if (r.captionExcerpt) lines.push(`  caption: ${r.captionExcerpt}`);
+    });
+  }
+  lines.push('');
+  lines.push('# Your task');
+  lines.push(
+    'Synthesize a fresh Iro AI slideshow proposal. Pick a strong pattern from the library ' +
+      '(or propose from scratch if it\'s empty). Respect the anti-repeat rule against the ' +
+      'last-14-day list above. Call emit_propose with the result.',
+  );
+  if (opts.preferredPreset) {
+    lines.push('');
+    lines.push(`Required preset: \`${opts.preferredPreset}\`. Follow that preset's schema exactly.`);
+  }
+  if (opts.guidance && opts.guidance.trim()) {
+    lines.push('');
+    lines.push('## Extra guidance from the user');
+    lines.push(opts.guidance.trim());
+  }
+  return lines.join('\n');
+}
+
+export async function proposePost(opts: ProposeOptions): Promise<ClaudeProposeOutput> {
+  const stage = opts.onStage || (() => {});
+  stage({ kind: 'reasoning' });
+  const response = await callClaude({
+    apiKey: opts.apiKey,
+    model: opts.model,
+    system: [
+      {
+        type: 'text',
+        text: ironSpec + '\n\n' + PROPOSE_INSTRUCTIONS,
+        cache_control: { type: 'ephemeral' },
+      },
+    ],
+    messages: [{ role: 'user', content: buildProposeUserMessage(opts.input, opts) }],
+    tools: [EMIT_PROPOSE_TOOL],
+    toolChoice: { type: 'tool', name: 'emit_propose' },
+    maxTokens: 4096,
+  });
+  const proposal = validateProposal(extractToolUse<ClaudeProposeOutput>(response, 'emit_propose'));
+  stage({ kind: 'done', proposal });
+  return proposal;
+}
+
+function validateProposal(parsed: unknown): ClaudeProposeOutput {
+  if (!parsed || typeof parsed !== 'object') throw new Error('Proposal response is not a JSON object.');
+  const p = parsed as Partial<ClaudeProposeOutput>;
+  if (!p.preset || !PRESET_KEYS.includes(p.preset as PresetKey)) {
+    throw new Error(`Missing or unknown preset (got: ${String(p.preset)}).`);
+  }
+  if (!p.slides || typeof p.slides !== 'object') throw new Error('Missing "slides" object.');
+  return {
+    preset: p.preset as PresetKey,
+    slides: p.slides as Record<string, unknown>,
+    caption: typeof p.caption === 'string' ? p.caption : '',
+    cloneAnalysis: (p.cloneAnalysis as CloneAnalysis) || {
+      structuralFingerprint: '', hookStyle: '', density: '', ctaShape: '', niche: '', voiceTone: '',
+    },
+    imageQueries: Array.isArray(p.imageQueries) ? p.imageQueries.map(String) : [],
+    inspirationPatternId: typeof p.inspirationPatternId === 'string' ? p.inspirationPatternId : null,
+    rationale: typeof p.rationale === 'string' ? p.rationale : '',
+  };
+}
+
+// Manual-mode propose: build the self-contained prompt for claude.ai.
+// Parallel to buildManualPrompt for cloning.
+export function buildManualProposePrompt(
+  input: ProposeInput,
+  opts: { guidance?: string; preferredPreset?: PresetKey },
+): string {
+  const skeleton = {
+    preset: '<one of: ' + PRESET_KEYS.join(' | ') + '>',
+    slides: '<preset-specific JSON — match the schema above EXACTLY>',
+    caption: '<TikTok caption tailored to Iro. First line is the hook.>',
+    cloneAnalysis: {
+      structuralFingerprint: '<one sentence>',
+      hookStyle: '<...>', density: '<...>', ctaShape: '<...>', niche: '<...>', voiceTone: '<...>',
+    },
+    imageQueries: '<array of short image search/generation prompts, one per rendered slide in render order>',
+    inspirationPatternId: '<id of the past pattern this riffs on, or null>',
+    rationale: '<one sentence: why this angle + why now>',
+  };
+  return [
+    '# IRO SLIDESHOW SPEC', '', ironSpec, '',
+    '# ' + PROPOSE_INSTRUCTIONS, '',
+    '# YOUR INPUT', '',
+    buildProposeUserMessage(input, opts), '',
+    '# OUTPUT FORMAT', '',
+    'Output ONLY a single JSON object matching the shape below. No commentary, no markdown fences.',
+    '',
+    '```json',
+    JSON.stringify(skeleton, null, 2),
+    '```',
+  ].join('\n');
+}
+
+export function applyProposeManualResponse(responseText: string): ClaudeProposeOutput {
+  const jsonText = extractJsonObject(responseText);
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(jsonText);
+  } catch {
+    throw new Error('That doesn\'t parse as JSON. Copy Claude.ai\'s full JSON reply only.');
+  }
+  return validateProposal(parsed);
+}

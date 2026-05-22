@@ -11,7 +11,7 @@
 // metadata and the same /api/proxy-tiktok-image endpoint to download
 // images into the media bank. Only the LLM call differs.
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   applyManualResponse,
   cloneFromTikTok,
@@ -36,6 +36,12 @@ type Props = {
     source: CloneResult['source'];
     cloneAnalysis: CloneResult['clone']['cloneAnalysis'];
   }) => void;
+  // Optional URL to drop into the input on mount / when changed
+  // (Patterns view's "Clone again" wires this). Consumed by an
+  // effect that also expands the panel; the parent should clear it
+  // afterward.
+  prefillUrl?: string;
+  onPrefillConsumed?: () => void;
 };
 
 type Mode = 'api' | 'manual';
@@ -82,7 +88,14 @@ function buildBgByKey(result: CloneResult): Record<string, string> {
   return bgByKey;
 }
 
-export default function CloneFromTikTok({ anthropicKey, model, onModelChange, onCloned }: Props) {
+export default function CloneFromTikTok({
+  anthropicKey,
+  model,
+  onModelChange,
+  onCloned,
+  prefillUrl,
+  onPrefillConsumed,
+}: Props) {
   const [mode, setMode] = useState<Mode>('api');
   const [url, setUrl] = useState('');
   const [guidance, setGuidance] = useState('');
@@ -91,6 +104,17 @@ export default function CloneFromTikTok({ anthropicKey, model, onModelChange, on
   const [expanded, setExpanded] = useState(false);
   // Manual mode: paste-back of Claude.ai's reply.
   const [manualResponse, setManualResponse] = useState('');
+
+  useEffect(() => {
+    if (prefillUrl) {
+      setUrl(prefillUrl);
+      setExpanded(true);
+      onPrefillConsumed?.();
+    }
+    // onPrefillConsumed is stable enough; rerunning on its identity
+    // would re-fire whenever the parent re-renders.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prefillUrl]);
 
   const busy = status.kind === 'running';
   const keyMissing = !anthropicKey;

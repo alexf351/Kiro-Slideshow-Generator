@@ -21,6 +21,19 @@ export type PostStats = {
   saves: number;
 };
 
+// Structural fingerprint Claude extracted when the post was generated
+// (clone or propose). Persisted on the Post so the Patterns view can
+// re-show what worked + the Propose flow can read it back as context
+// for fresh angles.
+export type CloneAnalysisSnapshot = {
+  structuralFingerprint: string;
+  hookStyle: string;
+  density: string;
+  ctaShape: string;
+  niche: string;
+  voiceTone: string;
+};
+
 export type Post = {
   id: string;
   postedAt: number;
@@ -31,6 +44,13 @@ export type Post = {
   platform: string;
   thumbnailBlob: Blob | null;
   stats: PostStats;
+  // Added in patterns-library milestone — all optional, so existing
+  // posts from before the schema change keep loading cleanly.
+  preset?: string;
+  sourceTikTokUrl?: string;  // for clones: the URL we cloned. for proposals/manual: ''
+  cloneAnalysis?: CloneAnalysisSnapshot | null;
+  niche?: string;             // duplicated from cloneAnalysis.niche for cheap filtering
+  origin?: 'manual' | 'clone' | 'propose';
 };
 
 export const ZERO_STATS: PostStats = { views: 0, likes: 0, comments: 0, shares: 0, saves: 0 };
@@ -80,6 +100,11 @@ export async function addPost(input: Omit<Post, 'id' | 'postedAt' | 'stats'> & {
     platform: input.platform,
     thumbnailBlob: input.thumbnailBlob,
     stats: input.stats ?? { ...ZERO_STATS },
+    preset: input.preset,
+    sourceTikTokUrl: input.sourceTikTokUrl,
+    cloneAnalysis: input.cloneAnalysis ?? null,
+    niche: input.niche ?? input.cloneAnalysis?.niche,
+    origin: input.origin ?? 'manual',
   };
   const t = db.transaction([POSTS_STORE], 'readwrite');
   t.objectStore(POSTS_STORE).put(post);

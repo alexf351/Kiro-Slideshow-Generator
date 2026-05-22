@@ -2,8 +2,10 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import engineHtml from '../../kiro_slideshow_engine_v3.html?raw';
 import Library from './Library';
 import Analytics from './Analytics';
+import Patterns from './Patterns';
+import Propose from './Propose';
 import { addStockItem, blobToDataUrl, getItem } from './mediaBank';
-import { addPost } from './posts';
+import { addPost, type CloneAnalysisSnapshot } from './posts';
 import { PRESETS, PRESET_KEYS, type PresetKey } from './presets';
 import CloneFromTikTok from './CloneFromTikTok';
 import { CLAUDE_MODELS, type ClaudeModelId } from './anthropic';
@@ -12,8 +14,8 @@ import { buildIroEditPrompt, editImage, OpenAIImageError, type OpenAIImageQualit
 type Mascot = 'bronze' | 'silver' | 'gold' | 'platinum' | 'diamond' | 'iridescent';
 type Platform = 'claude' | 'chatgpt';
 type Status = { kind: 'idle' } | { kind: 'rendering' } | { kind: 'ok'; at: number } | { kind: 'err'; msg: string };
-type MobileView = 'edit' | 'library' | 'analytics' | 'preview';
-type MainView = 'preview' | 'library' | 'analytics';
+type MobileView = 'edit' | 'library' | 'patterns' | 'analytics' | 'preview';
+type MainView = 'preview' | 'library' | 'patterns' | 'analytics';
 
 // Per-slide background. Either a media-bank item id (resolved to a data URL at
 // render time) or a pasted URL we hand straight through to the engine.
@@ -94,6 +96,11 @@ type Persisted = {
   anthropicKey: string;
   claudeModel: ClaudeModelId;
   openaiKey: string;
+  // When true, the hook + cta slides render with photo + mascot only,
+  // no baked-in text. The user types the hook + CTA natively in
+  // TikTok's editor after upload — the algorithm reads native text
+  // better than image-baked text per the article.
+  nativeTextOverlay: boolean;
 };
 
 const CLAUDE_MODEL_IDS = CLAUDE_MODELS.map((m) => m.id) as readonly ClaudeModelId[];
@@ -121,6 +128,7 @@ function loadPersisted(): Persisted {
           ? (p.claudeModel as ClaudeModelId)
           : 'claude-opus-4-7',
         openaiKey: typeof p.openaiKey === 'string' ? p.openaiKey : '',
+        nativeTextOverlay: p.nativeTextOverlay === true,
       };
     }
   } catch {}
@@ -137,6 +145,7 @@ function loadPersisted(): Persisted {
     anthropicKey: '',
     claudeModel: 'claude-opus-4-7',
     openaiKey: '',
+    nativeTextOverlay: false,
   };
 }
 
@@ -231,10 +240,19 @@ export default function App() {
   const [anthropicKey, setAnthropicKey] = useState<string>(initial.anthropicKey);
   const [claudeModel, setClaudeModel] = useState<ClaudeModelId>(initial.claudeModel);
   const [openaiKey, setOpenaiKey] = useState<string>(initial.openaiKey);
-  // Last successful clone's structural analysis, surfaced as a small
-  // info card under the clone panel so the user can see what Claude
-  // pattern-matched before they tweak.
+  const [nativeTextOverlay, setNativeTextOverlay] = useState<boolean>(initial.nativeTextOverlay);
+  // Bumped by Patterns → "Clone again". CloneFromTikTok watches this
+  // and prefills its URL input + expands. Resets to empty string
+  // when the panel consumes it.
+  const [prefillCloneUrl, setPrefillCloneUrl] = useState('');
+  // Last successful clone/proposal's structural analysis. Surfaced as
+  // a small info card under the Clone panel + carried into the saved
+  // Post (handleSaveToHistory) so the Patterns view + future Propose
+  // runs can read it back as context.
   const [lastCloneNote, setLastCloneNote] = useState<string | null>(null);
+  const [lastCloneAnalysis, setLastCloneAnalysis] = useState<CloneAnalysisSnapshot | null>(null);
+  const [lastCloneSourceUrl, setLastCloneSourceUrl] = useState<string>('');
+  const [lastOrigin, setLastOrigin] = useState<'manual' | 'clone' | 'propose'>('manual');
   // Per-slide-key flag while an AI-edit is in flight. Greys out the
   // AI-edit button + shows a spinner.
   const [editingBg, setEditingBg] = useState<Record<string, boolean>>({});
@@ -283,6 +301,7 @@ export default function App() {
           anthropicKey,
           claudeModel,
           openaiKey,
+          nativeTextOverlay,
         }),
       );
     } catch {}
@@ -299,6 +318,7 @@ export default function App() {
     anthropicKey,
     claudeModel,
     openaiKey,
+    nativeTextOverlay,
   ]);
 
   useEffect(() => {
@@ -408,6 +428,27 @@ export default function App() {
     if (ctaBg && slides.cta && typeof slides.cta === 'object') {
       slides.cta = { ...(slides.cta as object), bg: ctaBg };
     }
+
+    // Native-overlay mode: blank the text fields on hook + cta so the
+    // engine renders bg + mascot only. The user types the actual hook
+    // and CTA copy in TikTok's editor after upload — algorithm reads
+    // native text overlays better than baked-in PNG text per the
+    // article. Middle slides keep their baked-in text since the
+    // algorithm cares less there.
+    if (nativeTextOverlay) {
+      if (slides.hook && typeof slides.hook === 'object') {
+        slides.hook = {
+          ...(slides.hook as Record<string, unknown>),
+          headline: '', sub: '', text: '', supporting: '', subline: '',
+        };
+      }
+      if (slides.cta && typeof slides.cta === 'object') {
+        slides.cta = {
+          ...(slides.cta as Record<string, unknown>),
+          headline: '', instructionAbove: '', searchTerm: '', instructionBelow: '', slogan: '',
+        };
+      }
+    }
     // Walk every known content array. Each preset's content lives under
     // a different key (prompt_pack→prompts, pain_story→beats, meme_pov
     // →panels) and the slideBgs map uses a parallel key prefix.
@@ -470,6 +511,14 @@ export default function App() {
       delete next[slideKey];
       return next;
     });
+  }
+
+  // Triggered by Patterns → "Clone again". Switches the user back to
+  // the Edit pane and feeds the source URL into the Clone panel.
+  function handleCloneAgain(sourceUrl: string) {
+    setMainView('preview');
+    setMobileView('edit');
+    setPrefillCloneUrl(sourceUrl);
   }
 
   // Save a File/Blob from a direct upload (or a clipboard paste) into
@@ -566,6 +615,14 @@ export default function App() {
         mascot: mascotKey(mascot, variant),
         platform,
         thumbnailBlob: thumb,
+        // New fields — populated when the post originated from a
+        // clone or a propose. Manual edits land here as undefined,
+        // which is fine — they just won't show up in Patterns.
+        preset,
+        sourceTikTokUrl: lastCloneSourceUrl || undefined,
+        cloneAnalysis: lastCloneAnalysis,
+        niche: lastCloneAnalysis?.niche,
+        origin: lastOrigin,
       });
       setSaveStatus({ kind: 'ok' });
       setTimeout(() => setSaveStatus({ kind: 'idle' }), 2500);
@@ -590,14 +647,11 @@ export default function App() {
     caption: string;
     bgByKey: Record<string, string>;
     source: { url: string; author: { uniqueId: string }; slides: { index: number }[] };
-    cloneAnalysis: { structuralFingerprint: string; hookStyle: string; density: string; ctaShape: string; niche: string; voiceTone: string };
+    cloneAnalysis: CloneAnalysisSnapshot;
   }) {
     setPreset(input.preset);
     setJsonText(input.jsonText);
     setCaption(input.caption);
-    // Replace the slideBgs map entirely with the clone's assignments
-    // — leftover bg picks from the prior post would just confuse the
-    // result.
     const next: SlideBgMap = {};
     for (const [k, mediaId] of Object.entries(input.bgByKey)) {
       next[k] = { type: 'media', mediaId };
@@ -607,6 +661,40 @@ export default function App() {
       `Source: @${input.source.author.uniqueId} · ${input.source.slides.length} slide${input.source.slides.length === 1 ? '' : 's'} — ` +
         `${input.cloneAnalysis.structuralFingerprint}`,
     );
+    setLastCloneAnalysis(input.cloneAnalysis);
+    setLastCloneSourceUrl(input.source.url);
+    setLastOrigin('clone');
+  }
+
+  // Wired to the Propose panel. Unlike clone, propose has no source
+  // URL and no source images — the user picks bgs from their own
+  // library afterward (or copies the image prompts into Midjourney /
+  // ChatGPT / Pexels).
+  function handleProposed(input: {
+    preset: PresetKey;
+    jsonText: string;
+    caption: string;
+    cloneAnalysis: CloneAnalysisSnapshot;
+    imageQueries: string[];
+    rationale: string;
+  }) {
+    setPreset(input.preset);
+    setJsonText(input.jsonText);
+    setCaption(input.caption);
+    // Propose doesn't auto-assign bgs. Leave the existing slideBgs
+    // map in place — the user may want to reuse photos from a recent
+    // clone.
+    const fingerprint = input.cloneAnalysis.structuralFingerprint || 'fresh proposal';
+    setLastCloneNote(`Proposal · ${fingerprint}${input.rationale ? ' — ' + input.rationale : ''}`);
+    setLastCloneAnalysis(input.cloneAnalysis);
+    setLastCloneSourceUrl('');
+    setLastOrigin('propose');
+    if (input.imageQueries.length > 0) {
+      // Stash the image prompts in the clipboard-friendly format so
+      // the user has them ready to paste into Midjourney/ChatGPT.
+      // Best-effort — no toast if it fails.
+      void navigator.clipboard?.writeText(input.imageQueries.map((q, i) => `${i + 1}. ${q}`).join('\n')).catch(() => {});
+    }
   }
 
   // AI-edit pass on an existing slide bg. Pulls the current media
@@ -689,7 +777,7 @@ export default function App() {
         type="button"
         onClick={() => setMobileView(kind)}
         className={
-          'relative flex-1 py-3.5 text-[11px] font-bold uppercase tracking-[0.18em] transition-colors ' +
+          'relative flex-1 py-3.5 text-[10px] font-bold uppercase tracking-[0.10em] transition-colors ' +
           (active ? 'text-[#00E5FF]' : 'text-gray-500 hover:text-gray-300')
         }
       >
@@ -709,7 +797,8 @@ export default function App() {
       {/* Mobile-only tab bar; hidden on md+ where the sidebar is always visible. */}
       <nav className="md:hidden flex shrink-0 bg-gradient-to-b from-[#0a0e1a] to-[#080b16] border-b border-white/[0.05]">
         {mobileTabBtn('edit', 'Edit')}
-        {mobileTabBtn('library', 'Library')}
+        {mobileTabBtn('library', 'Lib')}
+        {mobileTabBtn('patterns', 'Patterns')}
         {mobileTabBtn('analytics', 'Stats')}
         {mobileTabBtn('preview', 'Preview')}
       </nav>
@@ -739,16 +828,24 @@ export default function App() {
         </header>
 
         <div className="flex-1 overflow-y-auto custom-scrollbar">
-          <section className="px-5 md:px-10 pt-6 md:pt-7 pb-3 md:pb-4">
+          <section className="px-5 md:px-10 pt-6 md:pt-7 pb-3 md:pb-4 flex flex-col gap-3">
             <CloneFromTikTok
               anthropicKey={anthropicKey}
               model={claudeModel}
               onModelChange={setClaudeModel}
               onCloned={handleCloned}
+              prefillUrl={prefillCloneUrl}
+              onPrefillConsumed={() => setPrefillCloneUrl('')}
+            />
+            <Propose
+              anthropicKey={anthropicKey}
+              model={claudeModel}
+              onModelChange={setClaudeModel}
+              onProposed={handleProposed}
             />
             {lastCloneNote && (
-              <div className="mt-2 text-[11px] text-gray-500 leading-relaxed">
-                <strong className="text-gray-400">Last clone:</strong> {lastCloneNote}
+              <div className="text-[11px] text-gray-500 leading-relaxed">
+                <strong className="text-gray-400">Last {lastOrigin}:</strong> {lastCloneNote}
               </div>
             )}
           </section>
@@ -1159,14 +1256,14 @@ export default function App() {
           </section>
 
           <section className="px-5 md:px-10 py-6 md:py-7">
-            <div className="grid grid-cols-2 gap-2 mb-4">
+            <div className="grid grid-cols-3 gap-2 mb-4">
               <button
                 type="button"
                 onClick={() => {
                   setMainView('library');
                   setMobileView('library');
                 }}
-                className="py-3 rounded-xl text-xs md:text-sm font-bold uppercase tracking-[0.14em]
+                className="py-3 rounded-xl text-[11px] md:text-xs font-bold uppercase tracking-[0.12em]
                            border border-white/[0.10] bg-white/[0.03] text-gray-300
                            hover:border-[#00E5FF]/40 hover:text-[#00E5FF] transition-all"
               >
@@ -1175,16 +1272,53 @@ export default function App() {
               <button
                 type="button"
                 onClick={() => {
+                  setMainView('patterns');
+                  setMobileView('patterns');
+                }}
+                className="py-3 rounded-xl text-[11px] md:text-xs font-bold uppercase tracking-[0.12em]
+                           border border-white/[0.10] bg-white/[0.03] text-gray-300
+                           hover:border-[#FFC857]/40 hover:text-[#FFC857] transition-all"
+              >
+                Patterns
+              </button>
+              <button
+                type="button"
+                onClick={() => {
                   setMainView('analytics');
                   setMobileView('analytics');
                 }}
-                className="py-3 rounded-xl text-xs md:text-sm font-bold uppercase tracking-[0.14em]
+                className="py-3 rounded-xl text-[11px] md:text-xs font-bold uppercase tracking-[0.12em]
                            border border-white/[0.10] bg-white/[0.03] text-gray-300
                            hover:border-[#00E5FF]/40 hover:text-[#00E5FF] transition-all"
               >
                 Analytics
               </button>
             </div>
+
+            {/* Native-overlay toggle. When on, the hook + cta slides
+               export with bg + mascot only — the user types the actual
+               hook/CTA copy in TikTok's editor after upload. Per the
+               article, native text overlays get better algorithm
+               treatment than baked-in PNG text on the highest-stakes
+               slides. Middle slides keep their baked text. */}
+            <label className="flex items-start gap-3 mb-4 p-3 rounded-xl border border-white/[0.06] bg-white/[0.02] cursor-pointer hover:border-white/[0.12] transition-colors">
+              <input
+                type="checkbox"
+                checked={nativeTextOverlay}
+                onChange={(e) => setNativeTextOverlay(e.target.checked)}
+                className="mt-0.5 w-4 h-4 accent-[#00E5FF] cursor-pointer"
+              />
+              <span className="flex-1">
+                <span className="block text-[12px] font-bold text-gray-200">
+                  Native TikTok text overlay
+                </span>
+                <span className="block text-[10px] text-gray-500 mt-0.5 leading-relaxed">
+                  Strip hook + CTA text from the render so you can type them natively in TikTok's editor.
+                  Algorithm reads native text better than baked-in image text.
+                </span>
+              </span>
+            </label>
+
             <button
               type="button"
               onClick={handleRender}
@@ -1321,6 +1455,13 @@ export default function App() {
           (mainView === 'library' ? 'md:block' : 'md:hidden')
         }>
           <Library pickMode={pickRequest} pexelsKey={pexelsKey} unsplashKey={unsplashKey} />
+        </div>
+        <div className={
+          'absolute inset-0 ' +
+          (mobileView === 'patterns' ? 'block ' : 'hidden ') +
+          (mainView === 'patterns' ? 'md:block' : 'md:hidden')
+        }>
+          <Patterns onCloneAgain={handleCloneAgain} />
         </div>
         <div className={
           'absolute inset-0 ' +
