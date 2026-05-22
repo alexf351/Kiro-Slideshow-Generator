@@ -49,9 +49,13 @@ type Mode = 'api' | 'manual';
 type RunStatus =
   | { kind: 'idle' }
   | { kind: 'running'; stage: CloneStage }
-  // Manual mode parked between "copy prompt" and "paste response".
-  // We hold the scrape result here so the apply step knows which
-  // images to download.
+  // Manual mode after scrape — we have the prompt ready but haven't
+  // copied/opened yet. iOS Safari loses the user-gesture context
+  // across an `await` of a network call, so the clipboard write has
+  // to happen in a SEPARATE button click (the gesture for that click).
+  | { kind: 'prompt_ready'; source: ScrapeResult; prompt: string }
+  // Manual mode after copy+open — waiting for the paste-back of the
+  // Claude.ai reply.
   | { kind: 'awaiting_paste'; source: ScrapeResult }
   | { kind: 'err'; msg: string }
   | { kind: 'ok'; at: number };
@@ -119,6 +123,7 @@ export default function CloneFromTikTok({
   const busy = status.kind === 'running';
   const keyMissing = !anthropicKey;
   const awaitingPaste = status.kind === 'awaiting_paste';
+  const promptReady = status.kind === 'prompt_ready';
 
   function finishWithResult(result: CloneResult) {
     onCloned({
@@ -155,9 +160,12 @@ export default function CloneFromTikTok({
     }
   }
 
-  // Manual mode step 1: scrape, build the prompt, copy to clipboard,
-  // open claude.ai in a new tab. Parks status at awaiting_paste so
-  // step 2 ("Apply response") can light up.
+  // Manual mode step 1: scrape and build the prompt. We do NOT try to
+  // write to the clipboard here — on iOS Safari the user-gesture
+  // context is lost after the await of prepareManualClone (which
+  // does a network request), so clipboard.writeText silently fails.
+  // Instead, we stash the prompt and show a separate Copy button
+  // whose click is its own fresh user gesture.
   async function handleManualBuildPrompt() {
     if (!url.trim()) return;
     setStatus({ kind: 'running', stage: { kind: 'scraping' } });
@@ -167,33 +175,39 @@ export default function CloneFromTikTok({
         guidance: guidance.trim() || undefined,
         preferredPreset: preferredPreset === 'auto' ? undefined : preferredPreset,
       });
+      setStatus({ kind: 'prompt_ready', source, prompt });
+    } catch (e) {
+      setStatus({ kind: 'err', msg: (e as Error).message || 'Could not prepare manual prompt.' });
+    }
+  }
 
-      // navigator.clipboard.writeText needs a user gesture, which we
-      // have (the button click). It still occasionally fails on
-      // iOS Safari; if so we fall back to a hidden textarea + execCommand.
+  // Manual mode step 1.5: synchronous within this gesture so iOS
+  // Safari actually writes to the clipboard. We avoid any awaits
+  // before the clipboard call. window.open also has to be in this
+  // gesture or the popup gets blocked.
+  function handleManualCopyAndOpen() {
+    if (status.kind !== 'prompt_ready') return;
+    const { source, prompt } = status;
+    // Fire-and-forget the clipboard promise. Don't await — the gesture
+    // applies to the synchronous call site, not to whenever the
+    // promise resolves.
+    navigator.clipboard?.writeText(prompt).catch(() => {
+      // Best-effort fallback for browsers without the async clipboard
+      // API. The user can still long-press the textarea below to copy
+      // manually.
       try {
-        await navigator.clipboard.writeText(prompt);
-      } catch {
         const ta = document.createElement('textarea');
         ta.value = prompt;
         ta.style.position = 'fixed';
         ta.style.opacity = '0';
         document.body.appendChild(ta);
         ta.select();
-        try {
-          document.execCommand('copy');
-        } finally {
-          document.body.removeChild(ta);
-        }
-      }
-
-      // Stash the source so step 2 knows what images to download.
-      setStatus({ kind: 'awaiting_paste', source });
-      // Open claude.ai in a new tab so the user can paste right away.
-      window.open('https://claude.ai/new', '_blank', 'noopener,noreferrer');
-    } catch (e) {
-      setStatus({ kind: 'err', msg: (e as Error).message || 'Could not prepare manual prompt.' });
-    }
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+      } catch {}
+    });
+    window.open('https://claude.ai/new', '_blank', 'noopener,noreferrer');
+    setStatus({ kind: 'awaiting_paste', source });
   }
 
   // Manual mode step 2: parse the paste-back, fetch source images,
@@ -282,7 +296,7 @@ export default function CloneFromTikTok({
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !busy) {
                 if (mode === 'api') void handleApiClone();
-                else if (!awaitingPaste) void handleManualBuildPrompt();
+                else if (!awaitingPaste && !promptReady) void handleManualBuildPrompt();
               }
             }}
             placeholder="https://www.tiktok.com/@user/photo/1234… or vm.tiktok.com/abc"
@@ -351,7 +365,7 @@ export default function CloneFromTikTok({
             </button>
           )}
 
-          {mode === 'manual' && !awaitingPaste && (
+          {mode === 'manual' && !awaitingPaste && !promptReady && (
             <button
               type="button"
               onClick={handleManualBuildPrompt}
@@ -363,8 +377,44 @@ export default function CloneFromTikTok({
                          hover:-translate-y-0.5 active:translate-y-0
                          transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
             >
-              {busy ? 'Scraping…' : 'Copy prompt + open Claude.ai'}
+              {busy ? 'Scraping…' : 'Build prompt'}
             </button>
+          )}
+
+          {mode === 'manual' && promptReady && status.kind === 'prompt_ready' && (
+            <div className="flex flex-col gap-2 rounded-xl border border-[#00E5FF]/40 bg-[#0a1828] p-3">
+              <div className="text-[11px] text-[#00E5FF] leading-relaxed">
+                ✓ Prompt ready. Tap Copy + open Claude.ai below.
+              </div>
+              <textarea
+                value={status.prompt}
+                readOnly
+                rows={4}
+                spellCheck={false}
+                onFocus={(e) => e.currentTarget.select()}
+                className="w-full bg-[#070b18] border border-white/[0.10] rounded-md px-3 py-2 text-[10px] font-mono text-gray-300 focus:border-[#00E5FF]/40 focus:outline-none resize-y"
+              />
+              <div className="text-[10px] text-gray-500 leading-relaxed">
+                Long-press the box above to manually copy if the button below doesn't work.
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={handleManualCopyAndOpen}
+                  className="flex-1 py-2.5 rounded-lg font-bold text-xs uppercase tracking-[0.14em]
+                             bg-gradient-to-r from-[#00E5FF] to-[#00A5D9] text-[#0a0e1a]"
+                >
+                  Copy + open Claude.ai
+                </button>
+                <button
+                  type="button"
+                  onClick={handleResetManual}
+                  className="px-3 py-2.5 rounded-lg text-xs uppercase tracking-[0.14em] text-gray-400 hover:text-gray-200 border border-white/10"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
           )}
 
           {mode === 'manual' && awaitingPaste && (

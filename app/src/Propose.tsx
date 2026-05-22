@@ -47,7 +47,12 @@ type Mode = 'api' | 'manual';
 type RunStatus =
   | { kind: 'idle' }
   | { kind: 'running'; stage: ProposeStage }
-  | { kind: 'awaiting_paste'; input: ProposeInput }
+  // Manual mode after the prompt is built but before the user copies
+  // it. Separated from awaiting_paste because iOS Safari needs the
+  // clipboard write to happen in its own fresh user gesture, not
+  // after the async build step.
+  | { kind: 'prompt_ready'; prompt: string }
+  | { kind: 'awaiting_paste' }
   | { kind: 'preview'; proposal: ClaudeProposeOutput }
   | { kind: 'err'; msg: string };
 
@@ -96,6 +101,7 @@ export default function Propose({ anthropicKey, model, onModelChange, onProposed
   const busy = status.kind === 'running';
   const keyMissing = !anthropicKey;
   const awaitingPaste = status.kind === 'awaiting_paste';
+  const promptReady = status.kind === 'prompt_ready';
   const inPreview = status.kind === 'preview';
 
   async function handleApiPropose() {
@@ -119,24 +125,36 @@ export default function Propose({ anthropicKey, model, onModelChange, onProposed
     }
   }
 
-  async function handleManualBuild() {
+  // Step 1: build the prompt synchronously (no network call needed
+  // since the propose input is already in state). Stash it and let
+  // the Copy button do the actual clipboard write in its own gesture.
+  function handleManualBuild() {
     const prompt = buildManualProposePrompt(proposeInput, {
       guidance: guidance.trim() || undefined,
       preferredPreset: preferredPreset === 'auto' ? undefined : preferredPreset,
     });
-    try {
-      await navigator.clipboard.writeText(prompt);
-    } catch {
-      const ta = document.createElement('textarea');
-      ta.value = prompt;
-      ta.style.position = 'fixed';
-      ta.style.opacity = '0';
-      document.body.appendChild(ta);
-      ta.select();
-      try { document.execCommand('copy'); } finally { document.body.removeChild(ta); }
-    }
-    setStatus({ kind: 'awaiting_paste', input: proposeInput });
+    setStatus({ kind: 'prompt_ready', prompt });
+  }
+
+  // Step 1.5: synchronous within this gesture so iOS Safari actually
+  // writes to the clipboard. No awaits before the write.
+  function handleManualCopyAndOpen() {
+    if (status.kind !== 'prompt_ready') return;
+    const prompt = status.prompt;
+    navigator.clipboard?.writeText(prompt).catch(() => {
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = prompt;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+      } catch {}
+    });
     window.open('https://claude.ai/new', '_blank', 'noopener,noreferrer');
+    setStatus({ kind: 'awaiting_paste' });
   }
 
   function handleManualApply() {
@@ -175,7 +193,7 @@ export default function Propose({ anthropicKey, model, onModelChange, onProposed
         type="button"
         onClick={() => {
           setMode(m);
-          if (status.kind === 'awaiting_paste' || status.kind === 'err') setStatus({ kind: 'idle' });
+          if (status.kind === 'awaiting_paste' || status.kind === 'prompt_ready' || status.kind === 'err') setStatus({ kind: 'idle' });
         }}
         className={
           'flex-1 px-3 py-2 rounded-md text-left transition-colors ' +
@@ -277,7 +295,7 @@ export default function Propose({ anthropicKey, model, onModelChange, onProposed
             />
           </label>
 
-          {!awaitingPaste && !inPreview && (
+          {!awaitingPaste && !inPreview && !promptReady && (
             <button
               type="button"
               onClick={mode === 'api' ? handleApiPropose : handleManualBuild}
@@ -289,8 +307,44 @@ export default function Propose({ anthropicKey, model, onModelChange, onProposed
                          hover:-translate-y-0.5 active:translate-y-0
                          transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
             >
-              {busy ? 'Proposing…' : mode === 'api' ? 'Propose a post' : 'Copy prompt + open Claude.ai'}
+              {busy ? 'Proposing…' : mode === 'api' ? 'Propose a post' : 'Build prompt'}
             </button>
+          )}
+
+          {mode === 'manual' && promptReady && status.kind === 'prompt_ready' && (
+            <div className="flex flex-col gap-2 rounded-xl border border-[#FFC857]/40 bg-[#1a1408] p-3">
+              <div className="text-[11px] text-[#FFC857] leading-relaxed">
+                ✓ Prompt ready. Tap Copy + open Claude.ai below.
+              </div>
+              <textarea
+                value={status.prompt}
+                readOnly
+                rows={4}
+                spellCheck={false}
+                onFocus={(e) => e.currentTarget.select()}
+                className="w-full bg-[#070b18] border border-white/[0.10] rounded-md px-3 py-2 text-[10px] font-mono text-gray-300 focus:border-[#FFC857]/40 focus:outline-none resize-y"
+              />
+              <div className="text-[10px] text-gray-500 leading-relaxed">
+                Long-press the box above to manually copy if the button below doesn't work.
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={handleManualCopyAndOpen}
+                  className="flex-1 py-2.5 rounded-lg font-bold text-xs uppercase tracking-[0.14em]
+                             bg-gradient-to-r from-[#FFC857] to-[#E8A03C] text-[#1a120a]"
+                >
+                  Copy + open Claude.ai
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStatus({ kind: 'idle' })}
+                  className="px-3 py-2.5 rounded-lg text-xs uppercase tracking-[0.14em] text-gray-400 hover:text-gray-200 border border-white/10"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
           )}
 
           {mode === 'manual' && awaitingPaste && (
