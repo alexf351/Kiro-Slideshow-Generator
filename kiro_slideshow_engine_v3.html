@@ -583,6 +583,7 @@
   .preset-app-stack .frame {
     padding: 0; display: flex; flex-direction: column;
     align-items: flex-start; justify-content: flex-start;
+    width: 100%; box-sizing: border-box; overflow: hidden;
   }
   .preset-app-stack .bg-photo-scrim {
     background: linear-gradient(180deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.1) 35%, rgba(0,0,0,0.35) 100%);
@@ -593,7 +594,7 @@
   /* Hook slide — centered headline */
   .preset-app-stack .as-hook {
     width: 100%; flex: 1; display: flex; align-items: center; justify-content: center;
-    padding: 160px 120px;
+    padding: 160px 80px; box-sizing: border-box;
   }
   .preset-app-stack .as-hook-text {
     font-family: 'Inter', sans-serif;
@@ -601,6 +602,7 @@
     line-height: 1.18; text-align: center; letter-spacing: -0.02em;
     text-shadow: 0 4px 20px rgba(0,0,0,0.8), 0 1px 4px rgba(0,0,0,0.5);
     word-wrap: break-word; overflow-wrap: break-word;
+    max-width: 100%;
   }
   /* App slide — icon + name + description cluster in upper portion */
   .preset-app-stack .as-app-wrap {
@@ -1794,10 +1796,10 @@ function buildAppStackHook(h) {
   if (!h) return '';
   const text = h.headline || h.text || '';
   const len = text.replace(/<[^>]+>/g, '').length;
-  let fs = 96;
-  if (len >= 70) fs = 72;
-  else if (len >= 55) fs = 80;
-  else if (len >= 40) fs = 88;
+  let fs = 88;
+  if (len >= 70) fs = 60;
+  else if (len >= 55) fs = 68;
+  else if (len >= 40) fs = 76;
   return `<div class="as-hook"><div class="as-hook-text" style="font-size:${fs}px">${text}</div></div>`;
 }
 
