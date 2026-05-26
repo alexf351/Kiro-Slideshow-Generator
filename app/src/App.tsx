@@ -218,6 +218,7 @@ function extractSlideMeta(parsed: unknown): SlideMeta[] {
     p.apps.forEach((a, i) => {
       const t = clean(a?.name || `App ${i + 1}`);
       out.push({ key: `app:${i}`, label: truncate(`${i + 1}. ${t}`, 40) });
+      out.push({ key: `app-icon:${i}`, label: truncate(`${i + 1}. ${t} · icon`, 40) });
     });
   }
   if (Array.isArray((p as { items?: { text?: string }[] }).items)) {
@@ -476,6 +477,16 @@ export default function App() {
         (arr as Record<string, unknown>[]).map(async (item, i) => {
           const bg = await resolveSlideBg(slideBgs[`${prefix}:${i}`]);
           return bg ? { ...item, bg } : item;
+        }),
+      );
+    }
+
+    // Resolve app icons for app_stack — separate from backgrounds.
+    if (Array.isArray(slides['apps'])) {
+      slides['apps'] = await Promise.all(
+        (slides['apps'] as Record<string, unknown>[]).map(async (item, i) => {
+          const iconUrl = await resolveSlideBg(slideBgs[`app-icon:${i}`]);
+          return iconUrl ? { ...item, iconUrl } : item;
         }),
       );
     }

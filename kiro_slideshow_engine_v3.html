@@ -593,13 +593,14 @@
   /* Hook slide — centered headline */
   .preset-app-stack .as-hook {
     width: 100%; flex: 1; display: flex; align-items: center; justify-content: center;
-    padding: 180px 100px;
+    padding: 160px 120px;
   }
   .preset-app-stack .as-hook-text {
     font-family: 'Inter', sans-serif;
-    font-size: 116px; font-weight: 800; color: #ffffff;
+    font-weight: 800; color: #ffffff;
     line-height: 1.18; text-align: center; letter-spacing: -0.02em;
     text-shadow: 0 4px 20px rgba(0,0,0,0.8), 0 1px 4px rgba(0,0,0,0.5);
+    word-wrap: break-word; overflow-wrap: break-word;
   }
   /* App slide — icon + name + description cluster in upper portion */
   .preset-app-stack .as-app-wrap {
@@ -1792,7 +1793,12 @@ function buildHandwrittenCTA(c, attribution) {
 function buildAppStackHook(h) {
   if (!h) return '';
   const text = h.headline || h.text || '';
-  return `<div class="as-hook"><div class="as-hook-text">${text}</div></div>`;
+  const len = text.replace(/<[^>]+>/g, '').length;
+  let fs = 96;
+  if (len >= 70) fs = 72;
+  else if (len >= 55) fs = 80;
+  else if (len >= 40) fs = 88;
+  return `<div class="as-hook"><div class="as-hook-text" style="font-size:${fs}px">${text}</div></div>`;
 }
 
 function buildAppStackApp(a, attribution) {
