@@ -860,7 +860,7 @@ export default function App() {
 
           <section className="px-5 md:px-10 py-6 md:py-7 border-b border-white/[0.05]">
             {sectionLabel('Format')}
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
               {PRESET_KEYS.map((key) => {
                 const meta = PRESETS[key];
                 const selected = preset === key;
