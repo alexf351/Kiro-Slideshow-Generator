@@ -604,6 +604,13 @@
     word-wrap: break-word; overflow-wrap: break-word;
     max-width: 100%;
   }
+  .preset-app-stack .as-hook-sub {
+    font-family: 'Inter', sans-serif;
+    font-size: 44px; font-weight: 500; color: rgba(255,255,255,0.7);
+    line-height: 1.3; text-align: center; letter-spacing: 0.01em;
+    text-shadow: 0 2px 12px rgba(0,0,0,0.7);
+    margin-top: 32px;
+  }
   /* App slide — icon + name + description cluster in upper portion */
   .preset-app-stack .as-app-wrap {
     width: 100%; padding: 560px 140px 100px 140px; box-sizing: border-box;
@@ -1800,7 +1807,8 @@ function buildAppStackHook(h) {
   if (len >= 70) fs = 60;
   else if (len >= 55) fs = 68;
   else if (len >= 40) fs = 76;
-  return `<div class="as-hook"><div class="as-hook-text" style="font-size:${fs}px">${text}</div></div>`;
+  const sub = h.sub ? `<div class="as-hook-sub">${h.sub}</div>` : '';
+  return `<div class="as-hook"><div class="as-hook-text" style="font-size:${fs}px">${text}</div>${sub}</div>`;
 }
 
 function buildAppStackApp(a, attribution) {
