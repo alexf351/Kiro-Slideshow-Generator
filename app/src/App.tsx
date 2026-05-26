@@ -182,6 +182,7 @@ function extractSlideMeta(parsed: unknown): SlideMeta[] {
     beats?: { text?: string }[];
     panels?: { top?: string; bottom?: string }[];
     features?: { headline?: string }[];
+    apps?: { name?: string }[];
     cta?: unknown;
   };
   const out: SlideMeta[] = [];
@@ -211,6 +212,12 @@ function extractSlideMeta(parsed: unknown): SlideMeta[] {
     p.features.forEach((f, i) => {
       const t = clean(f?.headline || `Feature ${i + 1}`);
       out.push({ key: `feature:${i}`, label: truncate(`Feature ${i + 1} — ${t}`, 40) });
+    });
+  }
+  if (Array.isArray(p.apps)) {
+    p.apps.forEach((a, i) => {
+      const t = clean(a?.name || `App ${i + 1}`);
+      out.push({ key: `app:${i}`, label: truncate(`${i + 1}. ${t}`, 40) });
     });
   }
   if (Array.isArray((p as { items?: { text?: string }[] }).items)) {
@@ -460,6 +467,7 @@ export default function App() {
       // phone mockup — same picker UX, different rendering surface.
       { field: 'features', prefix: 'feature' },
       { field: 'items', prefix: 'item' },
+      { field: 'apps', prefix: 'app' },
     ];
     for (const { field, prefix } of contentArrays) {
       const arr = slides[field];

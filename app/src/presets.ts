@@ -13,6 +13,7 @@ export const PRESET_KEYS = [
   'product_demo',
   'checklist',
   'handwritten_pack',
+  'app_stack',
 ] as const;
 
 export type PresetKey = (typeof PRESET_KEYS)[number];
@@ -293,6 +294,49 @@ iro is for you. search "Iro AI" on the App Store.
 
 #aitok #aichecklist #fyp #learningai #productivity`;
 
+const APP_STACK_JSON = `{
+  "preset": "app_stack",
+  "hook": {
+    "headline": "5 apps I use so my phone makes me smarter instead of dumber"
+  },
+  "apps": [
+    {
+      "name": "Claude",
+      "description": "turning messy ideas into clear plans",
+      "iconUrl": ""
+    },
+    {
+      "name": "Iro",
+      "description": "learning AI skills before everyone at work catches up",
+      "iconUrl": ""
+    },
+    {
+      "name": "Perplexity",
+      "description": "researching anything without opening 37 tabs",
+      "iconUrl": ""
+    },
+    {
+      "name": "Notion",
+      "description": "organizing ideas, scripts, and plans",
+      "iconUrl": ""
+    },
+    {
+      "name": "CapCut",
+      "description": "making short-form content fast",
+      "iconUrl": ""
+    }
+  ],
+  "attribution": "@tryiro"
+}`;
+
+const APP_STACK_CAPTION = `5 apps that actually make your phone useful 📱
+
+these aren't "top 10 AI tools" clickbait. these are the 5 I open every single day.
+
+if your screen time is high but your output is low — start here.
+
+#appsyouneed #productivity #aitools #techtools #aitok`;
+
 const HANDWRITTEN_PACK_CAPTION = `save these prompts. wrote them down so you don't have to. 🔖
 
 5 prompts that turn ChatGPT from a glorified search engine into something that actually saves you hours.
@@ -364,5 +408,14 @@ export const PRESETS: Record<PresetKey, PresetMeta> = {
     defaultJson: HANDWRITTEN_PACK_JSON,
     defaultCaption: HANDWRITTEN_PACK_CAPTION,
     accent: '#1a2858', // ink-on-paper navy
+  },
+  app_stack: {
+    key: 'app_stack',
+    label: 'App Stack',
+    pitch: '"5 apps I use every day" carousel. Photo bgs + app icons + short descriptions.',
+    status: 'ready',
+    defaultJson: APP_STACK_JSON,
+    defaultCaption: APP_STACK_CAPTION,
+    accent: '#A78BFA', // purple, distinct from other presets
   },
 };
