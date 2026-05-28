@@ -518,10 +518,44 @@ export default function App() {
     setMobileView('edit');
   }
 
-  function handlePasteUrlForSlide(slideKey: string) {
-    const url = window.prompt('Paste an image URL (must be publicly reachable so the engine can fetch it):');
+  async function handlePasteUrlForSlide(slideKey: string) {
+    const url = window.prompt('Paste an image URL (Pinterest, any CDN, anywhere — we proxy it):');
     if (!url) return;
-    setSlideBgs((prev) => ({ ...prev, [slideKey]: { type: 'url', url: url.trim() } }));
+    const trimmed = url.trim();
+    // Data URLs are same-origin so they're fine to hand straight to
+    // the engine. HTTP(S) URLs need to flow through the proxy and
+    // land in the media bank — most CDNs (Pinterest, image scrapers,
+    // etc.) don't send CORS headers, which means html2canvas can't
+    // capture them during the slide-export step.
+    if (trimmed.startsWith('data:')) {
+      setSlideBgs((prev) => ({ ...prev, [slideKey]: { type: 'url', url: trimmed } }));
+      return;
+    }
+    setEditingBg((prev) => ({ ...prev, [slideKey]: true }));
+    try {
+      const res = await fetch(`/api/proxy-image?url=${encodeURIComponent(trimmed)}`);
+      if (!res.ok) {
+        let detail = '';
+        try {
+          const j = (await res.json()) as { error?: string };
+          detail = j?.error || '';
+        } catch {}
+        throw new Error(detail || `Proxy returned ${res.status}`);
+      }
+      const blob = await res.blob();
+      await saveAndAssignBlob(slideKey, blob, `url-paste-${Date.now()}`);
+    } catch (e) {
+      window.alert(
+        `Couldn't fetch that URL: ${(e as Error).message}\n\n` +
+          'If the source has hotlink protection, save the image to your device and use Upload instead.',
+      );
+    } finally {
+      setEditingBg((prev) => {
+        const next = { ...prev };
+        delete next[slideKey];
+        return next;
+      });
+    }
   }
 
   function handleClearBgForSlide(slideKey: string) {
