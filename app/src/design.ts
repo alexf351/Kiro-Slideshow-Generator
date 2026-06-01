@@ -44,14 +44,19 @@ export function isCustomDesign(d: BrandDesign): boolean {
   );
 }
 
-// Shape posted to the engine alongside `slides` on render.
+const HEX6 = /^#[0-9a-fA-F]{6}$/;
+const validHex = (c: string, fallback: string) => (HEX6.test(c) ? c : fallback);
+
+// Shape posted to the engine alongside `slides` on render. Colors are
+// validated here so an in-progress edit (e.g. a partial "#F4" still in the
+// text field) can never push an invalid value into the engine's CSS vars.
 export function designPayload(d: BrandDesign) {
   const a = ASPECTS[d.aspect] || ASPECTS['9:16'];
   return {
     pageW: a.w,
     pageH: a.h,
-    accent: d.accent || DEFAULT_DESIGN.accent,
-    bg: d.bg || DEFAULT_DESIGN.bg,
+    accent: validHex(d.accent, DEFAULT_DESIGN.accent),
+    bg: validHex(d.bg, DEFAULT_DESIGN.bg),
     watermark: d.watermark || undefined,
     watermarkPos: d.watermarkPos,
   };

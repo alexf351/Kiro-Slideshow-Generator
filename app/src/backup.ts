@@ -91,7 +91,16 @@ export async function importBackup(text: string): Promise<ImportResult> {
   const restored: Post[] = await Promise.all(
     posts.map(async (sp) => {
       const { thumbnailDataUrl, ...rest } = sp;
-      const thumbnailBlob = thumbnailDataUrl ? await dataUrlToBlob(thumbnailDataUrl) : null;
+      // A single corrupt thumbnail data URL must not abort the whole
+      // restore — fall back to no thumbnail and keep the post's data.
+      let thumbnailBlob: Blob | null = null;
+      if (thumbnailDataUrl) {
+        try {
+          thumbnailBlob = await dataUrlToBlob(thumbnailDataUrl);
+        } catch {
+          thumbnailBlob = null;
+        }
+      }
       return { ...(rest as Omit<Post, 'thumbnailBlob'>), thumbnailBlob } as Post;
     }),
   );
@@ -138,7 +147,9 @@ export function timestampSlug(): string {
 
 function csvCell(v: string | number): string {
   const s = String(v);
-  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  // Quote when the cell contains a quote, comma, or any line break
+  // (including a lone \r, which some parsers treat as a record terminator).
+  return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
 // One row per post with stats + computed score, ready for a spreadsheet.
