@@ -17,6 +17,7 @@ import { suggestHashtags } from './insights';
 import { useUI } from './ui';
 import CommandPalette, { type Command } from './CommandPalette';
 import Onboarding, { shouldOnboard } from './Onboarding';
+import EmojiPicker from './EmojiPicker';
 import { CLAUDE_MODELS, type ClaudeModelId } from './anthropic';
 import { buildIroEditPrompt, editImage, OpenAIImageError, type OpenAIImageQuality } from './openaiImage';
 
@@ -308,6 +309,24 @@ export default function App() {
   const [bgThumbs, setBgThumbs] = useState<Record<string, string>>({});
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const backupInputRef = useRef<HTMLInputElement | null>(null);
+  const captionRef = useRef<HTMLTextAreaElement | null>(null);
+
+  // Insert an emoji at the caption's cursor (or append if it isn't focused).
+  function insertEmoji(emoji: string) {
+    const el = captionRef.current;
+    if (!el) {
+      setCaption((c) => c + emoji);
+      return;
+    }
+    const s = el.selectionStart ?? caption.length;
+    const e = el.selectionEnd ?? caption.length;
+    setCaption(caption.slice(0, s) + emoji + caption.slice(e));
+    requestAnimationFrame(() => {
+      el.focus();
+      const pos = s + emoji.length;
+      el.setSelectionRange(pos, pos);
+    });
+  }
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(shouldOnboard);
   // Number of slides the engine actually rendered — drives the navigator.
@@ -1496,6 +1515,7 @@ export default function App() {
               </span>,
             )}
             <textarea
+              ref={captionRef}
               value={caption}
               onChange={(e) => setCaption(e.target.value)}
               spellCheck={true}
@@ -1537,6 +1557,7 @@ export default function App() {
               >
                 ＃ Suggest hashtags
               </button>
+              <EmojiPicker onPick={insertEmoji} />
             </div>
           </section>
 
