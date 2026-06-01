@@ -5,9 +5,10 @@ import Analytics from './Analytics';
 import Patterns from './Patterns';
 import Propose from './Propose';
 import { addStockItem, blobToDataUrl, getItem } from './mediaBank';
-import { addPost, type CloneAnalysisSnapshot } from './posts';
+import { addPost, type CloneAnalysisSnapshot, type PostPrediction } from './posts';
 import { PRESETS, PRESET_KEYS, type PresetKey } from './presets';
 import CloneFromTikTok from './CloneFromTikTok';
+import PredictPanel from './PredictPanel';
 import { CLAUDE_MODELS, type ClaudeModelId } from './anthropic';
 import { buildIroEditPrompt, editImage, OpenAIImageError, type OpenAIImageQuality } from './openaiImage';
 
@@ -261,6 +262,10 @@ export default function App() {
   const [lastCloneAnalysis, setLastCloneAnalysis] = useState<CloneAnalysisSnapshot | null>(null);
   const [lastCloneSourceUrl, setLastCloneSourceUrl] = useState<string>('');
   const [lastOrigin, setLastOrigin] = useState<'manual' | 'clone' | 'propose'>('manual');
+  // A score the Predict panel produced for the current draft, staged to
+  // be persisted with the next "Save to history". Cleared after save (and
+  // whenever the draft changes enough that the prediction is stale).
+  const [pendingPrediction, setPendingPrediction] = useState<PostPrediction | null>(null);
   // Per-slide-key flag while an AI-edit is in flight. Greys out the
   // AI-edit button + shows a spinner.
   const [editingBg, setEditingBg] = useState<Record<string, boolean>>({});
@@ -676,8 +681,12 @@ export default function App() {
         cloneAnalysis: lastCloneAnalysis,
         niche: lastCloneAnalysis?.niche,
         origin: lastOrigin,
+        // Attach the staged prediction (if any) so Analytics can later
+        // show predicted-vs-actual once the real numbers come in.
+        prediction: pendingPrediction,
       });
       setSaveStatus({ kind: 'ok' });
+      setPendingPrediction(null);
       setTimeout(() => setSaveStatus({ kind: 'idle' }), 2500);
     } catch (e) {
       setSaveStatus({ kind: 'err', msg: (e as Error).message || 'save failed' });
@@ -895,6 +904,16 @@ export default function App() {
               model={claudeModel}
               onModelChange={setClaudeModel}
               onProposed={handleProposed}
+            />
+            <PredictPanel
+              anthropicKey={anthropicKey}
+              model={claudeModel}
+              onModelChange={setClaudeModel}
+              preset={preset}
+              jsonText={jsonText}
+              caption={caption}
+              onPrediction={setPendingPrediction}
+              attachedScore={pendingPrediction?.score ?? null}
             />
             {lastCloneNote && (
               <div className="text-[11px] text-gray-500 leading-relaxed">
@@ -1401,6 +1420,20 @@ export default function App() {
             >
               {saveStatus.kind === 'saving' ? 'Saving…' : saveStatus.kind === 'ok' ? '✓ Saved to history' : 'Save to history'}
             </button>
+            {pendingPrediction && (
+              <div className="mt-2 flex items-center justify-between gap-2 text-xs">
+                <span className="text-[#A78BFA]">
+                  ⌁ Prediction <strong>{pendingPrediction.score}/100</strong> will be saved with this post.
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setPendingPrediction(null)}
+                  className="text-gray-500 hover:text-gray-300 uppercase tracking-[0.14em] text-[10px] font-bold"
+                >
+                  Detach
+                </button>
+              </div>
+            )}
             {saveStatus.kind === 'err' && (
               <div className="mt-2 text-xs text-red-400">Save failed: {saveStatus.msg}</div>
             )}
@@ -1521,7 +1554,7 @@ export default function App() {
           (mobileView === 'analytics' ? 'block ' : 'hidden ') +
           (mainView === 'analytics' ? 'md:block' : 'md:hidden')
         }>
-          <Analytics />
+          <Analytics anthropicKey={anthropicKey} model={claudeModel} onModelChange={setClaudeModel} />
         </div>
         <div className={
           'absolute inset-0 ' +

@@ -19,6 +19,41 @@ export type PostStats = {
   comments: number;
   shares: number;
   saves: number;
+  // Photo-carousel only: total photo views (how many photos got swiped
+  // through across all viewers). A high ratio vs `views` means the
+  // carousel held attention. 0 for video posts / when unknown. Older
+  // stored posts predate this field — read it defensively as `|| 0`.
+  photoViews: number;
+};
+
+// A score the predictor assigned to a post BEFORE it was published, so
+// we can later compare the prediction against the actual performance
+// score and track how well-calibrated the engine is over time.
+export type PostPrediction = {
+  score: number;                       // 0-100 predicted performance
+  confidence: 'low' | 'medium' | 'high';
+  rationale: string;                   // one-paragraph "why this number"
+  strengths: string[];                 // what should help it perform
+  risks: string[];                     // what might sink it
+  suggestions: string[];               // concrete pre-publish tweaks
+  predictedAt: number;
+  source: 'api' | 'manual' | 'heuristic';
+  model?: string;
+};
+
+// Claude's vision read of one of the user's OWN published posts: the
+// on-screen text it pulled off each slide photo plus a structural read.
+// This is what lets the engine "swipe photo by photo and read the text"
+// so a self-post can be scored + fed back into the predictor's context.
+export type SelfAnalysis = {
+  slideTexts: string[];   // on-screen text per slide, in render order
+  hookText: string;       // the opening hook (slide 1) text
+  hookStyle: string;      // question / stat / confession / POV / ...
+  niche: string;
+  voiceTone: string;
+  contentSummary: string; // one paragraph: what it is + why it might land
+  analyzedAt: number;
+  source: 'api' | 'manual';
 };
 
 // Structural fingerprint Claude extracted when the post was generated
@@ -50,10 +85,16 @@ export type Post = {
   sourceTikTokUrl?: string;  // for clones: the URL we cloned. for proposals/manual: ''
   cloneAnalysis?: CloneAnalysisSnapshot | null;
   niche?: string;             // duplicated from cloneAnalysis.niche for cheap filtering
-  origin?: 'manual' | 'clone' | 'propose';
+  // 'self' = one of the user's own published posts, imported + vision-read
+  // for scoring. The other origins describe how a draft was authored.
+  origin?: 'manual' | 'clone' | 'propose' | 'self';
+  // Added in the prediction-engine milestone — all optional so posts
+  // saved before the schema change keep loading cleanly.
+  prediction?: PostPrediction | null;   // what the engine guessed pre-publish
+  selfAnalysis?: SelfAnalysis | null;    // vision read of an imported self-post
 };
 
-export const ZERO_STATS: PostStats = { views: 0, likes: 0, comments: 0, shares: 0, saves: 0 };
+export const ZERO_STATS: PostStats = { views: 0, likes: 0, comments: 0, shares: 0, saves: 0, photoViews: 0 };
 
 let dbPromise: Promise<IDBDatabase> | null = null;
 
@@ -105,6 +146,8 @@ export async function addPost(input: Omit<Post, 'id' | 'postedAt' | 'stats'> & {
     cloneAnalysis: input.cloneAnalysis ?? null,
     niche: input.niche ?? input.cloneAnalysis?.niche,
     origin: input.origin ?? 'manual',
+    prediction: input.prediction ?? null,
+    selfAnalysis: input.selfAnalysis ?? null,
   };
   const t = db.transaction([POSTS_STORE], 'readwrite');
   t.objectStore(POSTS_STORE).put(post);
@@ -159,6 +202,7 @@ export function sumStats(posts: Post[]): PostStats {
       comments: acc.comments + (p.stats.comments || 0),
       shares: acc.shares + (p.stats.shares || 0),
       saves: acc.saves + (p.stats.saves || 0),
+      photoViews: acc.photoViews + (p.stats.photoViews || 0),
     }),
     { ...ZERO_STATS },
   );
