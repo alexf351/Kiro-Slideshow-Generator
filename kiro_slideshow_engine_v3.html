@@ -37,7 +37,7 @@
      no-op on mobile when the viewport meta IS honoured (100vw == 1080px →
      zoom == 1). */
   @media (max-width: 1100px) {
-    .stage { zoom: calc(100vw / 1080px); }
+    .stage { zoom: calc(100vw / var(--stage-divisor, 1080px)); }
   }
   .slide { position: relative; width: var(--page-w); height: var(--page-h); background: var(--bg); overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.6); color: var(--ink); }
   .bg-mascot { position: absolute; top: 48%; left: 50%; width: 1200px; height: 1200px; transform: translate(-50%, -50%); background-size: contain; background-repeat: no-repeat; background-position: center; opacity: 0.85; pointer-events: none; }
@@ -47,6 +47,15 @@
      background is supplied. Sits where .bg-mascot would sit in the
      prompt-pack flow but stays neutral. */
   .bg-solid { position: absolute; inset: 0; background: #0a0a12; }
+
+  /* Optional brand watermark/logo, injected per-slide by render() when a
+     design.watermark data URL is supplied. Bottom-right by default;
+     position classes flip the corners. Real <img> (not a CSS pseudo-
+     element) so html2canvas captures it reliably on export. */
+  .watermark { position: absolute; z-index: 6; bottom: 110px; right: 56px; max-width: 300px; max-height: 110px; object-fit: contain; opacity: 0.92; pointer-events: none; }
+  .watermark.wm-bl { right: auto; left: 56px; }
+  .watermark.wm-tr { bottom: auto; top: 56px; }
+  .watermark.wm-tl { bottom: auto; top: 56px; right: auto; left: 56px; }
 
   /* ============================================================
      PRESET: pain_story
@@ -1405,9 +1414,13 @@ function render() {
 
     const counterHtml = preset.showCounter ? `<div class="top-counter">${i+1} / ${total}</div>` : '';
 
+    const wmHtml = currentWatermark
+      ? `<img class="watermark wm-${currentWatermark.pos}" src="${String(currentWatermark.url).replace(/"/g, '&quot;')}" alt="" crossorigin="anonymous" />`
+      : '';
     slide.innerHTML = `
       ${bgLayer}
       ${counterHtml}
+      ${wmHtml}
       <div class="frame">${slideHTML}</div>
     `;
     stage.appendChild(slide);
@@ -1845,6 +1858,7 @@ window.addEventListener('message', async (e) => {
   if (msg.type === 'render' && msg.slides) {
     Object.keys(SLIDES).forEach(k => delete SLIDES[k]);
     Object.assign(SLIDES, msg.slides);
+    if (msg.design) applyDesign(msg.design);
     rerender();
     try { e.source.postMessage({ type: 'rendered' }, '*'); } catch (err) {}
     return;
@@ -1866,7 +1880,7 @@ window.addEventListener('message', async (e) => {
       }
       // 0.25 scale → ~270×480 PNG, ~30 KB. Plenty for a list thumbnail.
       const canvas = await html2canvas(slide, {
-        width: 1080, height: 1920, scale: 0.25, useCORS: true, backgroundColor: '#000000',
+        width: PAGE_W, height: PAGE_H, scale: 0.25, useCORS: true, backgroundColor: '#000000',
       });
       const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
       e.source.postMessage({ type: 'thumb', requestId: msg.requestId, blob }, '*');
@@ -2070,6 +2084,35 @@ function toggleSafeZone() {
 // never finishes initialising → blank preview.
 var pendingShareFiles = null;
 
+// Current export dimensions + brand watermark. Driven by the optional
+// `design` payload on the render message (see applyDesign). Defaults keep
+// the historical 1080×1920 / no-watermark behaviour, so a render message
+// with no `design` field is unchanged. `var` (not `let`) is deliberate:
+// render() runs at module level above this line and a let would be in the
+// temporal dead zone during that first call.
+var PAGE_W = 1080, PAGE_H = 1920;
+var currentWatermark = null; // { url, pos } or null
+
+// Apply a brand/format design from the parent. Backward-compatible: any
+// field left out falls back to the engine default.
+function applyDesign(d) {
+  if (!d || typeof d !== 'object') return;
+  const root = document.documentElement;
+  if (Number(d.pageW) > 0 && Number(d.pageH) > 0) {
+    PAGE_W = Number(d.pageW);
+    PAGE_H = Number(d.pageH);
+    root.style.setProperty('--page-w', PAGE_W + 'px');
+    root.style.setProperty('--page-h', PAGE_H + 'px');
+    root.style.setProperty('--stage-divisor', PAGE_W + 'px');
+  }
+  root.style.setProperty('--accent', d.accent || '#00E5FF');
+  root.style.setProperty('--bg', d.bg || '#000000');
+  currentWatermark =
+    d.watermark && typeof d.watermark === 'string'
+      ? { url: d.watermark, pos: d.watermarkPos || 'br' }
+      : null;
+}
+
 async function captureAllSlidesAsFiles(label) {
   const html2canvas = await loadHtml2Canvas();
 
@@ -2098,8 +2141,8 @@ async function captureAllSlidesAsFiles(label) {
     for (let i = 0; i < slideEls.length; i++) {
       if (label) label.textContent = `Capturing ${i+1} / ${slideEls.length}…`;
       const canvas = await html2canvas(slideEls[i], {
-        width: 1080,
-        height: 1920,
+        width: PAGE_W,
+        height: PAGE_H,
         scale: 1,
         useCORS: true,
         backgroundColor: '#000000',

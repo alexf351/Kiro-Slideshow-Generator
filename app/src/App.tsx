@@ -9,6 +9,8 @@ import { addPost, type CloneAnalysisSnapshot, type PostPrediction } from './post
 import { PRESETS, PRESET_KEYS, type PresetKey } from './presets';
 import CloneFromTikTok from './CloneFromTikTok';
 import PredictPanel from './PredictPanel';
+import DesignPanel from './DesignPanel';
+import { coerceDesign, DEFAULT_DESIGN, designPayload, type BrandDesign } from './design';
 import { CLAUDE_MODELS, type ClaudeModelId } from './anthropic';
 import { buildIroEditPrompt, editImage, OpenAIImageError, type OpenAIImageQuality } from './openaiImage';
 
@@ -97,6 +99,8 @@ type Persisted = {
   anthropicKey: string;
   claudeModel: ClaudeModelId;
   openaiKey: string;
+  // Output format + brand kit (aspect ratio, brand colors, watermark).
+  design: BrandDesign;
   // When true, the hook + cta slides render with photo + mascot only,
   // no baked-in text. The user types the hook + CTA natively in
   // TikTok's editor after upload — the algorithm reads native text
@@ -129,6 +133,7 @@ function loadPersisted(): Persisted {
           ? (p.claudeModel as ClaudeModelId)
           : 'claude-opus-4-7',
         openaiKey: typeof p.openaiKey === 'string' ? p.openaiKey : '',
+        design: coerceDesign(p.design),
         nativeTextOverlay: p.nativeTextOverlay === true,
       };
     }
@@ -146,6 +151,7 @@ function loadPersisted(): Persisted {
     anthropicKey: '',
     claudeModel: 'claude-opus-4-7',
     openaiKey: '',
+    design: { ...DEFAULT_DESIGN },
     nativeTextOverlay: false,
   };
 }
@@ -249,6 +255,7 @@ export default function App() {
   const [anthropicKey, setAnthropicKey] = useState<string>(initial.anthropicKey);
   const [claudeModel, setClaudeModel] = useState<ClaudeModelId>(initial.claudeModel);
   const [openaiKey, setOpenaiKey] = useState<string>(initial.openaiKey);
+  const [design, setDesign] = useState<BrandDesign>(initial.design);
   const [nativeTextOverlay, setNativeTextOverlay] = useState<boolean>(initial.nativeTextOverlay);
   // Bumped by Patterns → "Clone again". CloneFromTikTok watches this
   // and prefills its URL input + expands. Resets to empty string
@@ -314,6 +321,7 @@ export default function App() {
           anthropicKey,
           claudeModel,
           openaiKey,
+          design,
           nativeTextOverlay,
         }),
       );
@@ -331,6 +339,7 @@ export default function App() {
     anthropicKey,
     claudeModel,
     openaiKey,
+    design,
     nativeTextOverlay,
   ]);
 
@@ -496,7 +505,7 @@ export default function App() {
       );
     }
 
-    iframe.contentWindow.postMessage({ type: 'render', slides }, '*');
+    iframe.contentWindow.postMessage({ type: 'render', slides, design: designPayload(design) }, '*');
     // On mobile, jump to the preview so the user sees the result. Also flip
     // desktop's main pane back to preview if we were sitting in the Library.
     setMobileView('preview');
@@ -929,6 +938,7 @@ export default function App() {
               onPrediction={setPendingPrediction}
               attachedScore={pendingPrediction?.score ?? null}
             />
+            <DesignPanel design={design} onChange={setDesign} />
             {lastCloneNote && (
               <div className="text-[11px] text-gray-500 leading-relaxed">
                 <strong className="text-gray-400">Last {lastOrigin}:</strong> {lastCloneNote}
