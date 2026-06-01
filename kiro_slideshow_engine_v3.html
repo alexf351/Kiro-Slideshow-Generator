@@ -1860,7 +1860,7 @@ window.addEventListener('message', async (e) => {
     Object.assign(SLIDES, msg.slides);
     if (msg.design) applyDesign(msg.design);
     rerender();
-    try { e.source.postMessage({ type: 'rendered' }, '*'); } catch (err) {}
+    try { e.source.postMessage({ type: 'rendered', slideCount: document.querySelectorAll('.slide').length }, '*'); } catch (err) {}
     return;
   }
 
@@ -1870,6 +1870,15 @@ window.addEventListener('message', async (e) => {
   if (msg.type === 'design' && msg.design) {
     applyDesign(msg.design);
     rerender();
+    return;
+  }
+
+  // Smooth-scroll the preview to a given slide index — powers the React
+  // shell's slide navigator strip.
+  if (msg.type === 'scrollToSlide') {
+    var slides = document.querySelectorAll('.slide');
+    var target = slides[msg.index];
+    if (target) target.scrollIntoView({ behavior: 'smooth', block: 'center' });
     return;
   }
 
