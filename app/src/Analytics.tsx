@@ -19,6 +19,7 @@ import AnalyzeMyPost from './AnalyzeMyPost';
 import HookLibrary from './HookLibrary';
 import { postsToCsv, downloadBlob, timestampSlug } from './backup';
 import { topHashtags } from './insights';
+import { useUI } from './ui';
 import { type ClaudeModelId } from './anthropic';
 
 const STAT_FIELDS: { key: keyof PostStats; label: string }[] = [
@@ -87,6 +88,7 @@ function ScoreBadge({ breakdown, scored }: { breakdown: ScoreBreakdown; scored: 
 }
 
 export default function Analytics({ anthropicKey, model, onModelChange, onUseHook }: Props) {
+  const ui = useUI();
   const [posts, setPosts] = useState<Post[]>([]);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -143,7 +145,7 @@ export default function Analytics({ anthropicKey, model, onModelChange, onUseHoo
   }
 
   async function handleDelete(post: Post) {
-    if (!window.confirm(`Delete this post from your history? Stats will be lost.`)) return;
+    if (!(await ui.confirm({ message: 'Delete this post from your history? Stats will be lost.', confirmLabel: 'Delete', danger: true }))) return;
     setBusy('Deleting…');
     try {
       await deletePost(post.id);

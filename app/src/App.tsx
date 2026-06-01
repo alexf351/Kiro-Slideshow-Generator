@@ -14,6 +14,7 @@ import QuickEdit from './QuickEdit';
 import { coerceDesign, DEFAULT_DESIGN, designPayload, type BrandDesign } from './design';
 import { exportBackup, importBackup, downloadBlob, timestampSlug } from './backup';
 import { suggestHashtags } from './insights';
+import { useUI } from './ui';
 import { CLAUDE_MODELS, type ClaudeModelId } from './anthropic';
 import { buildIroEditPrompt, editImage, OpenAIImageError, type OpenAIImageQuality } from './openaiImage';
 
@@ -242,6 +243,7 @@ function extractSlideMeta(parsed: unknown): SlideMeta[] {
 }
 
 export default function App() {
+  const ui = useUI();
   const initial = useMemo(loadPersisted, []);
   const [mascot, setMascot] = useState<Mascot>(initial.mascot);
   const [variant, setVariant] = useState<string>(initial.variant);
@@ -309,20 +311,21 @@ export default function App() {
     try {
       const blob = await exportBackup();
       downloadBlob(blob, `iro-backup-${timestampSlug()}.json`);
+      ui.notify('Backup exported.', { type: 'success' });
     } catch (e) {
-      window.alert('Export failed: ' + (e as Error).message);
+      ui.notify('Export failed: ' + (e as Error).message, { type: 'error' });
     }
   }
 
   async function handleImportBackup(file: File) {
-    if (!window.confirm('Restore from this backup? It merges saved posts + settings into this browser (your API keys are kept).')) return;
+    if (!(await ui.confirm({ title: 'Restore backup', message: 'This merges saved posts + settings into this browser. Your API keys are kept.', confirmLabel: 'Restore' }))) return;
     try {
       const text = await file.text();
       const r = await importBackup(text);
-      window.alert(`Restored ${r.posts} post${r.posts === 1 ? '' : 's'}${r.settingsRestored ? ' + settings' : ''}. Reloading…`);
-      window.location.reload();
+      ui.notify(`Restored ${r.posts} post${r.posts === 1 ? '' : 's'}${r.settingsRestored ? ' + settings' : ''}. Reloading…`, { type: 'success' });
+      setTimeout(() => window.location.reload(), 900);
     } catch (e) {
-      window.alert('Import failed: ' + (e as Error).message);
+      ui.notify('Import failed: ' + (e as Error).message, { type: 'error' });
     }
   }
 
@@ -573,7 +576,7 @@ export default function App() {
   }
 
   async function handlePasteUrlForSlide(slideKey: string) {
-    const url = window.prompt('Paste an image URL (Pinterest, any CDN, anywhere — we proxy it):');
+    const url = await ui.prompt({ title: 'Paste image URL', message: 'Pinterest, any CDN, anywhere — we proxy it.', placeholder: 'https://…', confirmLabel: 'Add' });
     if (!url) return;
     const trimmed = url.trim();
     // Data URLs are same-origin so they're fine to hand straight to
@@ -599,9 +602,9 @@ export default function App() {
       const blob = await res.blob();
       await saveAndAssignBlob(slideKey, blob, `url-paste-${Date.now()}`);
     } catch (e) {
-      window.alert(
-        `Couldn't fetch that URL: ${(e as Error).message}\n\n` +
-          'If the source has hotlink protection, save the image to your device and use Upload instead.',
+      ui.notify(
+        `Couldn't fetch that URL: ${(e as Error).message}. If the source has hotlink protection, save the image and use Upload instead.`,
+        { type: 'error' },
       );
     } finally {
       setEditingBg((prev) => {
@@ -637,7 +640,7 @@ export default function App() {
     const posts = await listPosts();
     const tags = suggestHashtags(caption, posts, 6);
     if (tags.length === 0) {
-      window.alert('No proven hashtags yet — score a few posts in the Stats tab first.');
+      ui.notify('No proven hashtags yet — score a few posts in the Stats tab first.', { type: 'info' });
       return;
     }
     const add = tags.map((t) => '#' + t).join(' ');
@@ -672,13 +675,13 @@ export default function App() {
 
   async function handleUploadForSlide(slideKey: string, file: File) {
     if (!file.type.startsWith('image/')) {
-      window.alert('Pick an image file.');
+      ui.notify('Pick an image file.', { type: 'error' });
       return;
     }
     try {
       await saveAndAssignBlob(slideKey, file, file.name || `slide-${slideKey}`);
     } catch (e) {
-      window.alert(`Upload failed: ${(e as Error).message}`);
+      ui.notify(`Upload failed: ${(e as Error).message}`, { type: 'error' });
     }
   }
 
@@ -687,9 +690,7 @@ export default function App() {
   // browsers prompt for clipboard-read permission on first use.
   async function handlePasteImageForSlide(slideKey: string) {
     if (typeof navigator === 'undefined' || !navigator.clipboard || !('read' in navigator.clipboard)) {
-      window.alert(
-        'Your browser doesn\'t allow reading images from the clipboard. Use the Upload option instead.',
-      );
+      ui.notify('Your browser doesn\'t allow reading images from the clipboard. Use Upload instead.', { type: 'error' });
       return;
     }
     try {
@@ -701,11 +702,11 @@ export default function App() {
         await saveAndAssignBlob(slideKey, blob, `pasted-${Date.now()}.${imageType.split('/')[1] || 'png'}`);
         return;
       }
-      window.alert('No image found on the clipboard. Copy an image first, then try again.');
+      ui.notify('No image found on the clipboard. Copy an image first, then try again.', { type: 'info' });
     } catch (e) {
       // Permissions denied / no user gesture / unsupported MIME — surface a
       // clear message rather than silently failing.
-      window.alert(`Could not read clipboard: ${(e as Error).message}`);
+      ui.notify(`Could not read clipboard: ${(e as Error).message}`, { type: 'error' });
     }
   }
 
@@ -738,7 +739,7 @@ export default function App() {
   }
 
   async function handleSaveToHistory() {
-    if (!caption.trim() && !window.confirm('Save this post with no caption?')) return;
+    if (!caption.trim() && !(await ui.confirm({ message: 'Save this post with no caption?', confirmLabel: 'Save' }))) return;
     setSaveStatus({ kind: 'saving' });
     try {
       const thumb = await captureThumbnail();
@@ -870,23 +871,26 @@ export default function App() {
   // it's pay-per-image.
   async function handleAiEditBg(slideKey: string, slideLabel: string) {
     if (!openaiKey) {
-      window.alert('Add an OpenAI API key under Settings to use AI-edit.');
+      ui.notify('Add an OpenAI API key under Settings to use AI-edit.', { type: 'info' });
       return;
     }
     const bg = slideBgs[slideKey];
     if (!bg || bg.type !== 'media') {
-      window.alert('AI-edit works on backgrounds picked from the Library or cloned from TikTok. Assign one first.');
+      ui.notify('AI-edit works on backgrounds from the Library or a TikTok clone. Assign one first.', { type: 'info' });
       return;
     }
     const item = await getItem(bg.mediaId);
     if (!item) {
-      window.alert('Could not load the source image for that slide.');
+      ui.notify('Could not load the source image for that slide.', { type: 'error' });
       return;
     }
-    const quality = (window.prompt('Image quality? low / medium / high (low ≈ $0.04, high ≈ $0.19)', 'medium') || 'medium')
-      .trim()
-      .toLowerCase() as OpenAIImageQuality;
-    if (!['low', 'medium', 'high'].includes(quality)) return;
+    const qualityRaw = await ui.prompt({ title: 'AI-edit quality', message: 'low ≈ $0.04 · medium ≈ $0.07 · high ≈ $0.19', defaultValue: 'medium', confirmLabel: 'Generate' });
+    if (qualityRaw === null) return;
+    const quality = qualityRaw.trim().toLowerCase() as OpenAIImageQuality;
+    if (!['low', 'medium', 'high'].includes(quality)) {
+      ui.notify('Enter low, medium, or high.', { type: 'error' });
+      return;
+    }
 
     setEditingBg((prev) => ({ ...prev, [slideKey]: true }));
     try {
@@ -903,9 +907,10 @@ export default function App() {
         source: { provider: 'upload' },
       });
       setSlideBgs((prev) => ({ ...prev, [slideKey]: { type: 'media', mediaId: newItem.id } }));
+      ui.notify('AI-edit applied.', { type: 'success' });
     } catch (e) {
       const msg = e instanceof OpenAIImageError ? e.message : (e as Error).message || 'AI-edit failed.';
-      window.alert(`AI-edit failed: ${msg}`);
+      ui.notify(`AI-edit failed: ${msg}`, { type: 'error' });
     } finally {
       setEditingBg((prev) => {
         const next = { ...prev };
@@ -1076,8 +1081,8 @@ export default function App() {
             <p className="mt-3 text-xs text-gray-500 leading-relaxed">{PRESETS[preset].pitch}</p>
             <button
               type="button"
-              onClick={() => {
-                if (jsonText.trim() && !window.confirm(`Replace the JSON with the ${PRESETS[preset].label} default?`)) return;
+              onClick={async () => {
+                if (jsonText.trim() && !(await ui.confirm({ message: `Replace the content with the ${PRESETS[preset].label} default?`, confirmLabel: 'Replace' }))) return;
                 setJsonText(PRESETS[preset].defaultJson);
               }}
               className="mt-3 text-[11px] font-bold uppercase tracking-[0.14em] text-gray-500 hover:text-[#00E5FF]"
@@ -1392,7 +1397,7 @@ export default function App() {
                             )}
                             {set && bg?.type === 'media' && !openaiKey && menuItem(
                               'AI-edit (needs OpenAI key)',
-                              () => window.alert('Add an OpenAI API key under Settings to enable AI-edit.'),
+                              () => ui.notify('Add an OpenAI API key under Settings to enable AI-edit.', { type: 'info' }),
                               { sub: 'Pay-per-image. Optional.', disabled: false },
                             )}
                             {set && menuItem('Clear (use mascot default)', () => handleClearBgForSlide(key), {
@@ -1431,8 +1436,8 @@ export default function App() {
             <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
               <button
                 type="button"
-                onClick={() => {
-                  if (caption.trim() && !window.confirm(`Replace the caption with the ${PRESETS[preset].label} template?`)) return;
+                onClick={async () => {
+                  if (caption.trim() && !(await ui.confirm({ message: `Replace the caption with the ${PRESETS[preset].label} template?`, confirmLabel: 'Replace' }))) return;
                   setCaption(PRESETS[preset].defaultCaption);
                 }}
                 className="text-[11px] font-bold uppercase tracking-[0.14em] text-gray-500 hover:text-[#00E5FF]"
