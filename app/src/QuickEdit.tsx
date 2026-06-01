@@ -10,7 +10,7 @@
 // content array. Non-string and nested values (bg, icons, numbers) are
 // left untouched.
 
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
 
 type Props = {
   jsonText: string;
@@ -137,31 +137,6 @@ export default function QuickEdit({ jsonText, onChange }: Props) {
     });
   }
 
-  const fieldInput = (
-    key: string,
-    field: string,
-    value: string,
-    onVal: (v: string) => void,
-  ) => (
-    <label key={key} className="flex flex-col gap-1">
-      <span className="text-[9px] font-bold uppercase tracking-[0.14em] text-gray-500">{prettyLabel(field)}</span>
-      {isLong(field) ? (
-        <textarea
-          value={value}
-          onChange={(e) => onVal(e.target.value)}
-          rows={2}
-          className="bg-[#070b18] border border-white/[0.10] rounded-md px-2.5 py-1.5 text-[13px] text-gray-200 focus:border-[#00E5FF]/50 focus:outline-none resize-y"
-        />
-      ) : (
-        <input
-          value={value}
-          onChange={(e) => onVal(e.target.value)}
-          className="bg-[#070b18] border border-white/[0.10] rounded-md px-2.5 py-1.5 text-[13px] text-gray-200 focus:border-[#00E5FF]/50 focus:outline-none"
-        />
-      )}
-    </label>
-  );
-
   const hookFields = stringFields(parsed.hook);
   const ctaFields = stringFields(parsed.cta);
 
@@ -179,11 +154,14 @@ export default function QuickEdit({ jsonText, onChange }: Props) {
         <div className={card}>
           <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#00E5FF] mb-2">Hook</div>
           <div className="flex flex-col gap-2">
-            {hookFields.map((f) =>
-              fieldInput(`hook-${f}`, f, String((parsed.hook as Record<string, unknown>)[f] ?? ''), (v) =>
-                setField({ section: 'hook', field: f }, v),
-              ),
-            )}
+            {hookFields.map((f) => (
+              <Field
+                key={`hook-${f}`}
+                field={f}
+                value={String((parsed.hook as Record<string, unknown>)[f] ?? '')}
+                onVal={(v) => setField({ section: 'hook', field: f }, v)}
+              />
+            ))}
           </div>
         </div>
       )}
@@ -219,11 +197,14 @@ export default function QuickEdit({ jsonText, onChange }: Props) {
                   </span>
                 </div>
                 <div className="flex flex-col gap-2">
-                  {fields.map((f) =>
-                    fieldInput(`item-${i}-${f}`, f, String(item[f] ?? ''), (v) =>
-                      setField({ section: 'item', index: i, field: f }, v),
-                    ),
-                  )}
+                  {fields.map((f) => (
+                    <Field
+                      key={`item-${i}-${f}`}
+                      field={f}
+                      value={String(item[f] ?? '')}
+                      onVal={(v) => setField({ section: 'item', index: i, field: f }, v)}
+                    />
+                  ))}
                 </div>
               </div>
             );
@@ -236,14 +217,62 @@ export default function QuickEdit({ jsonText, onChange }: Props) {
         <div className={card}>
           <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#FFC857] mb-2">CTA</div>
           <div className="flex flex-col gap-2">
-            {ctaFields.map((f) =>
-              fieldInput(`cta-${f}`, f, String((parsed.cta as Record<string, unknown>)[f] ?? ''), (v) =>
-                setField({ section: 'cta', field: f }, v),
-              ),
-            )}
+            {ctaFields.map((f) => (
+              <Field
+                key={`cta-${f}`}
+                field={f}
+                value={String((parsed.cta as Record<string, unknown>)[f] ?? '')}
+                onVal={(v) => setField({ section: 'cta', field: f }, v)}
+              />
+            ))}
           </div>
         </div>
       )}
     </div>
+  );
+}
+
+// One labeled field with a Bold button that wraps the current text selection
+// (or the whole value, if nothing is selected) in <strong>…</strong> — so a
+// creator can emphasize words without ever typing an HTML tag.
+function Field({ field, value, onVal }: { field: string; value: string; onVal: (v: string) => void }) {
+  const ref = useRef<HTMLInputElement & HTMLTextAreaElement>(null);
+  const long = isLong(field);
+
+  function bold() {
+    const el = ref.current;
+    const start = el?.selectionStart ?? 0;
+    const end = el?.selectionEnd ?? 0;
+    if (!el || start === end) {
+      // No selection — bold the whole field (unless it's already wrapped).
+      onVal(/^<strong>[\s\S]*<\/strong>$/.test(value.trim()) ? value : `<strong>${value}</strong>`);
+      return;
+    }
+    onVal(value.slice(0, start) + '<strong>' + value.slice(start, end) + '</strong>' + value.slice(end));
+  }
+
+  const inputCls =
+    'flex-1 bg-[#070b18] border border-white/[0.10] rounded-md px-2.5 py-1.5 text-[13px] text-gray-200 focus:border-[#00E5FF]/50 focus:outline-none';
+
+  return (
+    <label className="flex flex-col gap-1">
+      <span className="flex items-center justify-between">
+        <span className="text-[9px] font-bold uppercase tracking-[0.14em] text-gray-500">{prettyLabel(field)}</span>
+        <button
+          type="button"
+          onClick={bold}
+          aria-label={`Bold ${prettyLabel(field)}`}
+          title="Bold the selected text"
+          className="px-1.5 leading-none text-[11px] font-black text-gray-500 hover:text-[#00E5FF]"
+        >
+          B
+        </button>
+      </span>
+      {long ? (
+        <textarea ref={ref} value={value} onChange={(e) => onVal(e.target.value)} rows={2} className={inputCls + ' resize-y'} />
+      ) : (
+        <input ref={ref} value={value} onChange={(e) => onVal(e.target.value)} className={inputCls} />
+      )}
+    </label>
   );
 }
