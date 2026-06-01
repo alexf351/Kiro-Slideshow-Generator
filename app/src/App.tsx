@@ -11,10 +11,11 @@ import CloneFromTikTok from './CloneFromTikTok';
 import PredictPanel from './PredictPanel';
 import DesignPanel from './DesignPanel';
 import QuickEdit from './QuickEdit';
-import { coerceDesign, DEFAULT_DESIGN, designPayload, type BrandDesign } from './design';
+import { coerceDesign, DEFAULT_DESIGN, designPayload, ASPECT_KEYS, ASPECTS, type BrandDesign } from './design';
 import { exportBackup, importBackup, downloadBlob, timestampSlug } from './backup';
 import { suggestHashtags } from './insights';
 import { useUI } from './ui';
+import CommandPalette, { type Command } from './CommandPalette';
 import { CLAUDE_MODELS, type ClaudeModelId } from './anthropic';
 import { buildIroEditPrompt, editImage, OpenAIImageError, type OpenAIImageQuality } from './openaiImage';
 
@@ -306,6 +307,7 @@ export default function App() {
   const [bgThumbs, setBgThumbs] = useState<Record<string, string>>({});
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const backupInputRef = useRef<HTMLInputElement | null>(null);
+  const [paletteOpen, setPaletteOpen] = useState(false);
 
   async function handleExportBackup() {
     try {
@@ -798,11 +800,44 @@ export default function App() {
       if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
         e.preventDefault();
         void renderRef.current();
+      } else if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) {
+        e.preventDefault();
+        setPaletteOpen((o) => !o);
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, []);
+
+  // Command palette entries, rebuilt when the bits they reference change.
+  const commands = useMemo<Command[]>(() => {
+    const goto = (main: MainView, mobile: MobileView): (() => void) => () => {
+      setMainView(main);
+      setMobileView(mobile);
+    };
+    const list: Command[] = [
+      { id: 'render', section: 'Actions', label: 'Render slides', hint: '⌘↵', keywords: 'preview build', run: () => void renderRef.current() },
+      { id: 'save', section: 'Actions', label: 'Save to history', keywords: 'post track', run: () => void handleSaveToHistory() },
+      { id: 'hashtags', section: 'Actions', label: 'Suggest hashtags', keywords: 'tags caption', run: () => void handleSuggestHashtags() },
+      { id: 'copycap', section: 'Actions', label: 'Copy caption', run: () => { if (caption) void navigator.clipboard?.writeText(caption); } },
+      { id: 'loaddefault', section: 'Actions', label: `Load default content for ${PRESETS[preset].label}`, keywords: 'reset template', run: () => setJsonText(PRESETS[preset].defaultJson) },
+      { id: 'toggle-edit', section: 'Actions', label: `Switch editor to ${editMode === 'quick' ? 'JSON' : 'Quick edit'}`, run: () => setEditMode((m) => (m === 'quick' ? 'json' : 'quick')) },
+      { id: 'export-backup', section: 'Actions', label: 'Export backup', keywords: 'download save data', run: () => void handleExportBackup() },
+      { id: 'go-edit', section: 'Go to', label: 'Edit', run: goto('preview', 'edit') },
+      { id: 'go-preview', section: 'Go to', label: 'Preview', run: goto('preview', 'preview') },
+      { id: 'go-lib', section: 'Go to', label: 'Media Bank', keywords: 'library photos', run: goto('library', 'library') },
+      { id: 'go-patterns', section: 'Go to', label: 'Patterns', run: goto('patterns', 'patterns') },
+      { id: 'go-stats', section: 'Go to', label: 'Performance', keywords: 'analytics stats scores', run: goto('analytics', 'analytics') },
+    ];
+    for (const k of PRESET_KEYS) {
+      list.push({ id: `fmt-${k}`, section: 'Format', label: `Format: ${PRESETS[k].label}`, keywords: 'preset', run: () => setPreset(k) });
+    }
+    for (const k of ASPECT_KEYS) {
+      list.push({ id: `asp-${k}`, section: 'Aspect ratio', label: `Aspect: ${k} (${ASPECTS[k].sub})`, keywords: 'size resize', run: () => setDesign((d) => ({ ...d, aspect: k })) });
+    }
+    return list;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [preset, editMode, caption]);
 
   // Wired to the CloneFromTikTok panel. Takes the clone result and
   // populates everything in one shot: JSON, preset, caption, per-slide
@@ -992,6 +1027,15 @@ export default function App() {
             <span className="text-[10px] md:text-[11px] font-bold uppercase tracking-[0.32em] text-[#00E5FF]">
               studio
             </span>
+            <button
+              type="button"
+              onClick={() => setPaletteOpen(true)}
+              title="Command palette"
+              className="ml-auto inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-white/10 bg-white/[0.03] text-gray-400 hover:text-[#00E5FF] hover:border-[#00E5FF]/40 transition-colors"
+            >
+              <span className="text-[11px]">Commands</span>
+              <kbd className="text-[10px] font-mono bg-white/[0.06] rounded px-1 py-0.5">⌘K</kbd>
+            </button>
           </div>
           <p className="mt-3 md:mt-4 text-[12px] md:text-[13px] text-gray-500 leading-relaxed">
             Pick a format. Paste content. Render.
@@ -1754,6 +1798,8 @@ export default function App() {
           />
         </div>
       </main>
+
+      <CommandPalette open={paletteOpen} commands={commands} onClose={() => setPaletteOpen(false)} />
     </div>
   );
 }
