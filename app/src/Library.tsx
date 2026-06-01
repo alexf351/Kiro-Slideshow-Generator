@@ -13,6 +13,7 @@ import {
   type MediaSet,
 } from './mediaBank';
 import StockSearch from './StockSearch';
+import { useUI } from './ui';
 
 type Props = {
   // When set, the Library is in "pick a background" mode. Tapping any item
@@ -29,6 +30,7 @@ type LibraryView = 'library' | 'stock';
 const ALL_FILTER = '__all__';
 
 export default function Library({ pickMode, pexelsKey, unsplashKey }: Props) {
+  const ui = useUI();
   const [items, setItems] = useState<MediaItem[]>([]);
   const [sets, setSets] = useState<MediaSet[]>([]);
   const [activeSet, setActiveSet] = useState<string>(ALL_FILTER);
@@ -91,7 +93,7 @@ export default function Library({ pickMode, pexelsKey, unsplashKey }: Props) {
   }
 
   async function handleNewSet() {
-    const name = window.prompt('Library name (e.g. "Coding screenshots")');
+    const name = await ui.prompt({ title: 'New library', message: 'Name your library', placeholder: 'e.g. Coding screenshots', confirmLabel: 'Create' });
     if (name === null) return;
     const set = await createSet(name);
     await refresh();
@@ -101,7 +103,7 @@ export default function Library({ pickMode, pexelsKey, unsplashKey }: Props) {
   async function handleRenameSet(id: string) {
     const current = sets.find((s) => s.id === id);
     if (!current) return;
-    const name = window.prompt('Rename library', current.name);
+    const name = await ui.prompt({ title: 'Rename library', message: 'New name', defaultValue: current.name, confirmLabel: 'Rename' });
     if (name === null) return;
     await renameSet(id, name);
     await refresh();
@@ -110,7 +112,7 @@ export default function Library({ pickMode, pexelsKey, unsplashKey }: Props) {
   async function handleDeleteSet(id: string) {
     const current = sets.find((s) => s.id === id);
     if (!current) return;
-    if (!window.confirm(`Delete library "${current.name}"? Photos inside it will stay in your media bank.`)) return;
+    if (!(await ui.confirm({ message: `Delete library "${current.name}"? Photos inside it will stay in your media bank.`, confirmLabel: 'Delete', danger: true }))) return;
     await deleteSet(id);
     if (activeSet === id) setActiveSet(ALL_FILTER);
     await refresh();
@@ -127,7 +129,7 @@ export default function Library({ pickMode, pexelsKey, unsplashKey }: Props) {
 
   async function bulkDelete() {
     if (selectedIds.size === 0) return;
-    if (!window.confirm(`Delete ${selectedIds.size} photo${selectedIds.size === 1 ? '' : 's'}?`)) return;
+    if (!(await ui.confirm({ message: `Delete ${selectedIds.size} photo${selectedIds.size === 1 ? '' : 's'}?`, confirmLabel: 'Delete', danger: true }))) return;
     setBusy('Deleting…');
     try {
       for (const id of selectedIds) await deleteItem(id);

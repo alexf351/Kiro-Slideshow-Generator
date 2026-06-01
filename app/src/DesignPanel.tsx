@@ -14,6 +14,7 @@ import {
   type BrandDesign,
   type WatermarkPos,
 } from './design';
+import { useUI } from './ui';
 
 type Props = {
   design: BrandDesign;
@@ -37,6 +38,7 @@ function fileToDataUrl(file: File): Promise<string> {
 }
 
 export default function DesignPanel({ design, onChange }: Props) {
+  const ui = useUI();
   const [expanded, setExpanded] = useState(false);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const set = (patch: Partial<BrandDesign>) => onChange({ ...design, ...patch });
@@ -44,13 +46,14 @@ export default function DesignPanel({ design, onChange }: Props) {
 
   async function handleWatermarkFile(file: File) {
     if (!file.type.startsWith('image/')) {
-      window.alert('Pick an image file (PNG with transparency works best).');
+      ui.notify('Pick an image file (PNG with transparency works best).', { type: 'error' });
       return;
     }
     try {
       set({ watermark: await fileToDataUrl(file) });
+      ui.notify('Watermark added.', { type: 'success' });
     } catch {
-      window.alert('Could not read that image.');
+      ui.notify('Could not read that image.', { type: 'error' });
     }
   }
 
