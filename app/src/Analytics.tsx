@@ -17,6 +17,7 @@ import {
 } from './scoring';
 import AnalyzeMyPost from './AnalyzeMyPost';
 import HookLibrary from './HookLibrary';
+import { postsToCsv, downloadBlob, timestampSlug } from './backup';
 import { type ClaudeModelId } from './anthropic';
 
 const STAT_FIELDS: { key: keyof PostStats; label: string }[] = [
@@ -159,20 +160,31 @@ export default function Analytics({ anthropicKey, model, onModelChange, onUseHoo
           Import your posts, enter the numbers, and the engine scores each one + learns what works.
         </p>
 
-        <div className="mt-3 flex gap-1.5 p-1 rounded-lg bg-black/30 border border-white/[0.05] w-fit">
-          {(['posts', 'hooks'] as Tab[]).map((t) => (
+        <div className="mt-3 flex items-center justify-between gap-2 flex-wrap">
+          <div className="flex gap-1.5 p-1 rounded-lg bg-black/30 border border-white/[0.05] w-fit">
+            {(['posts', 'hooks'] as Tab[]).map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setTab(t)}
+                className={
+                  'px-4 py-1.5 rounded-md text-[11px] font-bold uppercase tracking-[0.16em] transition-colors ' +
+                  (tab === t ? 'bg-[#00E5FF]/15 text-[#00E5FF]' : 'text-gray-400 hover:text-gray-200')
+                }
+              >
+                {t === 'posts' ? 'Posts' : 'Hooks'}
+              </button>
+            ))}
+          </div>
+          {tab === 'posts' && posts.length > 0 && (
             <button
-              key={t}
               type="button"
-              onClick={() => setTab(t)}
-              className={
-                'px-4 py-1.5 rounded-md text-[11px] font-bold uppercase tracking-[0.16em] transition-colors ' +
-                (tab === t ? 'bg-[#00E5FF]/15 text-[#00E5FF]' : 'text-gray-400 hover:text-gray-200')
-              }
+              onClick={() => downloadBlob(new Blob([postsToCsv(posts)], { type: 'text/csv' }), `iro-analytics-${timestampSlug()}.csv`)}
+              className="px-3 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-[0.14em] bg-white/[0.04] text-gray-300 hover:bg-white/[0.08] border border-white/10"
             >
-              {t === 'posts' ? 'Posts' : 'Hooks'}
+              Export CSV
             </button>
-          ))}
+          )}
         </div>
 
         {tab === 'posts' && (

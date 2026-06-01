@@ -11,6 +11,7 @@ import CloneFromTikTok from './CloneFromTikTok';
 import PredictPanel from './PredictPanel';
 import DesignPanel from './DesignPanel';
 import { coerceDesign, DEFAULT_DESIGN, designPayload, type BrandDesign } from './design';
+import { exportBackup, importBackup, downloadBlob, timestampSlug } from './backup';
 import { CLAUDE_MODELS, type ClaudeModelId } from './anthropic';
 import { buildIroEditPrompt, editImage, OpenAIImageError, type OpenAIImageQuality } from './openaiImage';
 
@@ -297,6 +298,28 @@ export default function App() {
   // previous resolutions get revoked in the cleanup below.
   const [bgThumbs, setBgThumbs] = useState<Record<string, string>>({});
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  const backupInputRef = useRef<HTMLInputElement | null>(null);
+
+  async function handleExportBackup() {
+    try {
+      const blob = await exportBackup();
+      downloadBlob(blob, `iro-backup-${timestampSlug()}.json`);
+    } catch (e) {
+      window.alert('Export failed: ' + (e as Error).message);
+    }
+  }
+
+  async function handleImportBackup(file: File) {
+    if (!window.confirm('Restore from this backup? It merges saved posts + settings into this browser (your API keys are kept).')) return;
+    try {
+      const text = await file.text();
+      const r = await importBackup(text);
+      window.alert(`Restored ${r.posts} post${r.posts === 1 ? '' : 's'}${r.settingsRestored ? ' + settings' : ''}. Reloading…`);
+      window.location.reload();
+    } catch (e) {
+      window.alert('Import failed: ' + (e as Error).message);
+    }
+  }
 
   // When tier changes, keep the current variant if the new tier has it; otherwise reset to base.
   function handleTierChange(newTier: Mascot) {
@@ -1468,6 +1491,44 @@ export default function App() {
             <p className="text-xs text-gray-500 leading-relaxed mb-4">
               Pasted keys live in this browser only. Pexels &amp; Unsplash are free; Anthropic &amp; OpenAI are pay-per-use.
             </p>
+
+            {/* Backup / restore — the post history + brand settings live only
+               in this browser, so a one-tap export is the safety net. API
+               keys are intentionally excluded from the file. */}
+            <div className="mb-5 p-3 rounded-xl border border-white/[0.08] bg-white/[0.02]">
+              <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-gray-400 mb-2">Backup</div>
+              <p className="text-[11px] text-gray-500 leading-relaxed mb-3">
+                Export your post history + scores + brand kit to a file (no API keys). Import it on another device or
+                after clearing your browser.
+              </p>
+              <input
+                ref={backupInputRef}
+                type="file"
+                accept="application/json,.json"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) void handleImportBackup(f);
+                  e.target.value = '';
+                }}
+              />
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={handleExportBackup}
+                  className="flex-1 py-2 rounded-lg text-[11px] font-bold uppercase tracking-[0.14em] bg-[#00E5FF]/15 text-[#00E5FF] hover:bg-[#00E5FF]/25 border border-[#00E5FF]/20"
+                >
+                  Export backup
+                </button>
+                <button
+                  type="button"
+                  onClick={() => backupInputRef.current?.click()}
+                  className="flex-1 py-2 rounded-lg text-[11px] font-bold uppercase tracking-[0.14em] bg-white/[0.04] text-gray-300 hover:bg-white/[0.08] border border-white/10"
+                >
+                  Import backup
+                </button>
+              </div>
+            </div>
 
             <label className="flex flex-col gap-1.5 mb-3">
               <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-gray-500">
