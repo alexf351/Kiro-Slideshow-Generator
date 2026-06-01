@@ -579,6 +579,20 @@ export default function App() {
     setPrefillCloneUrl(sourceUrl);
   }
 
+  // From the Hook Library → "→ Editor". Prepend the proven hook to the
+  // caption (so it becomes the first line / TikTok hook) and jump back to
+  // the Edit pane so the user can build the rest of the post around it.
+  function handleUseHook(hook: string) {
+    setCaption((prev) => {
+      const trimmed = prev.trim();
+      if (!trimmed) return hook;
+      if (trimmed.startsWith(hook)) return prev;
+      return `${hook}\n\n${trimmed}`;
+    });
+    setMainView('preview');
+    setMobileView('edit');
+  }
+
   // Save a File/Blob from a direct upload (or a clipboard paste) into
   // the media bank and assign it as this slide's bg. Used by the
   // per-slide Upload + Paste menu items so the user can drop an image
@@ -1554,7 +1568,12 @@ export default function App() {
           (mobileView === 'analytics' ? 'block ' : 'hidden ') +
           (mainView === 'analytics' ? 'md:block' : 'md:hidden')
         }>
-          <Analytics anthropicKey={anthropicKey} model={claudeModel} onModelChange={setClaudeModel} />
+          <Analytics
+            anthropicKey={anthropicKey}
+            model={claudeModel}
+            onModelChange={setClaudeModel}
+            onUseHook={handleUseHook}
+          />
         </div>
         <div className={
           'absolute inset-0 ' +
