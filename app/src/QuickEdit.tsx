@@ -171,7 +171,7 @@ export default function QuickEdit({ jsonText, onChange }: Props) {
         <div className="flex flex-col gap-2">
           <div className="flex items-center justify-between">
             <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-gray-400">
-              Slides · {prettyLabel(contentKey)}
+              Slides · {prettyLabel(contentKey)} <span className="text-gray-600">· {items.length}</span>
             </div>
             <button
               type="button"

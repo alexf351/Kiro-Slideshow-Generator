@@ -16,6 +16,7 @@ import { exportBackup, importBackup, downloadBlob, timestampSlug } from './backu
 import { suggestHashtags } from './insights';
 import { useUI } from './ui';
 import CommandPalette, { type Command } from './CommandPalette';
+import Onboarding, { shouldOnboard } from './Onboarding';
 import { CLAUDE_MODELS, type ClaudeModelId } from './anthropic';
 import { buildIroEditPrompt, editImage, OpenAIImageError, type OpenAIImageQuality } from './openaiImage';
 
@@ -308,6 +309,7 @@ export default function App() {
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const backupInputRef = useRef<HTMLInputElement | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(shouldOnboard);
 
   async function handleExportBackup() {
     try {
@@ -823,6 +825,7 @@ export default function App() {
       { id: 'loaddefault', section: 'Actions', label: `Load default content for ${PRESETS[preset].label}`, keywords: 'reset template', run: () => setJsonText(PRESETS[preset].defaultJson) },
       { id: 'toggle-edit', section: 'Actions', label: `Switch editor to ${editMode === 'quick' ? 'JSON' : 'Quick edit'}`, run: () => setEditMode((m) => (m === 'quick' ? 'json' : 'quick')) },
       { id: 'export-backup', section: 'Actions', label: 'Export backup', keywords: 'download save data', run: () => void handleExportBackup() },
+      { id: 'welcome', section: 'Actions', label: 'Show welcome / how it works', keywords: 'help onboarding guide', run: () => setShowOnboarding(true) },
       { id: 'go-edit', section: 'Go to', label: 'Edit', run: goto('preview', 'edit') },
       { id: 'go-preview', section: 'Go to', label: 'Preview', run: goto('preview', 'preview') },
       { id: 'go-lib', section: 'Go to', label: 'Media Bank', keywords: 'library photos', run: goto('library', 'library') },
@@ -1460,8 +1463,9 @@ export default function App() {
           <section className="px-5 md:px-10 py-6 md:py-7 border-b border-white/[0.04]">
             {sectionLabel(
               'Caption',
-              <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-600">
-                · for TikTok
+              <span className="ml-auto text-[10px] font-bold uppercase tracking-[0.14em] tabular-nums">
+                <span className={caption.length > 2200 ? 'text-red-400' : 'text-gray-600'}>{caption.length}</span>
+                <span className="text-gray-700"> / 2200</span>
               </span>,
             )}
             <textarea
@@ -1800,6 +1804,7 @@ export default function App() {
       </main>
 
       <CommandPalette open={paletteOpen} commands={commands} onClose={() => setPaletteOpen(false)} />
+      {showOnboarding && <Onboarding onClose={() => setShowOnboarding(false)} />}
     </div>
   );
 }
