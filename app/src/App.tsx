@@ -310,6 +310,12 @@ export default function App() {
   const backupInputRef = useRef<HTMLInputElement | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(shouldOnboard);
+  // Number of slides the engine actually rendered — drives the navigator.
+  const [slideCount, setSlideCount] = useState(0);
+
+  function jumpToSlide(index: number) {
+    iframeRef.current?.contentWindow?.postMessage({ type: 'scrollToSlide', index }, '*');
+  }
 
   async function handleExportBackup() {
     try {
@@ -382,7 +388,10 @@ export default function App() {
     const onMessage = (e: MessageEvent) => {
       const msg = e.data;
       if (!msg || typeof msg !== 'object') return;
-      if (msg.type === 'rendered') setStatus({ kind: 'ok', at: Date.now() });
+      if (msg.type === 'rendered') {
+        setStatus({ kind: 'ok', at: Date.now() });
+        if (typeof msg.slideCount === 'number') setSlideCount(msg.slideCount);
+      }
       if (msg.type === 'error') setStatus({ kind: 'err', msg: String(msg.message || 'render failed') });
     };
     window.addEventListener('message', onMessage);
@@ -1807,15 +1816,34 @@ export default function App() {
           />
         </div>
         <div className={
-          'absolute inset-0 ' +
-          (mobileView === 'preview' ? 'block ' : 'hidden ') +
-          (mainView === 'preview' ? 'md:block' : 'md:hidden')
+          'absolute inset-0 flex flex-col ' +
+          (mobileView === 'preview' ? 'flex ' : 'hidden ') +
+          (mainView === 'preview' ? 'md:flex' : 'md:hidden')
         }>
+          {slideCount > 1 && (
+            <div className="shrink-0 flex items-center gap-1.5 px-3 py-2 bg-[#0a0e1a]/90 border-b border-white/[0.06] overflow-x-auto custom-scrollbar">
+              <span className="text-[9px] font-bold uppercase tracking-[0.16em] text-gray-600 shrink-0 mr-1">Slides</span>
+              {Array.from({ length: slideCount }, (_, i) => {
+                const label = i === 0 ? 'Hook' : i === slideCount - 1 ? 'CTA' : String(i);
+                return (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => jumpToSlide(i)}
+                    title={`Jump to slide ${i + 1}`}
+                    className="shrink-0 min-w-[28px] px-2 py-1 rounded-md text-[11px] font-bold bg-white/[0.04] text-gray-400 hover:bg-[#00E5FF]/15 hover:text-[#00E5FF] border border-white/10 transition-colors"
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          )}
           <iframe
             ref={iframeRef}
             srcDoc={engineHtml}
             onLoad={handleIframeLoad}
-            className="w-full h-full border-0 bg-[#1a1a1a]"
+            className="flex-1 w-full border-0 bg-[#1a1a1a]"
             title="Iro slideshow renderer"
           />
         </div>
