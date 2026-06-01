@@ -28,13 +28,20 @@ type Tool = {
   input_schema: Record<string, unknown>;
 };
 
+// Content blocks we send up in a user/assistant message. Text is the
+// common case; image blocks (base64) power the "read my own post" vision
+// flow where Claude reads the on-screen text off each slide photo.
+export type RequestContentBlock =
+  | { type: 'text'; text: string }
+  | { type: 'image'; source: { type: 'base64'; media_type: string; data: string } };
+
 type CallOptions = {
   apiKey: string;
   model: ClaudeModelId;
   system: SystemBlock[];
   messages: Array<{
     role: 'user' | 'assistant';
-    content: string | Array<{ type: 'text'; text: string }>;
+    content: string | RequestContentBlock[];
   }>;
   tools?: Tool[];
   toolChoice?: { type: 'tool'; name: string } | { type: 'auto' };
