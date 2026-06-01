@@ -14,8 +14,12 @@ import {
   applyPredictManualResponse,
   buildManualPredictPrompt,
   predictDraft,
+  generateVariants,
+  buildManualVariantsPrompt,
+  applyVariantsManualResponse,
   type LabeledExample,
   type PredictionResult,
+  type Variant,
 } from './predict';
 import { hasStats, scorePost } from './scoring';
 import { listPosts, type Post, type PostPrediction } from './posts';
@@ -36,6 +40,8 @@ type Props = {
   // The currently-attached prediction's score (or null), so the panel can
   // reflect parent state after a save clears it.
   attachedScore: number | null;
+  // Applies a chosen A/B variation's hook + caption into the editor.
+  onApplyVariant: (v: { hookHeadline: string; caption: string }) => void;
 };
 
 type Mode = 'api' | 'manual';
@@ -63,6 +69,7 @@ export default function PredictPanel({
   caption,
   onPrediction,
   attachedScore,
+  onApplyVariant,
 }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [mode, setMode] = useState<Mode>('api');
@@ -70,6 +77,12 @@ export default function PredictPanel({
   const [status, setStatus] = useState<RunStatus>({ kind: 'idle' });
   const [manualResponse, setManualResponse] = useState('');
   const [posts, setPosts] = useState<Post[]>([]);
+  // A/B variations — its own little state machine alongside the predictor.
+  const [variants, setVariants] = useState<Variant[] | null>(null);
+  const [varStatus, setVarStatus] = useState<'idle' | 'running' | 'prompt' | 'paste' | 'err'>('idle');
+  const [varPrompt, setVarPrompt] = useState('');
+  const [varPaste, setVarPaste] = useState('');
+  const [varErr, setVarErr] = useState('');
 
   useEffect(() => {
     if (!expanded) return;
@@ -168,6 +181,44 @@ export default function PredictPanel({
   function handleAttach() {
     if (status.kind !== 'result') return;
     onPrediction(toPrediction(status.result, mode === 'api' ? 'api' : 'manual'));
+  }
+
+  // --- A/B variations ---
+  async function handleVariantsApi() {
+    if (keyMissing) {
+      setVarErr('Add an Anthropic key in Settings, or switch to Manual mode.');
+      setVarStatus('err');
+      return;
+    }
+    setVarStatus('running');
+    setVarErr('');
+    try {
+      const v = await generateVariants({ apiKey: anthropicKey, model, draft, examples, count: 3, guidance: guidance.trim() || undefined });
+      setVariants(v);
+      setVarStatus('idle');
+    } catch (e) {
+      setVarErr((e as Error).message || 'Could not generate variations.');
+      setVarStatus('err');
+    }
+  }
+  function handleVariantsBuild() {
+    setVarPrompt(buildManualVariantsPrompt({ draft, examples, count: 3, guidance: guidance.trim() || undefined }));
+    setVarStatus('prompt');
+  }
+  function handleVariantsCopyOpen() {
+    navigator.clipboard?.writeText(varPrompt).catch(() => {});
+    window.open('https://claude.ai/new', '_blank', 'noopener,noreferrer');
+    setVarStatus('paste');
+  }
+  function handleVariantsApply() {
+    try {
+      setVariants(applyVariantsManualResponse(varPaste));
+      setVarPaste('');
+      setVarStatus('idle');
+    } catch (e) {
+      setVarErr((e as Error).message || 'Could not parse the reply.');
+      setVarStatus('err');
+    }
   }
 
   const modeBtn = (m: Mode, label: string, sub: string) => {
@@ -345,6 +396,76 @@ export default function PredictPanel({
           )}
 
           {status.kind === 'err' && <div className="text-[11px] text-red-400 leading-relaxed">{status.msg}</div>}
+
+          {/* ---- A/B variations ---- */}
+          <div className="mt-1 pt-3 border-t border-white/[0.06]">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-gray-500">A/B variations</span>
+              <span className="text-[10px] text-gray-600">3 angles · scored</span>
+            </div>
+
+            {varStatus === 'prompt' ? (
+              <div className="flex flex-col gap-2 rounded-xl border border-[#A78BFA]/40 bg-[#150e26] p-3">
+                <div className="text-[11px] text-[#A78BFA]">✓ Prompt ready. Copy + open Claude.ai.</div>
+                <textarea readOnly value={varPrompt} rows={3} onFocus={(e) => e.currentTarget.select()}
+                  className="w-full bg-[#070b18] border border-white/[0.10] rounded-md px-3 py-2 text-[10px] font-mono text-gray-300 resize-y" />
+                <div className="flex gap-2">
+                  <button type="button" onClick={handleVariantsCopyOpen} className="flex-1 py-2 rounded-lg font-bold text-xs uppercase tracking-[0.14em] bg-gradient-to-r from-[#A78BFA] to-[#7C5CD6] text-[#150e26]">Copy + open Claude.ai</button>
+                  <button type="button" onClick={() => setVarStatus('idle')} className="px-3 py-2 rounded-lg text-xs uppercase tracking-[0.14em] text-gray-400 border border-white/10">Cancel</button>
+                </div>
+              </div>
+            ) : varStatus === 'paste' ? (
+              <div className="flex flex-col gap-2 rounded-xl border border-[#A78BFA]/40 bg-[#150e26] p-3">
+                <div className="text-[11px] text-[#A78BFA]">Paste the JSON reply below.</div>
+                <textarea value={varPaste} onChange={(e) => setVarPaste(e.target.value)} rows={4} placeholder="Paste Claude.ai's JSON…"
+                  className="w-full bg-[#070b18] border border-white/[0.10] rounded-md px-3 py-2 text-xs font-mono text-gray-200 placeholder:text-gray-700 resize-y" />
+                <div className="flex gap-2">
+                  <button type="button" onClick={handleVariantsApply} disabled={!varPaste.trim()} className="flex-1 py-2 rounded-lg font-bold text-xs uppercase tracking-[0.14em] bg-gradient-to-r from-[#A78BFA] to-[#7C5CD6] text-[#150e26] disabled:opacity-50">Apply</button>
+                  <button type="button" onClick={() => { setVarPaste(''); setVarStatus('idle'); }} className="px-3 py-2 rounded-lg text-xs uppercase tracking-[0.14em] text-gray-400 border border-white/10">Cancel</button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={mode === 'api' ? handleVariantsApi : handleVariantsBuild}
+                disabled={varStatus === 'running'}
+                className="w-full py-2.5 rounded-xl font-bold text-[13px] tracking-wide border border-[#A78BFA]/40 text-[#C4B5FD] bg-[#A78BFA]/10 hover:bg-[#A78BFA]/20 transition-colors disabled:opacity-50"
+              >
+                {varStatus === 'running' ? 'Generating…' : mode === 'api' ? 'Generate 3 variations' : 'Build variations prompt'}
+              </button>
+            )}
+
+            {varStatus === 'err' && <div className="mt-2 text-[11px] text-red-400">{varErr}</div>}
+
+            {variants && variants.length > 0 && (
+              <div className="mt-3 flex flex-col gap-2">
+                {variants.map((v, i) => (
+                  <div key={i} className="rounded-xl border border-white/[0.08] bg-[#0b1224]/60 p-3">
+                    <div className="flex items-start gap-3">
+                      <div className="shrink-0 w-10 h-10 rounded-full border-2 flex items-center justify-center" style={{ borderColor: ACCENT }}>
+                        <span className="text-[13px] font-black tabular-nums text-white">{v.predictedScore}</span>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-[10px] uppercase tracking-[0.14em] font-bold" style={{ color: ACCENT }}>{v.angle}</div>
+                        <div className="text-[13px] text-gray-100 leading-snug mt-0.5" dangerouslySetInnerHTML={{ __html: v.hookHeadline }} />
+                        <div className="text-[11px] text-gray-500 leading-relaxed mt-1 line-clamp-2">{v.caption}</div>
+                        {v.why && <div className="text-[10px] text-gray-600 italic mt-1">{v.why}</div>}
+                      </div>
+                    </div>
+                    <div className="mt-2 flex justify-end">
+                      <button
+                        type="button"
+                        onClick={() => onApplyVariant({ hookHeadline: v.hookHeadline, caption: v.caption })}
+                        className="px-3 py-1 text-[10px] font-bold uppercase tracking-[0.14em] rounded-md bg-[#A78BFA]/15 text-[#C4B5FD] hover:bg-[#A78BFA]/25"
+                      >
+                        Use this
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>

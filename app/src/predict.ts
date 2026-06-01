@@ -259,6 +259,146 @@ export function applyPredictManualResponse(text: string): PredictionResult {
 }
 
 // ========================================================================
+// Variant generator — A/B options
+// ========================================================================
+//
+// Given a draft, produce several distinct hook + caption rewrites, each
+// with its own predicted score, so the creator can pick the strongest
+// before posting. Reuses the same labeled-history context as the predictor.
+
+export type Variant = {
+  angle: string;          // one-line description of the angle/hook style
+  hookHeadline: string;   // the new hook slide headline (may include <strong>)
+  caption: string;        // the new TikTok caption
+  predictedScore: number; // 0-100, same scale as the predictor
+  why: string;            // one sentence: why this could outperform
+};
+
+export type VariantsOptions = {
+  apiKey: string;
+  model: ClaudeModelId;
+  draft: PredictDraftInput;
+  examples: LabeledExample[];
+  count?: number;
+  guidance?: string;
+};
+
+const EMIT_VARIANTS_TOOL = {
+  name: 'emit_variants',
+  description: 'Emit distinct hook + caption variations of the draft, each with a calibrated predicted score.',
+  input_schema: {
+    type: 'object',
+    required: ['variants'],
+    properties: {
+      variants: {
+        type: 'array',
+        items: {
+          type: 'object',
+          required: ['angle', 'hookHeadline', 'caption', 'predictedScore', 'why'],
+          properties: {
+            angle: { type: 'string', description: 'Short label for the angle / hook style (e.g. "stat shock", "confession").' },
+            hookHeadline: { type: 'string', description: 'New hook slide headline. May use <strong>…</strong> for emphasis.' },
+            caption: { type: 'string', description: 'New TikTok caption. First line is the hook; end with 4-6 niche hashtags.' },
+            predictedScore: { type: 'integer', minimum: 0, maximum: 100, description: 'Predicted score on the labeled-history scale.' },
+            why: { type: 'string', description: 'One sentence: why this angle could outperform.' },
+          },
+        },
+      },
+    },
+  },
+};
+
+const VARIANTS_SYSTEM = [
+  PREDICT_SYSTEM,
+  '',
+  'In this mode you also REWRITE. Produce several genuinely distinct variations of the post\'s hook + caption ',
+  '— each a different angle or hook style (question, stat, confession, POV, list teaser, contrarian, …) — for ',
+  'the SAME underlying content. Keep the topic and the slide structure intact; only the hook headline and the ',
+  'caption change. Predict each variation on the same 0-100 scale, anchored to the creator\'s history, and lean ',
+  'toward angles that resemble their past breakouts. Make them meaningfully different from each other and from ',
+  'the original draft.',
+].join('\n');
+
+function buildVariantsUserMessage(opts: { draft: PredictDraftInput; examples: LabeledExample[]; count: number; guidance?: string }): string {
+  const lines: string[] = [];
+  lines.push('# This account\'s labeled history (actual scores)');
+  lines.push(describeHistory(opts.examples));
+  lines.push('');
+  lines.push('# Original draft');
+  lines.push(describeDraft(opts.draft));
+  lines.push('');
+  lines.push(`# Your task`);
+  lines.push(`Generate ${opts.count} distinct hook + caption variations. Call emit_variants with the result.`);
+  if (opts.guidance && opts.guidance.trim()) {
+    lines.push('');
+    lines.push('# Extra context from the creator');
+    lines.push(opts.guidance.trim());
+  }
+  return lines.join('\n');
+}
+
+function validateVariants(parsed: unknown): Variant[] {
+  const p = parsed as { variants?: unknown };
+  const arr = Array.isArray(p?.variants) ? p.variants : [];
+  const out: Variant[] = [];
+  for (const v of arr) {
+    if (!v || typeof v !== 'object') continue;
+    const o = v as Record<string, unknown>;
+    const raw = Number(o.predictedScore);
+    out.push({
+      angle: typeof o.angle === 'string' ? o.angle : '',
+      hookHeadline: typeof o.hookHeadline === 'string' ? o.hookHeadline : '',
+      caption: typeof o.caption === 'string' ? o.caption : '',
+      predictedScore: Number.isFinite(raw) ? Math.max(0, Math.min(100, Math.round(raw))) : 0,
+      why: typeof o.why === 'string' ? o.why : '',
+    });
+  }
+  if (out.length === 0) throw new Error('No variations were returned.');
+  return out.sort((a, b) => b.predictedScore - a.predictedScore);
+}
+
+export async function generateVariants(opts: VariantsOptions): Promise<Variant[]> {
+  const count = opts.count ?? 3;
+  const response = await callClaude({
+    apiKey: opts.apiKey,
+    model: opts.model,
+    system: [{ type: 'text', text: VARIANTS_SYSTEM, cache_control: { type: 'ephemeral' } }],
+    messages: [{ role: 'user', content: buildVariantsUserMessage({ draft: opts.draft, examples: opts.examples, count, guidance: opts.guidance }) }],
+    tools: [EMIT_VARIANTS_TOOL],
+    toolChoice: { type: 'tool', name: 'emit_variants' },
+    maxTokens: 2000,
+  });
+  return validateVariants(extractToolUse<{ variants: Variant[] }>(response, 'emit_variants'));
+}
+
+const VARIANTS_SKELETON = {
+  variants: [
+    { angle: '<hook style>', hookHeadline: '<new hook>', caption: '<new caption, hook first, 4-6 hashtags>', predictedScore: '<0-100>', why: '<one sentence>' },
+  ],
+};
+
+export function buildManualVariantsPrompt(opts: { draft: PredictDraftInput; examples: LabeledExample[]; count?: number; guidance?: string }): string {
+  return [
+    '# ROLE',
+    VARIANTS_SYSTEM,
+    '',
+    '# INPUT',
+    buildVariantsUserMessage({ draft: opts.draft, examples: opts.examples, count: opts.count ?? 3, guidance: opts.guidance }),
+    '',
+    '# OUTPUT FORMAT',
+    'Output ONLY a single JSON object matching the shape below. No commentary, no markdown fences.',
+    '',
+    '```json',
+    JSON.stringify(VARIANTS_SKELETON, null, 2),
+    '```',
+  ].join('\n');
+}
+
+export function applyVariantsManualResponse(text: string): Variant[] {
+  return validateVariants(parseLooseJson(text));
+}
+
+// ========================================================================
 // Vision: read the user's own published post
 // ========================================================================
 

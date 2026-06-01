@@ -651,6 +651,23 @@ export default function App() {
     setCaption((prev) => (prev.trim() ? prev.trimEnd() + '\n\n' + add : add));
   }
 
+  // Apply an A/B variation from the Predict panel: swap the caption and
+  // patch the hook headline into the slides JSON, then return to Edit.
+  function handleApplyVariant({ hookHeadline, caption: cap }: { hookHeadline: string; caption: string }) {
+    setCaption(cap);
+    const parsed = parseJson(true);
+    if (parsed && typeof parsed === 'object') {
+      const hook = (parsed as Record<string, unknown>).hook;
+      if (hook && typeof hook === 'object') {
+        (hook as Record<string, unknown>).headline = hookHeadline;
+        setJsonText(JSON.stringify(parsed, null, 2));
+      }
+    }
+    setMainView('preview');
+    setMobileView('edit');
+    ui.notify('Variation applied — hit Render to preview it.', { type: 'success' });
+  }
+
   function handleUseHook(hook: string) {
     setCaption((prev) => {
       const trimmed = prev.trim();
@@ -1070,6 +1087,7 @@ export default function App() {
               caption={caption}
               onPrediction={setPendingPrediction}
               attachedScore={pendingPrediction?.score ?? null}
+              onApplyVariant={handleApplyVariant}
             />
             <DesignPanel design={design} onChange={setDesign} />
             {lastCloneNote && (
