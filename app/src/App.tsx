@@ -5,7 +5,7 @@ import Analytics from './Analytics';
 import Patterns from './Patterns';
 import Propose from './Propose';
 import { addStockItem, blobToDataUrl, getItem } from './mediaBank';
-import { addPost, type CloneAnalysisSnapshot, type PostPrediction } from './posts';
+import { addPost, listPosts, type CloneAnalysisSnapshot, type PostPrediction } from './posts';
 import { PRESETS, PRESET_KEYS, type PresetKey } from './presets';
 import CloneFromTikTok from './CloneFromTikTok';
 import PredictPanel from './PredictPanel';
@@ -13,6 +13,7 @@ import DesignPanel from './DesignPanel';
 import QuickEdit from './QuickEdit';
 import { coerceDesign, DEFAULT_DESIGN, designPayload, type BrandDesign } from './design';
 import { exportBackup, importBackup, downloadBlob, timestampSlug } from './backup';
+import { suggestHashtags } from './insights';
 import { CLAUDE_MODELS, type ClaudeModelId } from './anthropic';
 import { buildIroEditPrompt, editImage, OpenAIImageError, type OpenAIImageQuality } from './openaiImage';
 
@@ -618,6 +619,19 @@ export default function App() {
   // From the Hook Library → "→ Editor". Prepend the proven hook to the
   // caption (so it becomes the first line / TikTok hook) and jump back to
   // the Edit pane so the user can build the rest of the post around it.
+  // Append the account's best-performing hashtags (that aren't already in
+  // the caption) — mined from scored history.
+  async function handleSuggestHashtags() {
+    const posts = await listPosts();
+    const tags = suggestHashtags(caption, posts, 6);
+    if (tags.length === 0) {
+      window.alert('No proven hashtags yet — score a few posts in the Stats tab first.');
+      return;
+    }
+    const add = tags.map((t) => '#' + t).join(' ');
+    setCaption((prev) => (prev.trim() ? prev.trimEnd() + '\n\n' + add : add));
+  }
+
   function handleUseHook(hook: string) {
     setCaption((prev) => {
       const trimmed = prev.trim();
@@ -1395,6 +1409,13 @@ export default function App() {
                 className="text-[11px] font-bold uppercase tracking-[0.14em] text-gray-500 hover:text-[#00E5FF] disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 Copy caption
+              </button>
+              <button
+                type="button"
+                onClick={handleSuggestHashtags}
+                className="text-[11px] font-bold uppercase tracking-[0.14em] text-gray-500 hover:text-[#00E5FF]"
+              >
+                ＃ Suggest hashtags
               </button>
             </div>
           </section>

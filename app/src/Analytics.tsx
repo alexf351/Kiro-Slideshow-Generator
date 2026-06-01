@@ -18,6 +18,7 @@ import {
 import AnalyzeMyPost from './AnalyzeMyPost';
 import HookLibrary from './HookLibrary';
 import { postsToCsv, downloadBlob, timestampSlug } from './backup';
+import { topHashtags } from './insights';
 import { type ClaudeModelId } from './anthropic';
 
 const STAT_FIELDS: { key: keyof PostStats; label: string }[] = [
@@ -121,6 +122,7 @@ export default function Analytics({ anthropicKey, model, onModelChange, onUseHoo
   }, [posts]);
 
   const summary = useMemo(() => summarizeWhatWorks(posts), [posts]);
+  const topTags = useMemo(() => topHashtags(posts).slice(0, 8), [posts]);
 
   async function handleStatChange(post: Post, field: keyof PostStats, raw: string) {
     const n = parseInt(raw.replace(/[^0-9-]/g, ''), 10);
@@ -213,6 +215,25 @@ export default function Analytics({ anthropicKey, model, onModelChange, onUseHoo
             <span className="px-2.5 py-1 rounded-full bg-white/[0.04] text-gray-400 border border-white/10">
               {summary.scored} scored post{summary.scored === 1 ? '' : 's'}
             </span>
+          </div>
+        )}
+
+        {tab === 'posts' && topTags.length > 0 && (
+          <div className="mt-3">
+            <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-gray-600 mb-1.5">
+              Your hashtags by avg score
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {topTags.map((h) => (
+                <span
+                  key={h.tag}
+                  title={`avg score ${h.avgScore} · used ${h.count}×`}
+                  className="px-2 py-0.5 rounded-full bg-white/[0.04] border border-white/10 text-[11px] text-gray-300"
+                >
+                  #{h.tag} <span className="text-gray-500">{h.avgScore}</span>
+                </span>
+              ))}
+            </div>
           </div>
         )}
       </header>
