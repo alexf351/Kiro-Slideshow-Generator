@@ -52,3 +52,25 @@ The **Stats / Performance** tab turns the app into a learning loop that scores y
 6. **Hook Library** — the **Hooks** tab mines every scored post for its opening hook and ranks them by that post's actual score, filterable by style + niche. Tap **→ Editor** to drop a proven hook straight into a new draft's caption.
 
 Scoring is deterministic and free. Predicting + reading your slides uses Claude — one-tap with a BYOK Anthropic key, or free via the manual claude.ai copy-paste path, exactly like Clone/Propose. IG + YT are not wired up yet; the data model and scoring are platform-agnostic so they can be added later.
+
+## Quick Edit (no JSON)
+
+The Edit tab's **Content** section defaults to **Quick edit** — a structured form that parses the slides into labeled fields (hook, each content slide, CTA) with add / remove / reorder, so you never have to touch raw JSON. A **Quick edit | JSON** toggle keeps the raw textarea for power users. It's preset-agnostic (works for every format) and pauses gracefully if the JSON is mid-edit and unparseable.
+
+## Design & brand kit
+
+The **Design & brand** panel makes the output brand-agnostic and multi-platform:
+
+- **Aspect ratio** — 9:16 (TikTok/Reels/Shorts), 4:5 (IG feed), 1:1 (square), 16:9 (YouTube/LinkedIn). 9:16 is fully tuned; the others export at the correct size and are labeled *beta* (layouts are tuned for 9:16).
+- **Brand colors** — accent + background, applied to the engine's theme variables.
+- **Watermark / logo** — upload a PNG, choose a corner; it's baked into every exported slide.
+
+Defaults reproduce the original 1080×1920 cyan-on-black look exactly, so existing posts are unchanged.
+
+## Hashtag intelligence
+
+The Stats tab ranks **your hashtags by the average score** of the posts that used them. On the Edit tab, **＃ Suggest hashtags** appends your proven winners (that aren't already in the caption).
+
+## Backup & export
+
+Settings → **Backup** exports your whole post history + scores + brand kit to a JSON file (API keys excluded) and imports it back on another device or after clearing your browser. The Stats tab also has **Export CSV** for every post's metrics + computed/predicted scores.

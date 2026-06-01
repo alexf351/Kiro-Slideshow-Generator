@@ -194,6 +194,26 @@ export async function deletePost(id: string): Promise<void> {
   });
 }
 
+// Bulk-restore posts from a backup, preserving their original ids (so a
+// re-import is idempotent rather than duplicating). Existing posts with
+// the same id are overwritten. Returns how many were written.
+export async function importPosts(posts: Post[]): Promise<number> {
+  const db = await openDb();
+  const t = db.transaction([POSTS_STORE], 'readwrite');
+  const store = t.objectStore(POSTS_STORE);
+  let n = 0;
+  for (const p of posts) {
+    if (!p || typeof p.id !== 'string') continue;
+    store.put(p);
+    n++;
+  }
+  await new Promise<void>((res, rej) => {
+    t.oncomplete = () => res();
+    t.onerror = () => rej(t.error);
+  });
+  return n;
+}
+
 export function sumStats(posts: Post[]): PostStats {
   return posts.reduce(
     (acc, p) => ({

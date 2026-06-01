@@ -17,6 +17,8 @@ import {
 } from './scoring';
 import AnalyzeMyPost from './AnalyzeMyPost';
 import HookLibrary from './HookLibrary';
+import { postsToCsv, downloadBlob, timestampSlug } from './backup';
+import { topHashtags } from './insights';
 import { type ClaudeModelId } from './anthropic';
 
 const STAT_FIELDS: { key: keyof PostStats; label: string }[] = [
@@ -120,6 +122,7 @@ export default function Analytics({ anthropicKey, model, onModelChange, onUseHoo
   }, [posts]);
 
   const summary = useMemo(() => summarizeWhatWorks(posts), [posts]);
+  const topTags = useMemo(() => topHashtags(posts).slice(0, 8), [posts]);
 
   async function handleStatChange(post: Post, field: keyof PostStats, raw: string) {
     const n = parseInt(raw.replace(/[^0-9-]/g, ''), 10);
@@ -159,20 +162,31 @@ export default function Analytics({ anthropicKey, model, onModelChange, onUseHoo
           Import your posts, enter the numbers, and the engine scores each one + learns what works.
         </p>
 
-        <div className="mt-3 flex gap-1.5 p-1 rounded-lg bg-black/30 border border-white/[0.05] w-fit">
-          {(['posts', 'hooks'] as Tab[]).map((t) => (
+        <div className="mt-3 flex items-center justify-between gap-2 flex-wrap">
+          <div className="flex gap-1.5 p-1 rounded-lg bg-black/30 border border-white/[0.05] w-fit">
+            {(['posts', 'hooks'] as Tab[]).map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setTab(t)}
+                className={
+                  'px-4 py-1.5 rounded-md text-[11px] font-bold uppercase tracking-[0.16em] transition-colors ' +
+                  (tab === t ? 'bg-[#00E5FF]/15 text-[#00E5FF]' : 'text-gray-400 hover:text-gray-200')
+                }
+              >
+                {t === 'posts' ? 'Posts' : 'Hooks'}
+              </button>
+            ))}
+          </div>
+          {tab === 'posts' && posts.length > 0 && (
             <button
-              key={t}
               type="button"
-              onClick={() => setTab(t)}
-              className={
-                'px-4 py-1.5 rounded-md text-[11px] font-bold uppercase tracking-[0.16em] transition-colors ' +
-                (tab === t ? 'bg-[#00E5FF]/15 text-[#00E5FF]' : 'text-gray-400 hover:text-gray-200')
-              }
+              onClick={() => downloadBlob(new Blob([postsToCsv(posts)], { type: 'text/csv' }), `iro-analytics-${timestampSlug()}.csv`)}
+              className="px-3 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-[0.14em] bg-white/[0.04] text-gray-300 hover:bg-white/[0.08] border border-white/10"
             >
-              {t === 'posts' ? 'Posts' : 'Hooks'}
+              Export CSV
             </button>
-          ))}
+          )}
         </div>
 
         {tab === 'posts' && (
@@ -201,6 +215,25 @@ export default function Analytics({ anthropicKey, model, onModelChange, onUseHoo
             <span className="px-2.5 py-1 rounded-full bg-white/[0.04] text-gray-400 border border-white/10">
               {summary.scored} scored post{summary.scored === 1 ? '' : 's'}
             </span>
+          </div>
+        )}
+
+        {tab === 'posts' && topTags.length > 0 && (
+          <div className="mt-3">
+            <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-gray-600 mb-1.5">
+              Your hashtags by avg score
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {topTags.map((h) => (
+                <span
+                  key={h.tag}
+                  title={`avg score ${h.avgScore} · used ${h.count}×`}
+                  className="px-2 py-0.5 rounded-full bg-white/[0.04] border border-white/10 text-[11px] text-gray-300"
+                >
+                  #{h.tag} <span className="text-gray-500">{h.avgScore}</span>
+                </span>
+              ))}
+            </div>
           </div>
         )}
       </header>

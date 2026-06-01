@@ -5,10 +5,15 @@ import Analytics from './Analytics';
 import Patterns from './Patterns';
 import Propose from './Propose';
 import { addStockItem, blobToDataUrl, getItem } from './mediaBank';
-import { addPost, type CloneAnalysisSnapshot, type PostPrediction } from './posts';
+import { addPost, listPosts, type CloneAnalysisSnapshot, type PostPrediction } from './posts';
 import { PRESETS, PRESET_KEYS, type PresetKey } from './presets';
 import CloneFromTikTok from './CloneFromTikTok';
 import PredictPanel from './PredictPanel';
+import DesignPanel from './DesignPanel';
+import QuickEdit from './QuickEdit';
+import { coerceDesign, DEFAULT_DESIGN, designPayload, type BrandDesign } from './design';
+import { exportBackup, importBackup, downloadBlob, timestampSlug } from './backup';
+import { suggestHashtags } from './insights';
 import { CLAUDE_MODELS, type ClaudeModelId } from './anthropic';
 import { buildIroEditPrompt, editImage, OpenAIImageError, type OpenAIImageQuality } from './openaiImage';
 
@@ -97,6 +102,8 @@ type Persisted = {
   anthropicKey: string;
   claudeModel: ClaudeModelId;
   openaiKey: string;
+  // Output format + brand kit (aspect ratio, brand colors, watermark).
+  design: BrandDesign;
   // When true, the hook + cta slides render with photo + mascot only,
   // no baked-in text. The user types the hook + CTA natively in
   // TikTok's editor after upload — the algorithm reads native text
@@ -129,6 +136,7 @@ function loadPersisted(): Persisted {
           ? (p.claudeModel as ClaudeModelId)
           : 'claude-opus-4-7',
         openaiKey: typeof p.openaiKey === 'string' ? p.openaiKey : '',
+        design: coerceDesign(p.design),
         nativeTextOverlay: p.nativeTextOverlay === true,
       };
     }
@@ -146,6 +154,7 @@ function loadPersisted(): Persisted {
     anthropicKey: '',
     claudeModel: 'claude-opus-4-7',
     openaiKey: '',
+    design: { ...DEFAULT_DESIGN },
     nativeTextOverlay: false,
   };
 }
@@ -238,6 +247,9 @@ export default function App() {
   const [variant, setVariant] = useState<string>(initial.variant);
   const [platform, setPlatform] = useState<Platform>(initial.platform);
   const [jsonText, setJsonText] = useState<string>(initial.jsonText);
+  // Quick form vs raw JSON for the slides editor. Quick is the default so
+  // most users never see JSON.
+  const [editMode, setEditMode] = useState<'quick' | 'json'>('quick');
   const [status, setStatus] = useState<Status>({ kind: 'idle' });
   const [mobileView, setMobileView] = useState<MobileView>('edit');
   const [mainView, setMainView] = useState<MainView>('preview');
@@ -249,6 +261,7 @@ export default function App() {
   const [anthropicKey, setAnthropicKey] = useState<string>(initial.anthropicKey);
   const [claudeModel, setClaudeModel] = useState<ClaudeModelId>(initial.claudeModel);
   const [openaiKey, setOpenaiKey] = useState<string>(initial.openaiKey);
+  const [design, setDesign] = useState<BrandDesign>(initial.design);
   const [nativeTextOverlay, setNativeTextOverlay] = useState<boolean>(initial.nativeTextOverlay);
   // Bumped by Patterns → "Clone again". CloneFromTikTok watches this
   // and prefills its URL input + expands. Resets to empty string
@@ -290,6 +303,28 @@ export default function App() {
   // previous resolutions get revoked in the cleanup below.
   const [bgThumbs, setBgThumbs] = useState<Record<string, string>>({});
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  const backupInputRef = useRef<HTMLInputElement | null>(null);
+
+  async function handleExportBackup() {
+    try {
+      const blob = await exportBackup();
+      downloadBlob(blob, `iro-backup-${timestampSlug()}.json`);
+    } catch (e) {
+      window.alert('Export failed: ' + (e as Error).message);
+    }
+  }
+
+  async function handleImportBackup(file: File) {
+    if (!window.confirm('Restore from this backup? It merges saved posts + settings into this browser (your API keys are kept).')) return;
+    try {
+      const text = await file.text();
+      const r = await importBackup(text);
+      window.alert(`Restored ${r.posts} post${r.posts === 1 ? '' : 's'}${r.settingsRestored ? ' + settings' : ''}. Reloading…`);
+      window.location.reload();
+    } catch (e) {
+      window.alert('Import failed: ' + (e as Error).message);
+    }
+  }
 
   // When tier changes, keep the current variant if the new tier has it; otherwise reset to base.
   function handleTierChange(newTier: Mascot) {
@@ -314,6 +349,7 @@ export default function App() {
           anthropicKey,
           claudeModel,
           openaiKey,
+          design,
           nativeTextOverlay,
         }),
       );
@@ -331,6 +367,7 @@ export default function App() {
     anthropicKey,
     claudeModel,
     openaiKey,
+    design,
     nativeTextOverlay,
   ]);
 
@@ -496,7 +533,7 @@ export default function App() {
       );
     }
 
-    iframe.contentWindow.postMessage({ type: 'render', slides }, '*');
+    iframe.contentWindow.postMessage({ type: 'render', slides, design: designPayload(design) }, '*');
     // On mobile, jump to the preview so the user sees the result. Also flip
     // desktop's main pane back to preview if we were sitting in the Library.
     setMobileView('preview');
@@ -582,6 +619,19 @@ export default function App() {
   // From the Hook Library → "→ Editor". Prepend the proven hook to the
   // caption (so it becomes the first line / TikTok hook) and jump back to
   // the Edit pane so the user can build the rest of the post around it.
+  // Append the account's best-performing hashtags (that aren't already in
+  // the caption) — mined from scored history.
+  async function handleSuggestHashtags() {
+    const posts = await listPosts();
+    const tags = suggestHashtags(caption, posts, 6);
+    if (tags.length === 0) {
+      window.alert('No proven hashtags yet — score a few posts in the Stats tab first.');
+      return;
+    }
+    const add = tags.map((t) => '#' + t).join(' ');
+    setCaption((prev) => (prev.trim() ? prev.trimEnd() + '\n\n' + add : add));
+  }
+
   function handleUseHook(hook: string) {
     setCaption((prev) => {
       const trimmed = prev.trim();
@@ -929,6 +979,7 @@ export default function App() {
               onPrediction={setPendingPrediction}
               attachedScore={pendingPrediction?.score ?? null}
             />
+            <DesignPanel design={design} onChange={setDesign} />
             {lastCloneNote && (
               <div className="text-[11px] text-gray-500 leading-relaxed">
                 <strong className="text-gray-400">Last {lastOrigin}:</strong> {lastCloneNote}
@@ -1098,7 +1149,27 @@ export default function App() {
           </section>
 
           <section className="px-5 md:px-10 py-6 md:py-7 border-b border-white/[0.04]">
-            {sectionLabel('Slides JSON')}
+            {sectionLabel(
+              'Content',
+              <div className="ml-auto flex gap-1 p-0.5 rounded-lg bg-black/30 border border-white/[0.05]">
+                {(['quick', 'json'] as const).map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => setEditMode(m)}
+                    className={
+                      'px-3 py-1 rounded-md text-[10px] font-bold uppercase tracking-[0.14em] transition-colors ' +
+                      (editMode === m ? 'bg-[#00E5FF]/15 text-[#00E5FF]' : 'text-gray-500 hover:text-gray-300')
+                    }
+                  >
+                    {m === 'quick' ? 'Quick edit' : 'JSON'}
+                  </button>
+                ))}
+              </div>,
+            )}
+            {editMode === 'quick' ? (
+              <QuickEdit jsonText={jsonText} onChange={setJsonText} />
+            ) : (
             <textarea
               value={jsonText}
               onChange={(e) => setJsonText(e.target.value)}
@@ -1111,6 +1182,7 @@ export default function App() {
                          resize-y custom-scrollbar transition-all duration-200"
               placeholder="Paste SLIDES JSON here…"
             />
+            )}
             <div className="mt-3 min-h-[20px] text-xs">
               {status.kind === 'err' && (
                 <div className="flex items-start gap-2 text-red-400">
@@ -1338,6 +1410,13 @@ export default function App() {
               >
                 Copy caption
               </button>
+              <button
+                type="button"
+                onClick={handleSuggestHashtags}
+                className="text-[11px] font-bold uppercase tracking-[0.14em] text-gray-500 hover:text-[#00E5FF]"
+              >
+                ＃ Suggest hashtags
+              </button>
             </div>
           </section>
 
@@ -1458,6 +1537,44 @@ export default function App() {
             <p className="text-xs text-gray-500 leading-relaxed mb-4">
               Pasted keys live in this browser only. Pexels &amp; Unsplash are free; Anthropic &amp; OpenAI are pay-per-use.
             </p>
+
+            {/* Backup / restore — the post history + brand settings live only
+               in this browser, so a one-tap export is the safety net. API
+               keys are intentionally excluded from the file. */}
+            <div className="mb-5 p-3 rounded-xl border border-white/[0.08] bg-white/[0.02]">
+              <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-gray-400 mb-2">Backup</div>
+              <p className="text-[11px] text-gray-500 leading-relaxed mb-3">
+                Export your post history + scores + brand kit to a file (no API keys). Import it on another device or
+                after clearing your browser.
+              </p>
+              <input
+                ref={backupInputRef}
+                type="file"
+                accept="application/json,.json"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) void handleImportBackup(f);
+                  e.target.value = '';
+                }}
+              />
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={handleExportBackup}
+                  className="flex-1 py-2 rounded-lg text-[11px] font-bold uppercase tracking-[0.14em] bg-[#00E5FF]/15 text-[#00E5FF] hover:bg-[#00E5FF]/25 border border-[#00E5FF]/20"
+                >
+                  Export backup
+                </button>
+                <button
+                  type="button"
+                  onClick={() => backupInputRef.current?.click()}
+                  className="flex-1 py-2 rounded-lg text-[11px] font-bold uppercase tracking-[0.14em] bg-white/[0.04] text-gray-300 hover:bg-white/[0.08] border border-white/10"
+                >
+                  Import backup
+                </button>
+              </div>
+            </div>
 
             <label className="flex flex-col gap-1.5 mb-3">
               <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-gray-500">
