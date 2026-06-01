@@ -1542,6 +1542,9 @@ export default function App() {
                 Render slides
               </span>
             </button>
+            <p className="mt-2 text-center text-[10px] text-gray-600 tracking-wide">
+              tip: press <kbd className="px-1 py-0.5 rounded bg-white/[0.06] text-gray-400 font-mono">⌘/Ctrl + Enter</kbd> to render
+            </p>
             <button
               type="button"
               onClick={handleSaveToHistory}

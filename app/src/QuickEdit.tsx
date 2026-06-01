@@ -176,6 +176,7 @@ export default function QuickEdit({ jsonText, onChange }: Props) {
             <button
               type="button"
               onClick={addItem}
+              aria-label="Add a slide"
               className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] rounded-md bg-[#00E5FF]/15 text-[#00E5FF] hover:bg-[#00E5FF]/25"
             >
               + Add
@@ -188,11 +189,11 @@ export default function QuickEdit({ jsonText, onChange }: Props) {
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-500">#{i + 1}</span>
                   <span className="flex gap-1">
-                    <button type="button" onClick={() => moveItem(i, -1)} disabled={i === 0}
+                    <button type="button" onClick={() => moveItem(i, -1)} disabled={i === 0} aria-label={`Move slide ${i + 1} up`} title="Move up"
                       className="px-1.5 py-0.5 text-[11px] rounded text-gray-400 hover:text-gray-200 disabled:opacity-30">↑</button>
-                    <button type="button" onClick={() => moveItem(i, 1)} disabled={i === items.length - 1}
+                    <button type="button" onClick={() => moveItem(i, 1)} disabled={i === items.length - 1} aria-label={`Move slide ${i + 1} down`} title="Move down"
                       className="px-1.5 py-0.5 text-[11px] rounded text-gray-400 hover:text-gray-200 disabled:opacity-30">↓</button>
-                    <button type="button" onClick={() => removeItem(i)}
+                    <button type="button" onClick={() => removeItem(i)} aria-label={`Remove slide ${i + 1}`} title="Remove slide"
                       className="px-1.5 py-0.5 text-[11px] rounded text-red-300 hover:text-red-200">✕</button>
                   </span>
                 </div>
