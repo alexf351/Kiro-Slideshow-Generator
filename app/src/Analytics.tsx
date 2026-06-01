@@ -16,6 +16,7 @@ import {
   type ScoreBreakdown,
 } from './scoring';
 import AnalyzeMyPost from './AnalyzeMyPost';
+import HookLibrary from './HookLibrary';
 import { type ClaudeModelId } from './anthropic';
 
 const STAT_FIELDS: { key: keyof PostStats; label: string }[] = [
@@ -31,7 +32,11 @@ type Props = {
   anthropicKey: string;
   model: ClaudeModelId;
   onModelChange: (m: ClaudeModelId) => void;
+  // Drops a winning hook into the editor caption + jumps to Edit.
+  onUseHook: (hook: string) => void;
 };
+
+type Tab = 'posts' | 'hooks';
 
 function compactNumber(n: number): string {
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(n % 1_000_000 === 0 ? 0 : 1) + 'M';
@@ -79,10 +84,11 @@ function ScoreBadge({ breakdown, scored }: { breakdown: ScoreBreakdown; scored: 
   );
 }
 
-export default function Analytics({ anthropicKey, model, onModelChange }: Props) {
+export default function Analytics({ anthropicKey, model, onModelChange, onUseHook }: Props) {
   const [posts, setPosts] = useState<Post[]>([]);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const [tab, setTab] = useState<Tab>('posts');
 
   async function refresh() {
     setPosts(await listPosts());
@@ -153,11 +159,29 @@ export default function Analytics({ anthropicKey, model, onModelChange }: Props)
           Import your posts, enter the numbers, and the engine scores each one + learns what works.
         </p>
 
-        <div className="mt-4">
-          <AnalyzeMyPost anthropicKey={anthropicKey} model={model} onModelChange={onModelChange} onImported={refresh} />
+        <div className="mt-3 flex gap-1.5 p-1 rounded-lg bg-black/30 border border-white/[0.05] w-fit">
+          {(['posts', 'hooks'] as Tab[]).map((t) => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => setTab(t)}
+              className={
+                'px-4 py-1.5 rounded-md text-[11px] font-bold uppercase tracking-[0.16em] transition-colors ' +
+                (tab === t ? 'bg-[#00E5FF]/15 text-[#00E5FF]' : 'text-gray-400 hover:text-gray-200')
+              }
+            >
+              {t === 'posts' ? 'Posts' : 'Hooks'}
+            </button>
+          ))}
         </div>
 
-        {summary.scored > 0 && (
+        {tab === 'posts' && (
+          <div className="mt-4">
+            <AnalyzeMyPost anthropicKey={anthropicKey} model={model} onModelChange={onModelChange} onImported={refresh} />
+          </div>
+        )}
+
+        {tab === 'posts' && summary.scored > 0 && (
           <div className="mt-4 flex flex-wrap gap-2 text-[11px]">
             {summary.topPreset && (
               <span className="px-2.5 py-1 rounded-full bg-[#00E5FF]/10 text-[#00E5FF] border border-[#00E5FF]/20">
@@ -181,6 +205,7 @@ export default function Analytics({ anthropicKey, model, onModelChange }: Props)
         )}
       </header>
 
+      {tab === 'posts' && (
       <div className="shrink-0 grid grid-cols-3 md:grid-cols-6 gap-2 md:gap-3 px-5 md:px-8 py-4 md:py-5 border-b border-white/[0.05]">
         {STAT_FIELDS.map(({ key, label }) => {
           const has = totals[key] > 0;
@@ -207,8 +232,12 @@ export default function Analytics({ anthropicKey, model, onModelChange }: Props)
           );
         })}
       </div>
+      )}
 
       <div className="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-6">
+        {tab === 'hooks' && <HookLibrary posts={posts} onUseHook={onUseHook} />}
+        {tab === 'posts' && (
+          <>
         {busy && <div className="mb-3 text-xs text-[#00E5FF]">{busy}</div>}
         {posts.length === 0 && (
           <div className="block w-full py-16 rounded-2xl border-2 border-dashed border-white/10 text-center text-gray-500">
@@ -363,6 +392,8 @@ export default function Analytics({ anthropicKey, model, onModelChange }: Props)
               );
             })}
           </div>
+        )}
+          </>
         )}
       </div>
     </div>
