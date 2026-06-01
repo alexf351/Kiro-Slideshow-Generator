@@ -20,6 +20,7 @@ import HookLibrary from './HookLibrary';
 import { postsToCsv, downloadBlob, timestampSlug } from './backup';
 import { topHashtags } from './insights';
 import { useUI } from './ui';
+import Sparkline from './Sparkline';
 import { type ClaudeModelId } from './anthropic';
 
 const STAT_FIELDS: { key: keyof PostStats; label: string }[] = [
@@ -40,6 +41,7 @@ type Props = {
 };
 
 type Tab = 'posts' | 'hooks';
+type SortKey = 'new' | 'top' | 'low';
 
 function compactNumber(n: number): string {
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(n % 1_000_000 === 0 ? 0 : 1) + 'M';
@@ -93,6 +95,7 @@ export default function Analytics({ anthropicKey, model, onModelChange, onUseHoo
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>('posts');
+  const [sort, setSort] = useState<SortKey>('new');
 
   async function refresh() {
     setPosts(await listPosts());
@@ -125,6 +128,25 @@ export default function Analytics({ anthropicKey, model, onModelChange, onUseHoo
 
   const summary = useMemo(() => summarizeWhatWorks(posts), [posts]);
   const topTags = useMemo(() => topHashtags(posts).slice(0, 8), [posts]);
+
+  // Chronological score trend (oldest → newest) for the sparkline.
+  const trend = useMemo(
+    () =>
+      posts
+        .filter(hasStats)
+        .slice()
+        .sort((a, b) => a.postedAt - b.postedAt)
+        .map((p) => scores.get(p.id)?.score ?? 0),
+    [posts, scores],
+  );
+
+  // The post list, sorted for display. `posts` is newest-first already.
+  const visiblePosts = useMemo(() => {
+    const arr = posts.slice();
+    if (sort === 'top') arr.sort((a, b) => (scores.get(b.id)?.score ?? -1) - (scores.get(a.id)?.score ?? -1));
+    else if (sort === 'low') arr.sort((a, b) => (scores.get(a.id)?.score ?? 999) - (scores.get(b.id)?.score ?? 999));
+    return arr;
+  }, [posts, scores, sort]);
 
   async function handleStatChange(post: Post, field: keyof PostStats, raw: string) {
     const n = parseInt(raw.replace(/[^0-9-]/g, ''), 10);
@@ -220,6 +242,16 @@ export default function Analytics({ anthropicKey, model, onModelChange, onUseHoo
           </div>
         )}
 
+        {tab === 'posts' && trend.length >= 2 && (
+          <div className="mt-3 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2.5">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-gray-500">Score over time</span>
+              <span className="text-[10px] text-gray-600">{trend.length} posts</span>
+            </div>
+            <Sparkline values={trend} width={320} height={44} />
+          </div>
+        )}
+
         {tab === 'posts' && topTags.length > 0 && (
           <div className="mt-3">
             <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-gray-600 mb-1.5">
@@ -287,8 +319,21 @@ export default function Analytics({ anthropicKey, model, onModelChange, onUseHoo
           </div>
         )}
         {posts.length > 0 && (
+          <>
+          <div className="flex items-center justify-end gap-2 mb-3">
+            <span className="text-[10px] uppercase tracking-[0.14em] text-gray-600">Sort</span>
+            <select
+              value={sort}
+              onChange={(e) => setSort(e.target.value as SortKey)}
+              className="bg-[#0b1224] border border-white/[0.10] rounded-md px-2 py-1 text-[11px] text-gray-300 focus:border-[#00E5FF]/40 focus:outline-none"
+            >
+              <option value="new">Newest</option>
+              <option value="top">Top score</option>
+              <option value="low">Lowest score</option>
+            </select>
+          </div>
           <div className="flex flex-col gap-3">
-            {posts.map((post) => {
+            {visiblePosts.map((post) => {
               const expanded = expandedId === post.id;
               const thumb = thumbs.get(post.id);
               const breakdown = scores.get(post.id)!;
@@ -427,6 +472,7 @@ export default function Analytics({ anthropicKey, model, onModelChange, onUseHoo
               );
             })}
           </div>
+          </>
         )}
           </>
         )}
