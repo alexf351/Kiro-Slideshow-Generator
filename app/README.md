@@ -74,3 +74,16 @@ The Stats tab ranks **your hashtags by the average score** of the posts that use
 ## Backup & export
 
 Settings → **Backup** exports your whole post history + scores + brand kit to a JSON file (API keys excluded) and imports it back on another device or after clearing your browser. The Stats tab also has **Export CSV** for every post's metrics + computed/predicted scores.
+
+## AI variations
+
+In **Score this draft**, "Generate 3 variations" produces distinct hook + caption rewrites, each with a predicted score; tap **Use this** to load the strongest. One-tap with a BYOK key, or free via the manual claude.ai path.
+
+## UX & shortcuts
+
+- **⌘/Ctrl+K** opens a command palette for every action (render, format, aspect, jump to any tab…). A "Commands ⌘K" chip in the header is the discoverable entry point.
+- **⌘/Ctrl+Enter** renders from anywhere.
+- A **slide navigator** strip above the preview jumps to any slide (Hook · 1 · 2 · … · CTA).
+- The **Score over time** sparkline + sort (Newest / Top / Lowest) in Performance.
+- Caption **emoji picker** + live character counter; one-tap **Bold** in Quick Edit.
+- In-app toasts + dialogs (no native popups), and a one-time onboarding you can reopen via the palette.
