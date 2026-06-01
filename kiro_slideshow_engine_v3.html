@@ -1864,6 +1864,15 @@ window.addEventListener('message', async (e) => {
     return;
   }
 
+  // Lightweight design-only update (brand colors / aspect / watermark)
+  // without re-resolving slide content — lets the Design panel preview
+  // changes live as the user drags a color or flips a ratio.
+  if (msg.type === 'design' && msg.design) {
+    applyDesign(msg.design);
+    rerender();
+    return;
+  }
+
   // Captures slide 0 (the hook) at low resolution and posts the PNG blob
   // back to the parent. Used by the React shell when the user taps
   // "Save to history" so each post in the analytics list has a thumbnail.

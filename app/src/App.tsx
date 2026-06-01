@@ -453,7 +453,15 @@ export default function App() {
     return await blobToDataUrl(item.blob);
   }
 
-  async function handleRender() {
+  // Tracks whether the engine has finished its first render, so the live
+  // design effect doesn't post a design-only update before any slides exist.
+  const engineReadyRef = useRef(false);
+
+  // `switchView` defaults to true (a user-initiated render jumps mobile to
+  // the Preview tab). The initial auto-render on iframe load passes false so
+  // a phone user isn't yanked away from the Edit controls on first open.
+  async function handleRender(opts?: { switchView?: boolean }) {
+    const switchView = opts?.switchView !== false;
     const parsed = parseJson();
     if (!parsed) return;
     const iframe = iframeRef.current;
@@ -534,10 +542,14 @@ export default function App() {
     }
 
     iframe.contentWindow.postMessage({ type: 'render', slides, design: designPayload(design) }, '*');
-    // On mobile, jump to the preview so the user sees the result. Also flip
-    // desktop's main pane back to preview if we were sitting in the Library.
-    setMobileView('preview');
-    setMainView('preview');
+    engineReadyRef.current = true;
+    // On a user-initiated render, jump to the preview so they see the result
+    // (and flip desktop's main pane back from the Library). The initial
+    // auto-render skips this so mobile users keep their place on Edit.
+    if (switchView) {
+      setMobileView('preview');
+      setMainView('preview');
+    }
   }
 
   // Open the Library in pick-a-bg mode and resolve once the user chooses or cancels.
@@ -760,8 +772,36 @@ export default function App() {
   function handleIframeLoad() {
     // Push current sidebar state into the engine on initial load so the
     // preview matches the controls instead of showing the engine's default.
-    handleRender();
+    // switchView:false so a phone user isn't bounced off the Edit tab.
+    handleRender({ switchView: false });
   }
+
+  // Live design preview: when the brand kit / aspect / watermark changes,
+  // push a lightweight design-only update to the engine (debounced so a
+  // color drag doesn't spam it). No content re-resolution — just re-theme.
+  useEffect(() => {
+    if (!engineReadyRef.current) return;
+    const id = setTimeout(() => {
+      const iframe = iframeRef.current;
+      iframe?.contentWindow?.postMessage({ type: 'design', design: designPayload(design) }, '*');
+    }, 200);
+    return () => clearTimeout(id);
+  }, [design]);
+
+  // ⌘/Ctrl+Enter renders from anywhere. renderRef keeps the handler current
+  // without re-binding the listener every render.
+  const renderRef = useRef(handleRender);
+  renderRef.current = handleRender;
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+        e.preventDefault();
+        void renderRef.current();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   // Wired to the CloneFromTikTok panel. Takes the clone result and
   // populates everything in one shot: JSON, preset, caption, per-slide
@@ -1486,7 +1526,7 @@ export default function App() {
 
             <button
               type="button"
-              onClick={handleRender}
+              onClick={() => void handleRender()}
               className="w-full py-4 md:py-5 rounded-xl font-bold text-base md:text-lg tracking-wide
                          bg-gradient-to-r from-[#00E5FF] to-[#00A5D9]
                          text-[#0a0e1a]
