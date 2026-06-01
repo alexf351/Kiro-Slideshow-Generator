@@ -10,6 +10,7 @@ import { PRESETS, PRESET_KEYS, type PresetKey } from './presets';
 import CloneFromTikTok from './CloneFromTikTok';
 import PredictPanel from './PredictPanel';
 import DesignPanel from './DesignPanel';
+import QuickEdit from './QuickEdit';
 import { coerceDesign, DEFAULT_DESIGN, designPayload, type BrandDesign } from './design';
 import { exportBackup, importBackup, downloadBlob, timestampSlug } from './backup';
 import { CLAUDE_MODELS, type ClaudeModelId } from './anthropic';
@@ -245,6 +246,9 @@ export default function App() {
   const [variant, setVariant] = useState<string>(initial.variant);
   const [platform, setPlatform] = useState<Platform>(initial.platform);
   const [jsonText, setJsonText] = useState<string>(initial.jsonText);
+  // Quick form vs raw JSON for the slides editor. Quick is the default so
+  // most users never see JSON.
+  const [editMode, setEditMode] = useState<'quick' | 'json'>('quick');
   const [status, setStatus] = useState<Status>({ kind: 'idle' });
   const [mobileView, setMobileView] = useState<MobileView>('edit');
   const [mainView, setMainView] = useState<MainView>('preview');
@@ -1131,7 +1135,27 @@ export default function App() {
           </section>
 
           <section className="px-5 md:px-10 py-6 md:py-7 border-b border-white/[0.04]">
-            {sectionLabel('Slides JSON')}
+            {sectionLabel(
+              'Content',
+              <div className="ml-auto flex gap-1 p-0.5 rounded-lg bg-black/30 border border-white/[0.05]">
+                {(['quick', 'json'] as const).map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => setEditMode(m)}
+                    className={
+                      'px-3 py-1 rounded-md text-[10px] font-bold uppercase tracking-[0.14em] transition-colors ' +
+                      (editMode === m ? 'bg-[#00E5FF]/15 text-[#00E5FF]' : 'text-gray-500 hover:text-gray-300')
+                    }
+                  >
+                    {m === 'quick' ? 'Quick edit' : 'JSON'}
+                  </button>
+                ))}
+              </div>,
+            )}
+            {editMode === 'quick' ? (
+              <QuickEdit jsonText={jsonText} onChange={setJsonText} />
+            ) : (
             <textarea
               value={jsonText}
               onChange={(e) => setJsonText(e.target.value)}
@@ -1144,6 +1168,7 @@ export default function App() {
                          resize-y custom-scrollbar transition-all duration-200"
               placeholder="Paste SLIDES JSON here…"
             />
+            )}
             <div className="mt-3 min-h-[20px] text-xs">
               {status.kind === 'err' && (
                 <div className="flex items-start gap-2 text-red-400">
