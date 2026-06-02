@@ -570,6 +570,7 @@ export async function applyManualResponse(
 export function renderOrderKeys(slides: Record<string, unknown>): Array<{ key: string }> {
   const keys: Array<{ key: string }> = [];
   if (slides.hook) keys.push({ key: 'hook' });
+  if (slides.cover) keys.push({ key: 'cover' }); // curated_list cover slide
   const contentArrays: Array<[string, string]> = [
     ['prompts', 'prompt'],
     ['beats', 'beat'],

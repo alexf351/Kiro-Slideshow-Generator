@@ -207,6 +207,25 @@ function truncate(s: string, n: number): string {
 }
 function extractSlideMeta(parsed: unknown): SlideMeta[] {
   if (!parsed || typeof parsed !== 'object') return [];
+
+  // curated_list is the first preset with TWO image slots per slide: a
+  // background (every slide) and a foreground media card (upload items only;
+  // iro_app items render the built App Store card, no upload). Cover takes
+  // only a background.
+  const cl = parsed as { preset?: string; cover?: { headline?: string }; items?: { text?: string; media?: string }[] };
+  if (cl.preset === 'curated_list') {
+    const out: SlideMeta[] = [];
+    out.push({ key: 'cover', label: truncate(`Cover — ${clean(cl.cover?.headline || 'Cover')}`, 40) });
+    (cl.items || []).forEach((it, i) => {
+      const t = clean(it?.text || `Item ${i + 1}`);
+      out.push({ key: `item:${i}`, label: truncate(`${i + 1}. ${t} · bg`, 40) });
+      if (it?.media !== 'iro_app') {
+        out.push({ key: `item-card:${i}`, label: truncate(`${i + 1}. ${t} · card`, 40) });
+      }
+    });
+    return out;
+  }
+
   const p = parsed as {
     hook?: { headline?: string; text?: string };
     prompts?: { title?: string }[];
@@ -538,6 +557,11 @@ export default function App() {
     if (ctaBg && slides.cta && typeof slides.cta === 'object') {
       slides.cta = { ...(slides.cta as object), bg: ctaBg };
     }
+    // curated_list cover background (its hook-equivalent slide).
+    const coverBg = await resolveSlideBg(slideBgs['cover']);
+    if (coverBg && slides.cover && typeof slides.cover === 'object') {
+      slides.cover = { ...(slides.cover as object), bg: coverBg };
+    }
 
     // Native-overlay mode: blank the text fields on hook + cta so the
     // engine renders bg + mascot only. The user types the actual hook
@@ -589,6 +613,17 @@ export default function App() {
         (slides['apps'] as Record<string, unknown>[]).map(async (item, i) => {
           const iconUrl = await resolveSlideBg(slideBgs[`app-icon:${i}`]);
           return iconUrl ? { ...item, iconUrl } : item;
+        }),
+      );
+    }
+
+    // curated_list: the second per-slide image — the foreground media card on
+    // each `upload` item (the background was already set by the loop above).
+    if (preset === 'curated_list' && Array.isArray(slides['items'])) {
+      slides['items'] = await Promise.all(
+        (slides['items'] as Record<string, unknown>[]).map(async (item, i) => {
+          const card = await resolveSlideBg(slideBgs[`item-card:${i}`]);
+          return card ? { ...item, card } : item;
         }),
       );
     }

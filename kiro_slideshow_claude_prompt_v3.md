@@ -303,3 +303,29 @@ Cycle through 10 paths so each gets a slideshow every ~3 weeks.
 **Pinned comment for path-gap posts:** "if you got more than 4 of these wrong, the AI for [path] path on Iro covers all of it. free to try." Direct, doesn't oversell, gives the dropout reason.
 
 **ChatGPT vs Claude (PLATFORM choice):** Default to chatgpt for broad-reach posts — bigger TikTok name recognition. Use claude for technical/developer-leaning audiences (ai-agents, ai-automation, ai-for-business path-gap), or to differentiate when the rotation feels samey. The Claude-styled chat box is a small visual variety lever; don't overthink it. ~1 in 4 posts on Claude is a reasonable starting mix.
+
+---
+
+## Preset 7: `curated_list`
+
+Curated-recommendation posts ("dangerously overeducated"): a cover + 3–7 picks, each a
+full-bleed photo with a media card. Exactly ONE pick is Iro, rendered as a built-in App
+Store card (no upload). **No CTA slide** — the card is the CTA. Lowercase cover hook,
+sentence-case declarative item lines, short parenthetical tags. No exclamation marks, no
+em dashes.
+
+```
+{
+  "preset": "curated_list",
+  "cover": { "headline": "habits to become<br/>dangerously overeducated", "sub": "(because we don't gatekeep here)" },
+  "items": [
+    { "text": "Read books that build durable mental models, not trivia.", "tag": "(currently reading)", "media": "upload" },
+    { "text": "Use microlearning apps instead of doomscrolling.", "tag": "my AI one 🐧", "media": "iro_app" },
+    { "text": "Watch full lectures from domain experts.", "tag": "(my fav on YT)", "media": "upload" }
+  ],
+  "attribution": "@tryiro"
+}
+```
+
+Rules: exactly one item is `iro_app`; no `cta` field; backgrounds + `upload` card
+screenshots are assigned in the app, never in JSON.

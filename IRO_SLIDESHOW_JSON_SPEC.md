@@ -489,3 +489,53 @@ If they don't specify a preset, ask which one — don't guess. Each format has v
 - Don't use markdown code fences around the JSON in your response — the user will paste raw, fences break the parser.
 - Don't change the brand: `Iro AI` (search term), `@tryiro` (attribution), App Store as the CTA destination.
 - Don't write captions for the TikTok post itself — there's a separate Caption box in the app for that with its own templates.
+
+---
+
+## Preset 7: `curated_list`
+
+**Use case:** "Dangerously overeducated" / curated-recommendation posts. A list of habits
+or picks, each paired with a real media card. Iro appears as ONE pick via a built-in App
+Store card — native, not a hard sell. NO CTA slide on purpose.
+**Voice:** Lowercase cover hook. Sentence-case item lines — calm, declarative, aspirational.
+Short personal tags in parens, e.g. "(my recent read)". No clickbait, no exclamation marks,
+no em dashes.
+**Slide count:** 1 cover + 3–7 items. NO CTA slide.
+**Renders:** Full-bleed photo per slide. Warm-cream headline up top, a media card centred
+mid-slide, a small personal tag above it. The cover anchors its hook bottom-left with no
+counter. Item slides show an "N / total" counter top-right. Exactly ONE item uses
+media:"iro_app" → renders the Iro App Store card (icon + "Iro AI" + "Learn AI Skills" +
+★ rating + OPEN). The rest use media:"upload" → a screenshot the user assigns per slide
+in the app (NOT in JSON).
+
+### Schema
+{
+  preset: "curated_list",
+  cover: { headline: string, sub: string },   // <br/> allowed in headline
+  items: Array<{
+    text: string,                 // the recommendation line (becomes the headline)
+    tag: string,                  // small parenthetical personal note
+    media: "iro_app" | "upload"   // exactly ONE item should be "iro_app"
+  }>,
+  attribution: "@tryiro"
+}
+
+### Working example
+{
+  "preset": "curated_list",
+  "cover": {
+    "headline": "habits to become<br/>dangerously overeducated",
+    "sub": "(because we don't gatekeep here)"
+  },
+  "items": [
+    { "text": "Read books that build durable mental models, not trivia. Pick the ones that explain how systems actually work.", "tag": "(currently reading)", "media": "upload" },
+    { "text": "Read Substack and long-form essays to catch ideas before they get flattened into hot takes. The nuance lives in independent writing.", "tag": "(my recent read)", "media": "upload" },
+    { "text": "Use microlearning apps instead of doomscrolling to expand your range a little every day, without frying your attention span.", "tag": "my AI one. go-to when i need a break from tiktok 🐧", "media": "iro_app" },
+    { "text": "Watch full lectures to learn straight from domain experts. The slow, rigorous version builds depth that 60-second clips can't fake.", "tag": "(my fav on YT)", "media": "upload" },
+    { "text": "Listen to podcasts during \"deadtime\" (commutes, dishes, walks). Hearing smart people reason in real time rewires how you think.", "tag": "(my fav on spotify)", "media": "upload" }
+  ],
+  "attribution": "@tryiro"
+}
+
+**Rules:** exactly one item is `iro_app`; there is no `cta` field; backgrounds and `upload`
+card screenshots are assigned in the app, never in JSON.

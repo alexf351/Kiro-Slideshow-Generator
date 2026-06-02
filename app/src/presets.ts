@@ -14,6 +14,7 @@ export const PRESET_KEYS = [
   'checklist',
   'handwritten_pack',
   'app_stack',
+  'curated_list',
 ] as const;
 
 export type PresetKey = (typeof PRESET_KEYS)[number];
@@ -345,6 +346,26 @@ want to get good at AI? search "Iro AI" on the App Store. 5 min a day, that's it
 
 #aiprompts #chatgpt #savethis #aitok #productivity`;
 
+const CURATED_LIST_JSON = `{
+  "preset": "curated_list",
+  "cover": {
+    "headline": "habits to become<br/>dangerously overeducated",
+    "sub": "(because we don't gatekeep here)"
+  },
+  "items": [
+    { "text": "Read books that build durable mental models, not trivia. Pick the ones that explain how systems actually work.", "tag": "(currently reading)", "media": "upload" },
+    { "text": "Read Substack and long-form essays to catch ideas before they get flattened into hot takes. The nuance lives in independent writing.", "tag": "(my recent read)", "media": "upload" },
+    { "text": "Use microlearning apps instead of doomscrolling to expand your range a little every day, without frying your attention span.", "tag": "my AI one. go-to when i need a break from tiktok 🐧", "media": "iro_app" },
+    { "text": "Watch full lectures to learn straight from domain experts. The slow, rigorous version builds depth that 60-second clips can't fake.", "tag": "(my fav on YT)", "media": "upload" },
+    { "text": "Listen to podcasts during \\"deadtime\\" (commutes, dishes, walks). Hearing smart people reason in real time rewires how you think.", "tag": "(my fav on spotify)", "media": "upload" }
+  ],
+  "attribution": "@tryiro"
+}`;
+
+const CURATED_LIST_CAPTION = `habits to become dangerously overeducated 🧠
+the 5 inputs that actually moved the needle for me (one's an app i'm low-key obsessed with).
+#learning #booktok #selfimprovement #learnai #studytok`;
+
 export const PRESETS: Record<PresetKey, PresetMeta> = {
   prompt_pack: {
     key: 'prompt_pack',
@@ -417,5 +438,14 @@ export const PRESETS: Record<PresetKey, PresetMeta> = {
     defaultJson: APP_STACK_JSON,
     defaultCaption: APP_STACK_CAPTION,
     accent: '#A78BFA', // purple, distinct from other presets
+  },
+  curated_list: {
+    key: 'curated_list',
+    label: 'Curated List',
+    pitch: 'Cover + media-card picks ("dangerously overeducated"). Iro as one App Store card. No CTA.',
+    status: 'ready',
+    defaultJson: CURATED_LIST_JSON,
+    defaultCaption: CURATED_LIST_CAPTION,
+    accent: '#F0E6CF', // warm cream, matches the headline ink
   },
 };
