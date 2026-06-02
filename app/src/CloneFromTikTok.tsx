@@ -69,7 +69,7 @@ function stageLabel(stage: CloneStage): string {
     case 'reasoning':
       return 'Claude is cloning the post for Iro…';
     case 'analyzed':
-      return `Clone written (${stage.clone.preset}). Downloading source images…`;
+      return `Clone written (${stage.clone.preset}). Finishing up…`;
     case 'fetching_images':
       return `Downloading source images (${stage.done}/${stage.total})…`;
     case 'done':

@@ -15,8 +15,8 @@
 // the conversion theory behind that choice.
 
 import ironSpec from '../../IRO_SLIDESHOW_JSON_SPEC.md?raw';
-import { callClaude, extractToolUse, type ClaudeModelId } from './anthropic';
-import { addStockItem, type MediaItem } from './mediaBank';
+import { callClaude, extractToolUse, type ClaudeModelId, type RequestContentBlock } from './anthropic';
+import { addStockItem, blobToDataUrl, type MediaItem } from './mediaBank';
 import { PRESET_KEYS, type PresetKey } from './presets';
 
 export type SourceSlide = {
@@ -212,22 +212,19 @@ function buildUserMessage(source: ScrapeResult, opts: { guidance?: string; prefe
   lines.push('');
   lines.push(`## Slides (${source.slides.length} image${source.slides.length === 1 ? '' : 's'})`);
   if (source.slides.length === 0) {
-    lines.push('(No slide images extracted — likely a video post. Use the caption + duration to infer structure.)');
+    lines.push('(No slide images extracted — likely a video post. Use the caption to infer structure.)');
   } else {
-    source.slides.forEach((s) => {
-      lines.push(`- Slide ${s.index} (${s.width || '?'}×${s.height || '?'})`);
-    });
+    lines.push(`The ${source.slides.length} actual slide images are ATTACHED below, in order. Study them.`);
   }
   lines.push('');
   lines.push('# Your task');
   lines.push(
-    'Read the source post above. Identify its structural fingerprint — hook style, ' +
-      'how text density flows across slides, how the CTA lands. Then emit a PARALLEL ' +
-      'slideshow tailored for Iro AI (the "Duolingo for AI" mobile app — see system prompt). ' +
-      'The clone should preserve the source\'s rhythm: if the source uses short verdict ' +
-      'labels per slide, your clone uses short verdict labels. If the source is one ' +
-      'emotional hook on slide 1, your clone is one emotional hook on slide 1. ' +
-      'Don\'t get clever — copy what already works, then swap the topic to Iro.',
+    'LOOK at the attached slides, then emit a PARALLEL slideshow that matches their VISUAL STYLE, ' +
+      'per-slide structure, density and voice (see the cloning instructions in the system prompt). ' +
+      'Keep the source\'s content GENRE — only swap the specifics toward Iro AI (the "Duolingo for ' +
+      'AI" app), woven in naturally and lightly. If the source is one short overlay phrase per ' +
+      'aesthetic photo, your clone is one short overlay phrase per photo. Do NOT default to a ' +
+      'numbered "AI prompts" pack unless the source itself is a numbered prompt/list post.',
   );
   lines.push('');
   lines.push(
@@ -243,11 +240,9 @@ function buildUserMessage(source: ScrapeResult, opts: { guidance?: string; prefe
   } else {
     lines.push('');
     lines.push(
-      '## Preset choice\nPick the preset that best matches the source post\'s shape. ' +
-        'Available: prompt_pack (numbered list), pain_story (lowercase confession), ' +
-        'aspirational (bold cinematic), meme_pov (top/bottom captions), product_demo ' +
-        '(feature walkthrough), checklist (qualifier "if you…"), handwritten_pack ' +
-        '(notebook aesthetic prompt list).',
+      '## Preset choice\nPick the preset whose RENDERED look matches the source photos (see the ' +
+        'look-based guide in the system prompt). For photo-driven posts with native overlay text ' +
+        '(dark-academia / BookTok / aesthetic), use pain_story or aspirational — NOT handwritten_pack.',
     );
   }
   if (opts.guidance && opts.guidance.trim()) {
@@ -263,18 +258,47 @@ function buildUserMessage(source: ScrapeResult, opts: { guidance?: string; prefe
 const CLONING_INSTRUCTIONS = [
   '## Cloning-specific instructions',
   '',
-  'You are being used inside the Iro Slideshow Generator\'s "Clone from TikTok" flow. ' +
-    'The user pastes a TikTok URL; we scrape it and feed you the structure plus caption. ' +
-    'Your job is fidelity: match the source post\'s rhythm and density, then swap the ' +
-    'topic to Iro AI.',
+  'You are inside the Iro Slideshow Generator\'s "Clone from TikTok" flow. The user pastes a ' +
+    'TikTok URL; we scrape it and ATTACH THE ACTUAL SLIDE IMAGES below. LOOK AT THEM. Your job ' +
+    'is fidelity to what you SEE — the visual style, the on-screen text, the rhythm — then a ' +
+    'light topical swap toward Iro AI.',
   '',
-  'Slide counts to aim for, by preset (matches the IRO_SLIDESHOW_JSON_SPEC above): ' +
-    'prompt_pack 1+3-7+1 (hook+prompts+cta), pain_story 1+3-5+1, aspirational 1+3-5+1, ' +
-    'meme_pov 1-3 (CTA optional), product_demo 1+3-4+1, checklist 1+5-7+1, ' +
-    'handwritten_pack 1+3-7+1.',
+  '### Read the images first',
+  'Before writing anything, identify from the attached slides:',
+  '- Visual style: full-bleed cinematic/aesthetic photo? notebook/handwritten? plain meme caption? ' +
+    'chat/UI screenshots? phone mockups?',
+  '- How text sits: native-looking overlay text ON a photo (most aesthetic posts) vs. heavily ' +
+    'designed graphic boxes.',
+  '- Per-slide structure: e.g. "one habit + a book cover + a short parenthetical aside", or ' +
+    '"one numbered prompt in a chat bubble". Copy THAT structure.',
+  '- Voice/register: lowercase confessional, punchy all-caps, editorial, deadpan — match it exactly.',
+  '- The content GENRE (books/habits/routines/opinions/prompts). Keep the SAME genre; do not turn ' +
+    'a "habits / books / ways to learn" post into a generic "AI prompts" list. If the source lists ' +
+    'habits, your clone lists habits (that happen to involve Iro). Weave Iro in naturally and ' +
+    'lightly — the post should read like the creator\'s, not like an ad.',
   '',
-  'If the source post has a different slide count than the preset\'s typical range, ' +
-    'lean toward the source count — fidelity beats convention.',
+  '### Pick the preset whose RENDERED look matches the source photo',
+  '- pain_story — full-bleed moody/aesthetic photo with soft overlay text (use this for dark-' +
+    'academia / BookTok / "that girl" aesthetic photo posts).',
+  '- aspirational — cinematic luxury photo with a bold bottom-anchored hook.',
+  '- meme_pov — image-dominant, short top/bottom caption with thick stroke.',
+  '- prompt_pack — numbered items in chat-style bubbles (ONLY when the source actually shows a ' +
+    'numbered list / chat UI).',
+  '- handwritten_pack — cream paper + handwritten ink (ONLY for genuinely notebook/handwritten ' +
+    'aesthetics; NOT for photo posts).',
+  '- product_demo — phone mockup + app screenshots. app_stack — "apps I use" carousel. ' +
+    'checklist — "if you…" qualifier list.',
+  'Prefer a PHOTO-background preset (pain_story / aspirational / meme_pov) whenever the source is ' +
+    'photo-driven with native overlay text — that is the most common TikTok aesthetic and the one ' +
+    'most clones get wrong by over-designing.',
+  '',
+  '### When the source uses native overlay text on photos',
+  'Keep the cloned text SHORT and overlay-like (a phrase or one line per slide), not dense graphic ' +
+    'copy. The source\'s own photos become the slide backgrounds (handled automatically), so write ' +
+    'text that reads well laid over a photo.',
+  '',
+  'Slide counts: lean toward the SOURCE\'s actual slide count over any preset convention — fidelity ' +
+    'beats convention.',
 ].join('\n');
 
 // Strip wrappers from a pasted manual response — markdown fences,
@@ -381,6 +405,36 @@ async function fetchSourceImagesIntoLibrary(
   return mediaItems;
 }
 
+// Anthropic only accepts a few image media types; default unknown to jpeg.
+function mediaTypeFromBlob(blob: Blob): string {
+  const t = (blob.type || '').toLowerCase();
+  if (t === 'image/jpeg' || t === 'image/png' || t === 'image/webp' || t === 'image/gif') return t;
+  return 'image/jpeg';
+}
+
+// Turn the already-downloaded source slides into base64 vision blocks so
+// Claude can SEE the post it's cloning — the actual photos, the native
+// on-screen text, the artifacts (book covers, app screenshots). Without
+// this it was cloning blind from the caption + slide dimensions alone.
+async function buildSourceImageBlocks(mediaItems: Array<MediaItem | null>): Promise<RequestContentBlock[]> {
+  const blocks: RequestContentBlock[] = [];
+  for (let i = 0; i < mediaItems.length; i++) {
+    const item = mediaItems[i];
+    if (!item) continue;
+    try {
+      const dataUrl = await blobToDataUrl(item.blob);
+      const base64 = dataUrl.split(',')[1] || '';
+      if (base64) {
+        blocks.push({ type: 'text', text: `Source slide ${i + 1}:` });
+        blocks.push({ type: 'image', source: { type: 'base64', media_type: mediaTypeFromBlob(item.blob), data: base64 } });
+      }
+    } catch {
+      // Skip a slide we couldn't encode; the rest still inform the clone.
+    }
+  }
+  return blocks;
+}
+
 export async function cloneFromTikTok(opts: CloneOptions): Promise<CloneResult> {
   const stage = opts.onStage || (() => {});
 
@@ -388,7 +442,16 @@ export async function cloneFromTikTok(opts: CloneOptions): Promise<CloneResult> 
   const source = await scrapeTikTok(opts.url);
   stage({ kind: 'scraped', source });
 
+  // Download the slide images FIRST so we can show them to Claude as vision
+  // blocks (and reuse the same items as slide backgrounds afterward).
+  const mediaItems = await fetchSourceImagesIntoLibrary(source, stage);
+  const imageBlocks = await buildSourceImageBlocks(mediaItems);
+
   stage({ kind: 'reasoning' });
+  const userContent: RequestContentBlock[] = [
+    { type: 'text', text: buildUserMessage(source, opts) },
+    ...imageBlocks,
+  ];
   const response = await callClaude({
     apiKey: opts.apiKey,
     model: opts.model,
@@ -401,7 +464,7 @@ export async function cloneFromTikTok(opts: CloneOptions): Promise<CloneResult> 
         cache_control: { type: 'ephemeral' },
       },
     ],
-    messages: [{ role: 'user', content: buildUserMessage(source, opts) }],
+    messages: [{ role: 'user', content: userContent }],
     tools: [EMIT_CLONE_TOOL],
     toolChoice: { type: 'tool', name: 'emit_clone' },
     maxTokens: 4096,
@@ -410,7 +473,6 @@ export async function cloneFromTikTok(opts: CloneOptions): Promise<CloneResult> 
   const clone = validateClone(extractToolUse<ClaudeCloneOutput>(response, 'emit_clone'));
   stage({ kind: 'analyzed', clone });
 
-  const mediaItems = await fetchSourceImagesIntoLibrary(source, stage);
   const result: CloneResult = { source, clone, mediaItems };
   stage({ kind: 'done', result });
   return result;
@@ -453,6 +515,10 @@ export function buildManualPrompt(
   };
 
   return [
+    '⚠️ IMPORTANT: attach screenshots of the source TikTok slides to this chat before sending, ' +
+      'so I can match the visual style. (Take the screenshots, tap the + / paperclip in Claude.ai, ' +
+      'add them, then send this prompt.) If you can\'t attach them, work from the caption below.',
+    '',
     '# IRO SLIDESHOW SPEC',
     '',
     ironSpec,
@@ -462,6 +528,9 @@ export function buildManualPrompt(
     '# SOURCE POST DATA',
     '',
     buildUserMessage(source, opts),
+    '',
+    '(The slide screenshots the user attached to this chat ARE the source slides referenced above — ' +
+      'study them and match their visual style, structure and voice.)',
     '',
     '# OUTPUT FORMAT',
     '',
