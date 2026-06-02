@@ -30,16 +30,27 @@ function stripWrappers(t: string): string {
     .trim();
 }
 
+// Unwrap a full clone/propose payload ({ preset, slides, caption, … }) to its
+// inner slide content so a pasted clone object edits cleanly instead of
+// showing nothing.
+function unwrap(v: unknown): Parsed | null {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return null;
+  const o = v as Parsed;
+  const hasContentTop = ['hook', ...CONTENT_KEYS].some((k) => k in o);
+  if (!hasContentTop && o.slides && typeof o.slides === 'object' && !Array.isArray(o.slides)) {
+    return o.slides as Parsed;
+  }
+  return o;
+}
+
 function tryParse(t: string): Parsed | null {
   const s = stripWrappers(t.trim());
   if (!s) return null;
   try {
-    const v = JSON.parse(s);
-    return v && typeof v === 'object' && !Array.isArray(v) ? (v as Parsed) : null;
+    return unwrap(JSON.parse(s));
   } catch {
     try {
-      const v = new Function('return (' + s + ')')() as unknown;
-      return v && typeof v === 'object' && !Array.isArray(v) ? (v as Parsed) : null;
+      return unwrap(new Function('return (' + s + ')')() as unknown);
     } catch {
       return null;
     }
