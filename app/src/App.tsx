@@ -173,6 +173,23 @@ function stripJsonWrappers(t: string): string {
     .trim();
 }
 
+const CONTENT_KEYS = ['hook', 'prompts', 'beats', 'panels', 'features', 'items', 'apps'];
+
+// If someone pastes a whole clone / propose payload
+// ({ preset, slides: {...}, caption, cloneAnalysis, bgAssignments }) into the
+// JSON box, the real slide content lives under `slides` — unwrap to it so the
+// engine doesn't render blank. A normal slides object (hook/prompts at the
+// top level) is returned untouched.
+function unwrapClonePayload(obj: unknown): unknown {
+  if (!obj || typeof obj !== 'object') return obj;
+  const o = obj as Record<string, unknown>;
+  const hasContentTop = CONTENT_KEYS.some((k) => k in o);
+  if (!hasContentTop && o.slides && typeof o.slides === 'object') {
+    return o.slides;
+  }
+  return obj;
+}
+
 // Walks the parsed JSON and returns one row per visible slide, in render order.
 // `key` is what we use in slideBgs; `label` shows up in the picker UI.
 //
@@ -457,10 +474,10 @@ export default function App() {
     }
     const stripped = stripJsonWrappers(t);
     try {
-      return JSON.parse(stripped);
+      return unwrapClonePayload(JSON.parse(stripped)) as Record<string, unknown>;
     } catch (e) {
       try {
-        return new Function('return (' + stripped + ')')() as Record<string, unknown>;
+        return unwrapClonePayload(new Function('return (' + stripped + ')')()) as Record<string, unknown>;
       } catch {
         if (!silent) setStatus({ kind: 'err', msg: 'Invalid JSON — check quotes/commas. ' + (e as Error).message });
         return null;
