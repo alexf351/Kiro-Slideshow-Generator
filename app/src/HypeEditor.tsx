@@ -51,33 +51,33 @@ type Props = {
 // Background gradients offered in the picker. `null` = the engine's
 // default dark radial. Kept to a calm, on-brand dark palette plus a few
 // tinted options so text + bars stay legible.
+// Background gradients offered in the picker. `null` = the engine's
+// default dark radial. Vibrant tops fading to a deeper bottom — bright
+// enough to feel colorful while the white text keeps its drop-shadow.
 const BG_GRADIENTS: { name: string; css: string | null }[] = [
   { name: 'Default', css: null },
-  { name: 'Midnight', css: 'linear-gradient(180deg, #0b1220 0%, #060810 100%)' },
-  { name: 'Plum', css: 'linear-gradient(180deg, #1a1030 0%, #0a0716 100%)' },
-  { name: 'Ocean', css: 'linear-gradient(180deg, #07223a 0%, #04101d 100%)' },
-  { name: 'Forest', css: 'linear-gradient(180deg, #0a2018 0%, #050d0a 100%)' },
-  { name: 'Ember', css: 'linear-gradient(180deg, #2a1206 0%, #120804 100%)' },
-  { name: 'Slate', css: 'linear-gradient(180deg, #1b2026 0%, #0a0d11 100%)' },
-  { name: 'Aurora', css: 'linear-gradient(160deg, #0b1020 0%, #102a3a 55%, #0a0716 100%)' },
-  { name: 'Berry', css: 'linear-gradient(160deg, #2a0a1e 0%, #120414 100%)' },
-  { name: 'Royal', css: 'linear-gradient(180deg, #141a3a 0%, #07091a 100%)' },
-  { name: 'Crimson', css: 'linear-gradient(180deg, #2a0a12 0%, #120406 100%)' },
-  { name: 'Teal', css: 'linear-gradient(180deg, #06231f 0%, #03100e 100%)' },
-  { name: 'Velvet', css: 'linear-gradient(180deg, #1e0a2a 0%, #0a0414 100%)' },
-  { name: 'Steel', css: 'linear-gradient(180deg, #161d24 0%, #080b0f 100%)' },
-  { name: 'Wine', css: 'linear-gradient(180deg, #2a0e1a 0%, #14060d 100%)' },
-  { name: 'Sunset', css: 'linear-gradient(180deg, #2a1208 0%, #1a0a20 100%)' },
-  { name: 'Cyber', css: 'linear-gradient(160deg, #07181f 0%, #0a2630 55%, #060d12 100%)' },
-  { name: 'Graphite', css: 'linear-gradient(180deg, #15171a 0%, #060708 100%)' },
-  { name: 'Volcano', css: 'linear-gradient(180deg, #2a0d06 0%, #1a0410 100%)' },
-  { name: 'Pine', css: 'linear-gradient(180deg, #0c1f1a 0%, #06100d 100%)' },
-  { name: 'Mocha', css: 'linear-gradient(180deg, #241a12 0%, #100a06 100%)' },
-  { name: 'Dusk', css: 'linear-gradient(160deg, #1a1426 0%, #201220 50%, #0a0610 100%)' },
-  { name: 'Indigo', css: 'linear-gradient(180deg, #11163a 0%, #1a0e30 100%)' },
-  { name: 'Moss', css: 'linear-gradient(180deg, #16210c 0%, #0a1006 100%)' },
-  { name: 'Rose', css: 'linear-gradient(180deg, #2a0f1c 0%, #1c0a22 100%)' },
-  { name: 'Carbon', css: 'linear-gradient(160deg, #1a1d22 0%, #0c0e12 55%, #060708 100%)' },
+  { name: 'Gold', css: 'linear-gradient(180deg, #f0c75e 0%, #7a4f12 100%)' },
+  { name: 'Amber', css: 'linear-gradient(180deg, #f4a63c 0%, #5a2f0a 100%)' },
+  { name: 'Ember', css: 'linear-gradient(180deg, #f0703c 0%, #3a1208 100%)' },
+  { name: 'Coral', css: 'linear-gradient(180deg, #f55f5a 0%, #45101c 100%)' },
+  { name: 'Crimson', css: 'linear-gradient(180deg, #e23a52 0%, #380810 100%)' },
+  { name: 'Rose', css: 'linear-gradient(180deg, #f0608f 0%, #380e28 100%)' },
+  { name: 'Magenta', css: 'linear-gradient(180deg, #cc46d4 0%, #340e3e 100%)' },
+  { name: 'Plum', css: 'linear-gradient(180deg, #9a44cc 0%, #2a0a3a 100%)' },
+  { name: 'Violet', css: 'linear-gradient(180deg, #8a54f0 0%, #261050 100%)' },
+  { name: 'Indigo', css: 'linear-gradient(180deg, #5560f0 0%, #141a4a 100%)' },
+  { name: 'Royal', css: 'linear-gradient(180deg, #3f6ed9 0%, #0e1a44 100%)' },
+  { name: 'Sky', css: 'linear-gradient(180deg, #36a6e8 0%, #0a2748 100%)' },
+  { name: 'Ocean', css: 'linear-gradient(180deg, #1f86c0 0%, #06223a 100%)' },
+  { name: 'Cyan', css: 'linear-gradient(180deg, #28c2d4 0%, #06303a 100%)' },
+  { name: 'Teal', css: 'linear-gradient(180deg, #1fbf9c 0%, #06231f 100%)' },
+  { name: 'Emerald', css: 'linear-gradient(180deg, #2fbf5a 0%, #0a2718 100%)' },
+  { name: 'Lime', css: 'linear-gradient(180deg, #93c63c 0%, #1c2a08 100%)' },
+  { name: 'Sunset', css: 'linear-gradient(160deg, #ff8a4c 0%, #c33c6e 50%, #3a1030 100%)' },
+  { name: 'Aurora', css: 'linear-gradient(160deg, #2bd4c0 0%, #3f6ed9 55%, #2a1050 100%)' },
+  { name: 'Slate', css: 'linear-gradient(180deg, #5a6678 0%, #161d24 100%)' },
+  { name: 'Midnight', css: 'linear-gradient(180deg, #2a3656 0%, #070b14 100%)' },
+  { name: 'Charcoal', css: 'linear-gradient(180deg, #2e333c 0%, #0a0c10 100%)' },
 ];
 
 const ACCENTS = ['#D97757', '#22D3EE', '#F5707A', '#5B8DEF', '#E5E7EB', '#34D399', '#A78BFA', '#FBBF24', '#FB7185', '#F97316'];
