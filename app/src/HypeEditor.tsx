@@ -61,6 +61,23 @@ const BG_GRADIENTS: { name: string; css: string | null }[] = [
   { name: 'Slate', css: 'linear-gradient(180deg, #1b2026 0%, #0a0d11 100%)' },
   { name: 'Aurora', css: 'linear-gradient(160deg, #0b1020 0%, #102a3a 55%, #0a0716 100%)' },
   { name: 'Berry', css: 'linear-gradient(160deg, #2a0a1e 0%, #120414 100%)' },
+  { name: 'Royal', css: 'linear-gradient(180deg, #141a3a 0%, #07091a 100%)' },
+  { name: 'Crimson', css: 'linear-gradient(180deg, #2a0a12 0%, #120406 100%)' },
+  { name: 'Teal', css: 'linear-gradient(180deg, #06231f 0%, #03100e 100%)' },
+  { name: 'Velvet', css: 'linear-gradient(180deg, #1e0a2a 0%, #0a0414 100%)' },
+  { name: 'Steel', css: 'linear-gradient(180deg, #161d24 0%, #080b0f 100%)' },
+  { name: 'Wine', css: 'linear-gradient(180deg, #2a0e1a 0%, #14060d 100%)' },
+  { name: 'Sunset', css: 'linear-gradient(180deg, #2a1208 0%, #1a0a20 100%)' },
+  { name: 'Cyber', css: 'linear-gradient(160deg, #07181f 0%, #0a2630 55%, #060d12 100%)' },
+  { name: 'Graphite', css: 'linear-gradient(180deg, #15171a 0%, #060708 100%)' },
+  { name: 'Volcano', css: 'linear-gradient(180deg, #2a0d06 0%, #1a0410 100%)' },
+  { name: 'Pine', css: 'linear-gradient(180deg, #0c1f1a 0%, #06100d 100%)' },
+  { name: 'Mocha', css: 'linear-gradient(180deg, #241a12 0%, #100a06 100%)' },
+  { name: 'Dusk', css: 'linear-gradient(160deg, #1a1426 0%, #201220 50%, #0a0610 100%)' },
+  { name: 'Indigo', css: 'linear-gradient(180deg, #11163a 0%, #1a0e30 100%)' },
+  { name: 'Moss', css: 'linear-gradient(180deg, #16210c 0%, #0a1006 100%)' },
+  { name: 'Rose', css: 'linear-gradient(180deg, #2a0f1c 0%, #1c0a22 100%)' },
+  { name: 'Carbon', css: 'linear-gradient(160deg, #1a1d22 0%, #0c0e12 55%, #060708 100%)' },
 ];
 
 const ACCENTS = ['#D97757', '#22D3EE', '#F5707A', '#5B8DEF', '#E5E7EB', '#34D399', '#A78BFA', '#FBBF24', '#FB7185', '#F97316'];
@@ -92,7 +109,7 @@ function GradientRow({
   compact?: boolean;
 }) {
   return (
-    <div className={'grid gap-2 ' + (compact ? 'grid-cols-5' : 'grid-cols-3 sm:grid-cols-4')}>
+    <div className={'grid gap-2 ' + (compact ? 'grid-cols-6' : 'grid-cols-3 sm:grid-cols-4')}>
       {BG_GRADIENTS.map((g) => {
         const isFirst = g.css === null;
         const active = (g.css ?? null) === value;
