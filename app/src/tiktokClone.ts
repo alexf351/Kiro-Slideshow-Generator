@@ -288,6 +288,8 @@ const CLONING_INSTRUCTIONS = [
     'aesthetics; NOT for photo posts).',
   '- product_demo — phone mockup + app screenshots. app_stack — "apps I use" carousel. ' +
     'checklist — "if you…" qualifier list.',
+  '- output_vs_hype — one slide per tool/brand, each with a logo and two bars (Output vs Hype) ' +
+    'scaled 0–100 (ONLY when the source is a per-item bar-chart comparison, e.g. "X vs Y" rankings).',
   'Prefer a PHOTO-background preset (pain_story / aspirational / meme_pov) whenever the source is ' +
     'photo-driven with native overlay text — that is the most common TikTok aesthetic and the one ' +
     'most clones get wrong by over-designing.',

@@ -14,6 +14,7 @@ export const PRESET_KEYS = [
   'checklist',
   'handwritten_pack',
   'app_stack',
+  'output_vs_hype',
 ] as const;
 
 export type PresetKey = (typeof PRESET_KEYS)[number];
@@ -329,6 +330,39 @@ const APP_STACK_JSON = `{
   "attribution": "@tryiro"
 }`;
 
+const OUTPUT_VS_HYPE_JSON = `{
+  "preset": "output_vs_hype",
+  "hook": {
+    "headline": "Output <span style=\\"color:#00E5FF\\">vs</span> Hype",
+    "sub": "what AI tools actually deliver."
+  },
+  "tools": [
+    { "name": "Claude", "logoUrl": "", "accent": "#D97757", "output": 92, "hype": 70 },
+    { "name": "Perplexity", "logoUrl": "", "accent": "#22D3EE", "output": 84, "hype": 62 },
+    { "name": "Lovable", "logoUrl": "", "accent": "#F5707A", "output": 48, "hype": 95 },
+    { "name": "NotebookLM", "logoUrl": "", "accent": "#5B8DEF", "output": 88, "hype": 55 },
+    { "name": "Magnific", "logoUrl": "", "accent": "#E5E7EB", "output": 76, "hype": 64 }
+  ],
+  "cta": {
+    "headline": "want to actually <strong>get good</strong> at AI?",
+    "instructionAbove": "search",
+    "searchTerm": "Iro AI",
+    "instructionBelow": "on the App Store.",
+    "slogan": "less hype. more output."
+  },
+  "attribution": "@tryiro"
+}`;
+
+const OUTPUT_VS_HYPE_CAPTION = `output vs hype — what AI tools actually deliver 📊
+
+been thinking about AI tools lately. sometimes the hype doesn't match what they really do. swipe to see where each one actually lands.
+
+what's overhyped and what's underrated? drop it below 👇
+
+want to cut through the hype and actually get good at AI? search "Iro AI" on the App Store.
+
+#aitools #ai #claude #perplexity #aitok`;
+
 const APP_STACK_CAPTION = `5 apps that actually make your phone useful 📱
 
 these aren't "top 10 AI tools" clickbait. these are the 5 I open every single day.
@@ -417,5 +451,14 @@ export const PRESETS: Record<PresetKey, PresetMeta> = {
     defaultJson: APP_STACK_JSON,
     defaultCaption: APP_STACK_CAPTION,
     accent: '#A78BFA', // purple, distinct from other presets
+  },
+  output_vs_hype: {
+    key: 'output_vs_hype',
+    label: 'Output vs Hype',
+    pitch: 'One slide per AI tool. Brand logo + two bars (Output vs Hype) tinted to match.',
+    status: 'ready',
+    defaultJson: OUTPUT_VS_HYPE_JSON,
+    defaultCaption: OUTPUT_VS_HYPE_CAPTION,
+    accent: '#00E5FF', // brand cyan, matches the chart labels
   },
 };
