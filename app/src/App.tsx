@@ -270,6 +270,69 @@ function extractSlideMeta(parsed: unknown): SlideMeta[] {
   return out;
 }
 
+// True when the JSON box is empty or still holds one of the built-in
+// example posts (i.e. the user hasn't done custom work yet). Lets us
+// auto-swap examples on format change without a confirm, but still
+// guard real edits. Caption has the same check.
+function isExampleJson(txt: string): boolean {
+  const t = txt.trim();
+  if (!t) return true;
+  if (t === DEFAULT_JSON.trim()) return true; // the first-run starter content
+  return PRESET_KEYS.some((k) => PRESETS[k].defaultJson.trim() === t);
+}
+function isExampleCaption(txt: string): boolean {
+  const t = txt.trim();
+  if (!t) return true;
+  return PRESET_KEYS.some((k) => PRESETS[k].defaultCaption.trim() === t);
+}
+
+// Collapsible sidebar group. Defined at module scope (stable identity)
+// so toggling/typing elsewhere never remounts its children — important
+// because some groups hold stateful panels and controlled inputs.
+// Renders a clickable header (accent bar + label + chevron) and only
+// mounts its body when expanded, so the sidebar reads as a short funnel.
+function Group({
+  open,
+  onToggle,
+  title,
+  accent = '#00E5FF',
+  suffix,
+  hint,
+  children,
+}: {
+  open: boolean;
+  onToggle: () => void;
+  title: string;
+  accent?: string;
+  suffix?: ReactNode;
+  hint?: string;
+  children: ReactNode;
+}) {
+  return (
+    <section className="border-b border-white/[0.05]">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="w-full flex items-center gap-3 px-5 md:px-10 py-4 md:py-5 text-left hover:bg-white/[0.02] transition-colors"
+      >
+        <span className="h-5 w-[5px] rounded-full shrink-0" style={{ background: accent }}></span>
+        <span className="text-[13px] md:text-[14px] font-bold uppercase tracking-[0.20em] text-gray-300">
+          {title}
+        </span>
+        {suffix}
+        {hint && !open && <span className="text-[11px] text-gray-600 truncate">{hint}</span>}
+        <svg
+          className={'ml-auto shrink-0 text-gray-500 transition-transform duration-200 ' + (open ? 'rotate-180' : '')}
+          viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"
+        >
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
+      </button>
+      {open && <div className="px-5 md:px-10 pb-6 md:pb-7 pt-1">{children}</div>}
+    </section>
+  );
+}
+
 export default function App() {
   const ui = useUI();
   const initial = useMemo(loadPersisted, []);
@@ -293,6 +356,13 @@ export default function App() {
   const [openaiKey, setOpenaiKey] = useState<string>(initial.openaiKey);
   const [design, setDesign] = useState<BrandDesign>(initial.design);
   const [nativeTextOverlay, setNativeTextOverlay] = useState<boolean>(initial.nativeTextOverlay);
+  // Which collapsible sidebar groups are expanded. Everything outside the
+  // core Format → Content → Caption spine is collapsed by default so the
+  // panel reads as a simple "make a post" funnel instead of a wall of
+  // controls. The user opens the extras (look, backgrounds, AI, settings)
+  // only when they need them.
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+  const toggleGroup = (id: string) => setOpenGroups((p) => ({ ...p, [id]: !p[id] }));
   // Bumped by Patterns → "Clone again". CloneFromTikTok watches this
   // and prefills its URL input + expands. Resets to empty string
   // when the panel consumes it.
@@ -893,6 +963,30 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
+  // Picking a format chip loads that format's example post into the
+  // content + JSON editors and the caption, so the user can choose a
+  // template and immediately have something to tweak. We only confirm
+  // when the current content/caption is custom (not a built-in example
+  // and not empty), so the common "browse the templates" flow stays
+  // one tap. Re-tapping the active format with its example already
+  // loaded is a no-op. Note: the sidebar preset overrides the JSON's
+  // own `preset` at render, so each format must load its matching
+  // example or the engine would render mismatched content.
+  async function selectFormat(key: PresetKey) {
+    if (key === preset && isExampleJson(jsonText)) return;
+    const dirty = !isExampleJson(jsonText) || !isExampleCaption(caption);
+    if (dirty) {
+      const ok = await ui.confirm({
+        message: `Load the ${PRESETS[key].label} example post? This replaces your current content and caption.`,
+        confirmLabel: 'Load example',
+      });
+      if (!ok) return;
+    }
+    setPreset(key);
+    setJsonText(PRESETS[key].defaultJson);
+    setCaption(PRESETS[key].defaultCaption);
+  }
+
   // Command palette entries, rebuilt when the bits they reference change.
   const commands = useMemo<Command[]>(() => {
     const goto = (main: MainView, mobile: MobileView): (() => void) => () => {
@@ -904,7 +998,7 @@ export default function App() {
       { id: 'save', section: 'Actions', label: 'Save to history', keywords: 'post track', run: () => void handleSaveToHistory() },
       { id: 'hashtags', section: 'Actions', label: 'Suggest hashtags', keywords: 'tags caption', run: () => void handleSuggestHashtags() },
       { id: 'copycap', section: 'Actions', label: 'Copy caption', run: () => { if (caption) void navigator.clipboard?.writeText(caption); } },
-      { id: 'loaddefault', section: 'Actions', label: `Load default content for ${PRESETS[preset].label}`, keywords: 'reset template', run: () => setJsonText(PRESETS[preset].defaultJson) },
+      { id: 'loaddefault', section: 'Actions', label: `Load ${PRESETS[preset].label} example post`, keywords: 'reset template default', run: () => { setJsonText(PRESETS[preset].defaultJson); setCaption(PRESETS[preset].defaultCaption); } },
       { id: 'toggle-edit', section: 'Actions', label: `Switch editor to ${editMode === 'quick' ? 'JSON' : 'Quick edit'}`, run: () => setEditMode((m) => (m === 'quick' ? 'json' : 'quick')) },
       { id: 'export-backup', section: 'Actions', label: 'Export backup', keywords: 'download save data', run: () => void handleExportBackup() },
       { id: 'welcome', section: 'Actions', label: 'Show welcome / how it works', keywords: 'help onboarding guide', run: () => setShowOnboarding(true) },
@@ -915,14 +1009,14 @@ export default function App() {
       { id: 'go-stats', section: 'Go to', label: 'Performance', keywords: 'analytics stats scores', run: goto('analytics', 'analytics') },
     ];
     for (const k of PRESET_KEYS) {
-      list.push({ id: `fmt-${k}`, section: 'Format', label: `Format: ${PRESETS[k].label}`, keywords: 'preset', run: () => setPreset(k) });
+      list.push({ id: `fmt-${k}`, section: 'Format', label: `Format: ${PRESETS[k].label}`, keywords: 'preset template example', run: () => void selectFormat(k) });
     }
     for (const k of ASPECT_KEYS) {
       list.push({ id: `asp-${k}`, section: 'Aspect ratio', label: `Aspect: ${k} (${ASPECTS[k].sub})`, keywords: 'size resize', run: () => setDesign((d) => ({ ...d, aspect: k })) });
     }
     return list;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [preset, editMode, caption]);
+  }, [preset, editMode, caption, jsonText]);
 
   // Wired to the CloneFromTikTok panel. Takes the clone result and
   // populates everything in one shot: JSON, preset, caption, per-slide
@@ -1061,6 +1155,7 @@ export default function App() {
     </div>
   );
 
+
   const mobileTabBtn = (kind: MobileView, label: string) => {
     const active = mobileView === kind;
     return (
@@ -1128,7 +1223,8 @@ export default function App() {
         </header>
 
         <div className="flex-1 overflow-y-auto custom-scrollbar">
-          <section className="px-5 md:px-10 pt-6 md:pt-7 pb-3 md:pb-4 flex flex-col gap-3">
+          <Group open={!!openGroups.ai} onToggle={() => toggleGroup('ai')} title="AI assist" accent="#A78BFA" hint="Clone · Propose · Predict · Design">
+            <div className="flex flex-col gap-3">
             <CloneFromTikTok
               anthropicKey={anthropicKey}
               model={claudeModel}
@@ -1160,7 +1256,8 @@ export default function App() {
                 <strong className="text-gray-400">Last {lastOrigin}:</strong> {lastCloneNote}
               </div>
             )}
-          </section>
+            </div>
+          </Group>
 
           <section className="px-5 md:px-10 py-6 md:py-7 border-b border-white/[0.05]">
             {sectionLabel('Format')}
@@ -1173,7 +1270,7 @@ export default function App() {
                   <button
                     key={key}
                     type="button"
-                    onClick={() => setPreset(key)}
+                    onClick={() => void selectFormat(key)}
                     style={selected ? {
                       borderColor: meta.accent + '99',
                       boxShadow: `0 0 0 1px ${meta.accent}26, 0 8px 24px -10px ${meta.accent}80`,
@@ -1209,20 +1306,21 @@ export default function App() {
               })}
             </div>
             <p className="mt-3 text-xs text-gray-500 leading-relaxed">{PRESETS[preset].pitch}</p>
+            <p className="mt-1 text-[11px] text-gray-600 leading-relaxed">Tap a format to drop its example post into the editor and caption — then tweak and render.</p>
             <button
               type="button"
               onClick={async () => {
-                if (jsonText.trim() && !(await ui.confirm({ message: `Replace the content with the ${PRESETS[preset].label} default?`, confirmLabel: 'Replace' }))) return;
+                if (!isExampleJson(jsonText) && !(await ui.confirm({ message: `Reset the content and caption to the ${PRESETS[preset].label} example?`, confirmLabel: 'Reset' }))) return;
                 setJsonText(PRESETS[preset].defaultJson);
+                setCaption(PRESETS[preset].defaultCaption);
               }}
               className="mt-3 text-[11px] font-bold uppercase tracking-[0.14em] text-gray-500 hover:text-[#00E5FF]"
             >
-              Load default JSON for {PRESETS[preset].label} →
+              Reset to {PRESETS[preset].label} example post →
             </button>
           </section>
 
-          <section className="px-5 md:px-10 py-6 md:py-7 border-b border-white/[0.04]">
-            {sectionLabel('Mascot')}
+          <Group open={!!openGroups.mascot} onToggle={() => toggleGroup('mascot')} title="Mascot" hint={mascot}>
             <div className="grid grid-cols-3 gap-3 md:gap-4">
               {MASCOT_ORDER.map((m) => {
                 const selected = m === mascot;
@@ -1257,15 +1355,9 @@ export default function App() {
                 );
               })}
             </div>
-          </section>
+          </Group>
 
-          <section className="px-5 md:px-10 py-6 md:py-7 border-b border-white/[0.04]">
-            {sectionLabel(
-              'Emote',
-              <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-600">
-                · {mascot}
-              </span>
-            )}
+          <Group open={!!openGroups.emote} onToggle={() => toggleGroup('emote')} title="Emote" hint={variant + ' · ' + mascot}>
             <div className="grid grid-cols-3 gap-3 md:gap-4">
               {VARIANTS_BY_TIER[mascot].map((v) => {
                 const selected = v === variant;
@@ -1297,10 +1389,9 @@ export default function App() {
                 );
               })}
             </div>
-          </section>
+          </Group>
 
-          <section className="px-5 md:px-10 py-6 md:py-7 border-b border-white/[0.04]">
-            {sectionLabel('Chat platform')}
+          <Group open={!!openGroups.platform} onToggle={() => toggleGroup('platform')} title="Chat platform" hint={platform === 'claude' ? 'Claude' : 'ChatGPT'}>
             <div className="grid grid-cols-2 gap-2 p-1.5 rounded-xl bg-black/30 border border-white/[0.04]">
               {(['claude', 'chatgpt'] as Platform[]).map((p) => {
                 const selected = p === platform;
@@ -1321,7 +1412,7 @@ export default function App() {
                 );
               })}
             </div>
-          </section>
+          </Group>
 
           <section className="px-5 md:px-10 py-6 md:py-7 border-b border-white/[0.04]">
             {sectionLabel(
@@ -1380,13 +1471,7 @@ export default function App() {
             </div>
           </section>
 
-          <section className="px-5 md:px-10 py-6 md:py-7 border-b border-white/[0.04]">
-            {sectionLabel(
-              'Backgrounds',
-              <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-600">
-                · per slide
-              </span>,
-            )}
+          <Group open={!!openGroups.bg} onToggle={() => toggleGroup('bg')} title="Backgrounds" hint="per slide">
             {slideMetas.length === 0 ? (
               <div className="text-xs text-gray-500 leading-relaxed">
                 Fix the JSON above and the slide list will show up here.
@@ -1541,7 +1626,7 @@ export default function App() {
                 })}
               </div>
             )}
-          </section>
+          </Group>
 
           <section className="px-5 md:px-10 py-6 md:py-7 border-b border-white/[0.04]">
             {sectionLabel(
@@ -1598,7 +1683,7 @@ export default function App() {
             </div>
           </section>
 
-          <section className="px-5 md:px-10 py-6 md:py-7">
+          <Group open={!!openGroups.more} onToggle={() => toggleGroup('more')} title="Workspace" accent="#FFC857" hint="Media · Patterns · Analytics · options">
             <div className="grid grid-cols-3 gap-2 mb-4">
               <button
                 type="button"
@@ -1661,60 +1746,9 @@ export default function App() {
                 </span>
               </span>
             </label>
+          </Group>
 
-            <button
-              type="button"
-              onClick={() => void handleRender()}
-              className="w-full py-4 md:py-5 rounded-xl font-bold text-base md:text-lg tracking-wide
-                         bg-gradient-to-r from-[#00E5FF] to-[#00A5D9]
-                         text-[#0a0e1a]
-                         shadow-[0_6px_30px_rgba(0,229,255,0.4),inset_0_1px_0_rgba(255,255,255,0.3)]
-                         hover:shadow-[0_8px_36px_rgba(0,229,255,0.6),inset_0_1px_0_rgba(255,255,255,0.4)]
-                         hover:-translate-y-0.5 active:translate-y-0
-                         transition-all duration-200"
-            >
-              <span className="inline-flex items-center justify-center gap-3">
-                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <polygon points="5 3 19 12 5 21 5 3" fill="currentColor" />
-                </svg>
-                Render slides
-              </span>
-            </button>
-            <p className="mt-2 text-center text-[10px] text-gray-600 tracking-wide">
-              tip: press <kbd className="px-1 py-0.5 rounded bg-white/[0.06] text-gray-400 font-mono">⌘/Ctrl + Enter</kbd> to render
-            </p>
-            <button
-              type="button"
-              onClick={handleSaveToHistory}
-              disabled={saveStatus.kind === 'saving'}
-              className="mt-3 w-full py-3 md:py-3.5 rounded-xl text-sm font-bold uppercase tracking-[0.16em]
-                         border border-[#00E5FF]/30 bg-[#0e2b3a] text-[#00E5FF]
-                         hover:bg-[#13384c] hover:border-[#00E5FF]/60 transition-all
-                         disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {saveStatus.kind === 'saving' ? 'Saving…' : saveStatus.kind === 'ok' ? '✓ Saved to history' : 'Save to history'}
-            </button>
-            {pendingPrediction && (
-              <div className="mt-2 flex items-center justify-between gap-2 text-xs">
-                <span className="text-[#A78BFA]">
-                  ⌁ Prediction <strong>{pendingPrediction.score}/100</strong> will be saved with this post.
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setPendingPrediction(null)}
-                  className="text-gray-500 hover:text-gray-300 uppercase tracking-[0.14em] text-[10px] font-bold"
-                >
-                  Detach
-                </button>
-              </div>
-            )}
-            {saveStatus.kind === 'err' && (
-              <div className="mt-2 text-xs text-red-400">Save failed: {saveStatus.msg}</div>
-            )}
-          </section>
-
-          <section className="px-5 md:px-10 py-6 md:py-7 border-t border-white/[0.05]">
-            {sectionLabel('Settings')}
+          <Group open={!!openGroups.settings} onToggle={() => toggleGroup('settings')} title="Settings" accent="#94a3b8" hint="API keys · backup · model">
             <p className="text-xs text-gray-500 leading-relaxed mb-4">
               Pasted keys live in this browser only. Pexels &amp; Unsplash are free; Anthropic &amp; OpenAI are pay-per-use.
             </p>
@@ -1825,7 +1859,65 @@ export default function App() {
                 </label>
               );
             })}
-          </section>
+          </Group>
+        </div>
+
+        {/* Sticky action bar — the primary Render + Save controls stay
+            pinned to the bottom of the sidebar so they're reachable from
+            anywhere in the scroll instead of buried at the end. */}
+        <div className="shrink-0 border-t border-white/[0.08] bg-[#0a0e1a]/92 backdrop-blur px-5 md:px-10 py-3.5 md:py-4">
+          {pendingPrediction && (
+            <div className="mb-2.5 flex items-center justify-between gap-2 text-xs">
+              <span className="text-[#A78BFA]">
+                ⌁ Prediction <strong>{pendingPrediction.score}/100</strong> will be saved with this post.
+              </span>
+              <button
+                type="button"
+                onClick={() => setPendingPrediction(null)}
+                className="text-gray-500 hover:text-gray-300 uppercase tracking-[0.14em] text-[10px] font-bold"
+              >
+                Detach
+              </button>
+            </div>
+          )}
+          {saveStatus.kind === 'err' && (
+            <div className="mb-2 text-xs text-red-400">Save failed: {saveStatus.msg}</div>
+          )}
+          <div className="flex items-stretch gap-2.5">
+            <button
+              type="button"
+              onClick={() => void handleRender()}
+              className="flex-1 py-3.5 md:py-4 rounded-xl font-bold text-base md:text-lg tracking-wide
+                         bg-gradient-to-r from-[#00E5FF] to-[#00A5D9]
+                         text-[#0a0e1a]
+                         shadow-[0_6px_30px_rgba(0,229,255,0.4),inset_0_1px_0_rgba(255,255,255,0.3)]
+                         hover:shadow-[0_8px_36px_rgba(0,229,255,0.6),inset_0_1px_0_rgba(255,255,255,0.4)]
+                         hover:-translate-y-0.5 active:translate-y-0
+                         transition-all duration-200"
+            >
+              <span className="inline-flex items-center justify-center gap-2.5">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polygon points="5 3 19 12 5 21 5 3" fill="currentColor" />
+                </svg>
+                Render slides
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={handleSaveToHistory}
+              disabled={saveStatus.kind === 'saving'}
+              title="Save this post to your history"
+              className="shrink-0 px-4 md:px-5 rounded-xl text-[11px] md:text-xs font-bold uppercase tracking-[0.14em]
+                         border border-[#00E5FF]/30 bg-[#0e2b3a] text-[#00E5FF]
+                         hover:bg-[#13384c] hover:border-[#00E5FF]/60 transition-all
+                         disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {saveStatus.kind === 'saving' ? 'Saving…' : saveStatus.kind === 'ok' ? '✓ Saved' : 'Save'}
+            </button>
+          </div>
+          <p className="mt-1.5 text-center text-[10px] text-gray-600 tracking-wide">
+            tip: press <kbd className="px-1 py-0.5 rounded bg-white/[0.06] text-gray-400 font-mono">⌘/Ctrl + Enter</kbd> to render
+          </p>
         </div>
       </aside>
 
