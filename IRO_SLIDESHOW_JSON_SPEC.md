@@ -479,6 +479,9 @@ Mixing 1-2 cross/warning items at the end with mostly checks is high-engagement.
 ```ts
 {
   preset: "output_vs_hype",
+  bgGradient?: string,  // optional CSS gradient (linear/radial/conic) painted
+                        // as every slide's background. Set via the editor's
+                        // Background picker. A per-slide photo bg overrides it.
   hook?: {              // optional title slide
     headline: string,   // e.g. "Output <span style=\"color:#00E5FF\">vs</span> Hype" — inline HTML OK
     sub?: string        // e.g. "what AI tools actually deliver."

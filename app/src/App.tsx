@@ -11,6 +11,7 @@ import CloneFromTikTok from './CloneFromTikTok';
 import PredictPanel from './PredictPanel';
 import DesignPanel from './DesignPanel';
 import QuickEdit from './QuickEdit';
+import HypeEditor from './HypeEditor';
 import { coerceDesign, DEFAULT_DESIGN, designPayload, ASPECT_KEYS, ASPECTS, type BrandDesign } from './design';
 import { exportBackup, importBackup, downloadBlob, timestampSlug } from './backup';
 import { suggestHashtags } from './insights';
@@ -1434,7 +1435,18 @@ export default function App() {
               </div>,
             )}
             {editMode === 'quick' ? (
-              <QuickEdit jsonText={jsonText} onChange={setJsonText} />
+              preset === 'output_vs_hype' ? (
+                <HypeEditor
+                  jsonText={jsonText}
+                  onChange={setJsonText}
+                  logoThumb={(i) => bgThumbs[`tool-logo:${i}`]}
+                  onPickLogo={(i, name) => void handlePickForSlide(`tool-logo:${i}`, `${name} logo`)}
+                  onPasteLogo={(i) => void handlePasteUrlForSlide(`tool-logo:${i}`)}
+                  onClearLogoBg={(i) => handleClearBgForSlide(`tool-logo:${i}`)}
+                />
+              ) : (
+                <QuickEdit jsonText={jsonText} onChange={setJsonText} />
+              )
             ) : (
             <textarea
               value={jsonText}

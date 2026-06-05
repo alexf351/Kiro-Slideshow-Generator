@@ -1631,7 +1631,10 @@ const PRESETS = {
     fallbackBg: 'photo',
     buildSlides(S) {
       const out = [];
-      const shared = S.background;
+      // `bgGradient` (chosen in the editor's background picker) applies to
+      // every slide unless one has its own photo bg; `background` keeps the
+      // older shared-photo behaviour as a fallback.
+      const shared = S.bgGradient || S.background;
       // Hook + CTA are optional bookends — a pure "one slide per tool"
       // carousel (like the original post) is valid too.
       if (S.hook) {
@@ -1677,7 +1680,14 @@ function render() {
     slide.className = cls.join(' ');
 
     let bgLayer;
-    if (typeof bg === 'string' && bg.length > 0) {
+    if (typeof bg === 'string' && /(^|\s)(linear|radial|conic)-gradient\(/.test(bg)) {
+      // A CSS gradient (from the background picker) — paint it directly as
+      // the slide background. Sanitize to a safe charset so the inline
+      // style can't be broken out of, and skip the darkening scrim since
+      // the user picked this exact gradient on purpose.
+      const safeGrad = bg.replace(/[^a-zA-Z0-9#%.,()\s-]/g, '');
+      bgLayer = `<div class="bg-photo" style="background: ${safeGrad}"></div>`;
+    } else if (typeof bg === 'string' && bg.length > 0) {
       // Escape single quotes so a URL with a quote can't break the inline style.
       const safeBg = bg.replace(/'/g, "\\'");
       bgLayer = `<div class="bg-photo" style="background-image: url('${safeBg}')"></div>
