@@ -765,14 +765,17 @@
   }
   .preset-output-vs-hype .ovh-bar {
     width: 230px; border-radius: 120px 120px 10px 10px;
+    /* The glossy top sheen is baked into the gradient rather than an
+       inset box-shadow: html2canvas mis-renders inset shadows on large
+       corner radii (triangular seams in the exported PNG), but gradients
+       capture cleanly. A thin top-only highlight via an ::before keeps
+       the tube edge without an inset ring. */
     background: linear-gradient(180deg,
-      var(--ovh-light, #66f0ff) 0%,
-      var(--ovh-accent, #00E5FF) 52%,
+      rgba(255,255,255,0.82) 0%,
+      var(--ovh-light, #66f0ff) 14%,
+      var(--ovh-accent, #00E5FF) 56%,
       var(--ovh-dark, #008a99) 100%);
-    box-shadow:
-      0 0 60px -6px var(--ovh-accent, #00E5FF),
-      inset 0 0 0 2px rgba(255,255,255,0.18),
-      inset 0 26px 60px -20px rgba(255,255,255,0.45);
+    box-shadow: 0 0 55px -8px var(--ovh-accent, #00E5FF);
     position: relative;
   }
   /* Soft glow puddle where the bar meets the floor */
