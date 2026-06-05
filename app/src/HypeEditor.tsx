@@ -30,6 +30,7 @@ type Parsed = {
     [k: string]: unknown;
   };
   bgGradient?: string;
+  gradientOverridesImage?: boolean;
   [k: string]: unknown;
 };
 
@@ -219,6 +220,12 @@ export default function HypeEditor({ jsonText, onChange, logoThumb, onPickLogo, 
       else delete draft.bgGradient;
     });
   }
+  function setGradientOverride(on: boolean) {
+    commit((draft) => {
+      if (on) draft.gradientOverridesImage = true;
+      else delete draft.gradientOverridesImage;
+    });
+  }
   // Per-slide gradients override the all-slides default. null = clear the
   // override (inherit the default).
   function setToolGradient(i: number, css: string | null) {
@@ -252,6 +259,7 @@ export default function HypeEditor({ jsonText, onChange, logoThumb, onPickLogo, 
     'px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-[0.12em] border border-white/10 bg-white/[0.04] text-gray-300 hover:text-white hover:border-white/25 transition-colors';
 
   const currentBg = typeof parsed.bgGradient === 'string' ? parsed.bgGradient : null;
+  const overrideOn = parsed.gradientOverridesImage === true;
 
   return (
     <div className="flex flex-col gap-4">
@@ -261,12 +269,34 @@ export default function HypeEditor({ jsonText, onChange, logoThumb, onPickLogo, 
       </p>
 
       {/* Background gradient picker — sets the default for every slide;
-          each slide below can override it with its own. */}
+          each slide below can override it with its own. The toggle flips
+          the whole carousel between images and gradients in one tap. */}
       <div className={card}>
-        <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-gray-400 mb-2">
-          Background <span className="text-gray-600">· all slides</span>
+        <div className="flex items-center justify-between gap-2 mb-2">
+          <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-gray-400">
+            Background <span className="text-gray-600">· all slides</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setGradientOverride(!overrideOn)}
+            title="When on, gradients are shown instead of any image backgrounds — quick way to compare."
+            className={
+              'inline-flex items-center gap-2 pl-2.5 pr-1.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-[0.1em] border transition-colors ' +
+              (overrideOn ? 'bg-[#00E5FF]/15 text-[#00E5FF] border-[#00E5FF]/40' : 'bg-white/[0.04] text-gray-400 border-white/10 hover:text-gray-200')
+            }
+          >
+            Gradient over image
+            <span className={'relative w-7 h-4 rounded-full transition-colors ' + (overrideOn ? 'bg-[#00E5FF]' : 'bg-white/20')}>
+              <span className={'absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ' + (overrideOn ? 'left-[15px]' : 'left-0.5')} />
+            </span>
+          </button>
         </div>
         <GradientRow value={currentBg} onChange={setBgGradient} firstLabel="None" />
+        {overrideOn && (
+          <p className="mt-2 text-[10px] text-[#00E5FF]/80 leading-relaxed">
+            Showing gradients instead of image backgrounds. Turn off to use images again — they're kept.
+          </p>
+        )}
       </div>
 
       {/* Optional title slide (hook) */}

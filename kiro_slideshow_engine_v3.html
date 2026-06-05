@@ -1639,29 +1639,27 @@ const PRESETS = {
     fallbackBg: 'photo',
     buildSlides(S) {
       const out = [];
-      // Background precedence per slide: an explicit photo (`bg`) wins,
-      // then that slide's own gradient (`bgGradient`), then the all-slides
-      // default (`S.bgGradient`), then the legacy shared photo.
-      const shared = S.bgGradient || S.background;
+      // Resolve a slide's background. A per-slide value wins over the
+      // all-slides default. Normally an explicit photo wins over the
+      // gradient; when `gradientOverridesImage` is on, the gradient wins
+      // even if a photo is set (a one-tap A/B toggle in the editor). When
+      // the gradient is "none", we fall through to the default dark bg.
+      const pickBg = (slide) => {
+        const photo = (slide && slide.bg) || S.background;
+        const grad = (slide && slide.bgGradient) || S.bgGradient;
+        if (S.gradientOverridesImage) return grad || undefined;
+        return photo || grad || undefined;
+      };
       // Hook + CTA are optional bookends — a pure "one slide per tool"
       // carousel (like the original post) is valid too.
       if (S.hook) {
-        out.push({
-          html: buildHypeHook(S.hook),
-          bg: (S.hook && S.hook.bg) || (S.hook && S.hook.bgGradient) || shared,
-        });
+        out.push({ html: buildHypeHook(S.hook), bg: pickBg(S.hook) });
       }
       (S.tools || []).forEach((t) => {
-        out.push({
-          html: buildHypeTool(t, S.attribution),
-          bg: (t && t.bg) || (t && t.bgGradient) || shared,
-        });
+        out.push({ html: buildHypeTool(t, S.attribution), bg: pickBg(t) });
       });
       if (S.cta) {
-        out.push({
-          html: buildHypeCTA(S.cta, S.attribution),
-          bg: (S.cta && S.cta.bg) || (S.cta && S.cta.bgGradient) || shared,
-        });
+        out.push({ html: buildHypeCTA(S.cta, S.attribution), bg: pickBg(S.cta) });
       }
       return out;
     },
