@@ -693,25 +693,18 @@
     letter-spacing: 0.01em; text-shadow: 0 2px 12px rgba(0,0,0,0.7);
     margin-top: 36px;
   }
-  /* Tool slide — logo + name cluster up top, bar chart filling the rest */
-  /* Fill the frame via absolute inset rather than a percentage/flex
-     height chain — the frame is a flex container and child heights
-     don't resolve reliably, which would clamp the chart and the
-     tallest bar. inset:0 against the (positioned) frame gives a hard
-     1080×1920 box the inner chart can flex within. */
-  /* Anchored to the TikTok safe zone (top 14% / bottom 24% / sides 12%)
-     so the logo, name and bars never sit under TikTok's top bar or get
-     covered by the caption + side buttons. The bar heights (in the JS
-     builder) are tuned to the resulting chart height. */
+  /* Tool slide — logo + name cluster up top, bar chart below, all in
+     plain top-down document flow with PIXEL offsets. Earlier versions
+     used percentage-based absolute insets to hit the TikTok safe zone,
+     but html2canvas mis-resolves percentage insets (it squished the
+     exported content into a small top-left box). Normal flow + pixels
+     exports 1:1 with the preview and keeps content in the safe band
+     (logo ~16% from top, bar floor ~72%). */
   .preset-output-vs-hype .ovh-tool {
-    position: absolute; top: 14%; bottom: 24%; left: 12%; right: 12%;
-    box-sizing: border-box;
-    display: flex; flex-direction: column; align-items: center;
-    padding: 72px 0 0 0;
+    padding: 90px 130px 0 130px; box-sizing: border-box;
   }
   .preset-output-vs-hype .ovh-tool-head {
     display: flex; flex-direction: column; align-items: center; gap: 24px;
-    flex-shrink: 0;
   }
   .preset-output-vs-hype .ovh-tool-logo {
     width: 150px; height: 150px; border-radius: 36px; object-fit: contain;
@@ -728,12 +721,12 @@
     color: #ffffff; line-height: 1.05; letter-spacing: -0.01em; text-align: center;
     text-shadow: 0 3px 16px rgba(0,0,0,0.7);
   }
-  /* The two-bar chart. Bars bottom-anchored to a shared baseline. */
+  /* Fixed-height chart; bars bottom-anchored to its baseline. The
+     pixel height places the floor at ~72% of the 1920 frame. */
   .preset-output-vs-hype .ovh-chart {
-    flex: 1; width: 100%; min-height: 0;
+    position: relative; margin-top: 30px; height: 900px;
     display: flex; align-items: flex-end; justify-content: center;
-    gap: 150px; padding-top: 40px;
-    position: relative;
+    gap: 150px;
   }
   /* Reflective floor line under the bars */
   .preset-output-vs-hype .ovh-chart::after {
@@ -2174,7 +2167,7 @@ function buildHypeBar(label, value, accent) {
   // keeps even a "0" bar visible as a stub; MAX leaves headroom for
   // the label that sits above the tallest bar AND keeps the whole bar
   // inside the safe-zone-anchored chart (see .ovh-tool).
-  const MIN = 140, MAX = 660;
+  const MIN = 160, MAX = 720;
   const h = Math.round(MIN + (MAX - MIN) * (value / 100));
   const light = shadeHex(accent, 0.4);
   const dark = shadeHex(accent, -0.4);
