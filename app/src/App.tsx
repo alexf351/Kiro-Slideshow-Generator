@@ -286,6 +286,53 @@ function isExampleCaption(txt: string): boolean {
   return PRESET_KEYS.some((k) => PRESETS[k].defaultCaption.trim() === t);
 }
 
+// Collapsible sidebar group. Defined at module scope (stable identity)
+// so toggling/typing elsewhere never remounts its children — important
+// because some groups hold stateful panels and controlled inputs.
+// Renders a clickable header (accent bar + label + chevron) and only
+// mounts its body when expanded, so the sidebar reads as a short funnel.
+function Group({
+  open,
+  onToggle,
+  title,
+  accent = '#00E5FF',
+  suffix,
+  hint,
+  children,
+}: {
+  open: boolean;
+  onToggle: () => void;
+  title: string;
+  accent?: string;
+  suffix?: ReactNode;
+  hint?: string;
+  children: ReactNode;
+}) {
+  return (
+    <section className="border-b border-white/[0.05]">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="w-full flex items-center gap-3 px-5 md:px-10 py-4 md:py-5 text-left hover:bg-white/[0.02] transition-colors"
+      >
+        <span className="h-5 w-[5px] rounded-full shrink-0" style={{ background: accent }}></span>
+        <span className="text-[13px] md:text-[14px] font-bold uppercase tracking-[0.20em] text-gray-300">
+          {title}
+        </span>
+        {suffix}
+        {hint && !open && <span className="text-[11px] text-gray-600 truncate">{hint}</span>}
+        <svg
+          className={'ml-auto shrink-0 text-gray-500 transition-transform duration-200 ' + (open ? 'rotate-180' : '')}
+          viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"
+        >
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
+      </button>
+      {open && <div className="px-5 md:px-10 pb-6 md:pb-7 pt-1">{children}</div>}
+    </section>
+  );
+}
+
 export default function App() {
   const ui = useUI();
   const initial = useMemo(loadPersisted, []);
@@ -309,6 +356,13 @@ export default function App() {
   const [openaiKey, setOpenaiKey] = useState<string>(initial.openaiKey);
   const [design, setDesign] = useState<BrandDesign>(initial.design);
   const [nativeTextOverlay, setNativeTextOverlay] = useState<boolean>(initial.nativeTextOverlay);
+  // Which collapsible sidebar groups are expanded. Everything outside the
+  // core Format → Content → Caption spine is collapsed by default so the
+  // panel reads as a simple "make a post" funnel instead of a wall of
+  // controls. The user opens the extras (look, backgrounds, AI, settings)
+  // only when they need them.
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+  const toggleGroup = (id: string) => setOpenGroups((p) => ({ ...p, [id]: !p[id] }));
   // Bumped by Patterns → "Clone again". CloneFromTikTok watches this
   // and prefills its URL input + expands. Resets to empty string
   // when the panel consumes it.
@@ -1101,6 +1155,7 @@ export default function App() {
     </div>
   );
 
+
   const mobileTabBtn = (kind: MobileView, label: string) => {
     const active = mobileView === kind;
     return (
@@ -1168,7 +1223,8 @@ export default function App() {
         </header>
 
         <div className="flex-1 overflow-y-auto custom-scrollbar">
-          <section className="px-5 md:px-10 pt-6 md:pt-7 pb-3 md:pb-4 flex flex-col gap-3">
+          <Group open={!!openGroups.ai} onToggle={() => toggleGroup('ai')} title="AI assist" accent="#A78BFA" hint="Clone · Propose · Predict · Design">
+            <div className="flex flex-col gap-3">
             <CloneFromTikTok
               anthropicKey={anthropicKey}
               model={claudeModel}
@@ -1200,7 +1256,8 @@ export default function App() {
                 <strong className="text-gray-400">Last {lastOrigin}:</strong> {lastCloneNote}
               </div>
             )}
-          </section>
+            </div>
+          </Group>
 
           <section className="px-5 md:px-10 py-6 md:py-7 border-b border-white/[0.05]">
             {sectionLabel('Format')}
@@ -1263,8 +1320,7 @@ export default function App() {
             </button>
           </section>
 
-          <section className="px-5 md:px-10 py-6 md:py-7 border-b border-white/[0.04]">
-            {sectionLabel('Mascot')}
+          <Group open={!!openGroups.mascot} onToggle={() => toggleGroup('mascot')} title="Mascot" hint={mascot}>
             <div className="grid grid-cols-3 gap-3 md:gap-4">
               {MASCOT_ORDER.map((m) => {
                 const selected = m === mascot;
@@ -1299,15 +1355,9 @@ export default function App() {
                 );
               })}
             </div>
-          </section>
+          </Group>
 
-          <section className="px-5 md:px-10 py-6 md:py-7 border-b border-white/[0.04]">
-            {sectionLabel(
-              'Emote',
-              <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-600">
-                · {mascot}
-              </span>
-            )}
+          <Group open={!!openGroups.emote} onToggle={() => toggleGroup('emote')} title="Emote" hint={variant + ' · ' + mascot}>
             <div className="grid grid-cols-3 gap-3 md:gap-4">
               {VARIANTS_BY_TIER[mascot].map((v) => {
                 const selected = v === variant;
@@ -1339,10 +1389,9 @@ export default function App() {
                 );
               })}
             </div>
-          </section>
+          </Group>
 
-          <section className="px-5 md:px-10 py-6 md:py-7 border-b border-white/[0.04]">
-            {sectionLabel('Chat platform')}
+          <Group open={!!openGroups.platform} onToggle={() => toggleGroup('platform')} title="Chat platform" hint={platform === 'claude' ? 'Claude' : 'ChatGPT'}>
             <div className="grid grid-cols-2 gap-2 p-1.5 rounded-xl bg-black/30 border border-white/[0.04]">
               {(['claude', 'chatgpt'] as Platform[]).map((p) => {
                 const selected = p === platform;
@@ -1363,7 +1412,7 @@ export default function App() {
                 );
               })}
             </div>
-          </section>
+          </Group>
 
           <section className="px-5 md:px-10 py-6 md:py-7 border-b border-white/[0.04]">
             {sectionLabel(
@@ -1422,13 +1471,7 @@ export default function App() {
             </div>
           </section>
 
-          <section className="px-5 md:px-10 py-6 md:py-7 border-b border-white/[0.04]">
-            {sectionLabel(
-              'Backgrounds',
-              <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-600">
-                · per slide
-              </span>,
-            )}
+          <Group open={!!openGroups.bg} onToggle={() => toggleGroup('bg')} title="Backgrounds" hint="per slide">
             {slideMetas.length === 0 ? (
               <div className="text-xs text-gray-500 leading-relaxed">
                 Fix the JSON above and the slide list will show up here.
@@ -1583,7 +1626,7 @@ export default function App() {
                 })}
               </div>
             )}
-          </section>
+          </Group>
 
           <section className="px-5 md:px-10 py-6 md:py-7 border-b border-white/[0.04]">
             {sectionLabel(
@@ -1640,7 +1683,7 @@ export default function App() {
             </div>
           </section>
 
-          <section className="px-5 md:px-10 py-6 md:py-7">
+          <Group open={!!openGroups.more} onToggle={() => toggleGroup('more')} title="Workspace" accent="#FFC857" hint="Media · Patterns · Analytics · options">
             <div className="grid grid-cols-3 gap-2 mb-4">
               <button
                 type="button"
@@ -1703,60 +1746,9 @@ export default function App() {
                 </span>
               </span>
             </label>
+          </Group>
 
-            <button
-              type="button"
-              onClick={() => void handleRender()}
-              className="w-full py-4 md:py-5 rounded-xl font-bold text-base md:text-lg tracking-wide
-                         bg-gradient-to-r from-[#00E5FF] to-[#00A5D9]
-                         text-[#0a0e1a]
-                         shadow-[0_6px_30px_rgba(0,229,255,0.4),inset_0_1px_0_rgba(255,255,255,0.3)]
-                         hover:shadow-[0_8px_36px_rgba(0,229,255,0.6),inset_0_1px_0_rgba(255,255,255,0.4)]
-                         hover:-translate-y-0.5 active:translate-y-0
-                         transition-all duration-200"
-            >
-              <span className="inline-flex items-center justify-center gap-3">
-                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <polygon points="5 3 19 12 5 21 5 3" fill="currentColor" />
-                </svg>
-                Render slides
-              </span>
-            </button>
-            <p className="mt-2 text-center text-[10px] text-gray-600 tracking-wide">
-              tip: press <kbd className="px-1 py-0.5 rounded bg-white/[0.06] text-gray-400 font-mono">⌘/Ctrl + Enter</kbd> to render
-            </p>
-            <button
-              type="button"
-              onClick={handleSaveToHistory}
-              disabled={saveStatus.kind === 'saving'}
-              className="mt-3 w-full py-3 md:py-3.5 rounded-xl text-sm font-bold uppercase tracking-[0.16em]
-                         border border-[#00E5FF]/30 bg-[#0e2b3a] text-[#00E5FF]
-                         hover:bg-[#13384c] hover:border-[#00E5FF]/60 transition-all
-                         disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {saveStatus.kind === 'saving' ? 'Saving…' : saveStatus.kind === 'ok' ? '✓ Saved to history' : 'Save to history'}
-            </button>
-            {pendingPrediction && (
-              <div className="mt-2 flex items-center justify-between gap-2 text-xs">
-                <span className="text-[#A78BFA]">
-                  ⌁ Prediction <strong>{pendingPrediction.score}/100</strong> will be saved with this post.
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setPendingPrediction(null)}
-                  className="text-gray-500 hover:text-gray-300 uppercase tracking-[0.14em] text-[10px] font-bold"
-                >
-                  Detach
-                </button>
-              </div>
-            )}
-            {saveStatus.kind === 'err' && (
-              <div className="mt-2 text-xs text-red-400">Save failed: {saveStatus.msg}</div>
-            )}
-          </section>
-
-          <section className="px-5 md:px-10 py-6 md:py-7 border-t border-white/[0.05]">
-            {sectionLabel('Settings')}
+          <Group open={!!openGroups.settings} onToggle={() => toggleGroup('settings')} title="Settings" accent="#94a3b8" hint="API keys · backup · model">
             <p className="text-xs text-gray-500 leading-relaxed mb-4">
               Pasted keys live in this browser only. Pexels &amp; Unsplash are free; Anthropic &amp; OpenAI are pay-per-use.
             </p>
@@ -1867,7 +1859,65 @@ export default function App() {
                 </label>
               );
             })}
-          </section>
+          </Group>
+        </div>
+
+        {/* Sticky action bar — the primary Render + Save controls stay
+            pinned to the bottom of the sidebar so they're reachable from
+            anywhere in the scroll instead of buried at the end. */}
+        <div className="shrink-0 border-t border-white/[0.08] bg-[#0a0e1a]/92 backdrop-blur px-5 md:px-10 py-3.5 md:py-4">
+          {pendingPrediction && (
+            <div className="mb-2.5 flex items-center justify-between gap-2 text-xs">
+              <span className="text-[#A78BFA]">
+                ⌁ Prediction <strong>{pendingPrediction.score}/100</strong> will be saved with this post.
+              </span>
+              <button
+                type="button"
+                onClick={() => setPendingPrediction(null)}
+                className="text-gray-500 hover:text-gray-300 uppercase tracking-[0.14em] text-[10px] font-bold"
+              >
+                Detach
+              </button>
+            </div>
+          )}
+          {saveStatus.kind === 'err' && (
+            <div className="mb-2 text-xs text-red-400">Save failed: {saveStatus.msg}</div>
+          )}
+          <div className="flex items-stretch gap-2.5">
+            <button
+              type="button"
+              onClick={() => void handleRender()}
+              className="flex-1 py-3.5 md:py-4 rounded-xl font-bold text-base md:text-lg tracking-wide
+                         bg-gradient-to-r from-[#00E5FF] to-[#00A5D9]
+                         text-[#0a0e1a]
+                         shadow-[0_6px_30px_rgba(0,229,255,0.4),inset_0_1px_0_rgba(255,255,255,0.3)]
+                         hover:shadow-[0_8px_36px_rgba(0,229,255,0.6),inset_0_1px_0_rgba(255,255,255,0.4)]
+                         hover:-translate-y-0.5 active:translate-y-0
+                         transition-all duration-200"
+            >
+              <span className="inline-flex items-center justify-center gap-2.5">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polygon points="5 3 19 12 5 21 5 3" fill="currentColor" />
+                </svg>
+                Render slides
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={handleSaveToHistory}
+              disabled={saveStatus.kind === 'saving'}
+              title="Save this post to your history"
+              className="shrink-0 px-4 md:px-5 rounded-xl text-[11px] md:text-xs font-bold uppercase tracking-[0.14em]
+                         border border-[#00E5FF]/30 bg-[#0e2b3a] text-[#00E5FF]
+                         hover:bg-[#13384c] hover:border-[#00E5FF]/60 transition-all
+                         disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {saveStatus.kind === 'saving' ? 'Saving…' : saveStatus.kind === 'ok' ? '✓ Saved' : 'Save'}
+            </button>
+          </div>
+          <p className="mt-1.5 text-center text-[10px] text-gray-600 tracking-wide">
+            tip: press <kbd className="px-1 py-0.5 rounded bg-white/[0.06] text-gray-400 font-mono">⌘/Ctrl + Enter</kbd> to render
+          </p>
         </div>
       </aside>
 
