@@ -707,7 +707,7 @@
     position: absolute; top: 14%; bottom: 24%; left: 12%; right: 12%;
     box-sizing: border-box;
     display: flex; flex-direction: column; align-items: center;
-    padding: 8px 0 0 0;
+    padding: 72px 0 0 0;
   }
   .preset-output-vs-hype .ovh-tool-head {
     display: flex; flex-direction: column; align-items: center; gap: 24px;
@@ -2176,7 +2176,7 @@ function buildHypeBar(label, value, accent) {
   // keeps even a "0" bar visible as a stub; MAX leaves headroom for
   // the label that sits above the tallest bar AND keeps the whole bar
   // inside the safe-zone-anchored chart (see .ovh-tool).
-  const MIN = 140, MAX = 700;
+  const MIN = 140, MAX = 660;
   const h = Math.round(MIN + (MAX - MIN) * (value / 100));
   const light = shadeHex(accent, 0.4);
   const dark = shadeHex(accent, -0.4);
