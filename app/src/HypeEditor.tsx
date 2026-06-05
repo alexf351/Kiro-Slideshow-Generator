@@ -19,6 +19,14 @@ type Tool = {
 type Parsed = {
   hook?: { headline?: string; sub?: string; [k: string]: unknown };
   tools?: Tool[];
+  cta?: {
+    headline?: string;
+    instructionAbove?: string;
+    searchTerm?: string;
+    instructionBelow?: string;
+    slogan?: string;
+    [k: string]: unknown;
+  };
   bgGradient?: string;
   [k: string]: unknown;
 };
@@ -52,6 +60,16 @@ const BG_GRADIENTS: { name: string; css: string | null }[] = [
 const ACCENTS = ['#D97757', '#22D3EE', '#F5707A', '#5B8DEF', '#E5E7EB', '#34D399', '#A78BFA', '#FBBF24', '#FB7185', '#F97316'];
 
 const ENGINE_DEFAULT_BG = 'radial-gradient(120% 80% at 50% 0%, #11151f 0%, #07090e 70%, #050608 100%)';
+
+// Used when re-adding a removed bookend slide.
+const DEFAULT_HOOK = { headline: 'Output <span style="color:#00E5FF">vs</span> Hype', sub: 'what AI tools actually deliver.' };
+const DEFAULT_CTA = {
+  headline: 'want to actually <strong>get good</strong> at AI?',
+  instructionAbove: 'search',
+  searchTerm: 'Iro AI',
+  instructionBelow: 'on the App Store.',
+  slogan: 'less hype. more output.',
+};
 
 function tryParse(txt: string): Parsed | null {
   try {
@@ -124,6 +142,25 @@ export default function HypeEditor({ jsonText, onChange, logoThumb, onPickLogo, 
     });
   }
 
+  function addHook() {
+    commit((draft) => { draft.hook = { ...DEFAULT_HOOK }; });
+  }
+  function removeHook() {
+    commit((draft) => { delete draft.hook; });
+  }
+
+  function setCta(field: keyof typeof DEFAULT_CTA, value: string) {
+    commit((draft) => {
+      draft.cta = { ...(draft.cta as object), [field]: value };
+    });
+  }
+  function addCta() {
+    commit((draft) => { draft.cta = { ...DEFAULT_CTA }; });
+  }
+  function removeCta() {
+    commit((draft) => { delete draft.cta; });
+  }
+
   function setBgGradient(css: string | null) {
     commit((draft) => {
       if (css) draft.bgGradient = css;
@@ -173,24 +210,35 @@ export default function HypeEditor({ jsonText, onChange, logoThumb, onPickLogo, 
         </div>
       </div>
 
-      {/* Optional hook (title slide) */}
-      <div className={card}>
-        <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#00E5FF] mb-2">Title slide (optional)</div>
-        <div className="flex flex-col gap-2">
-          <input
-            className={inputCls}
-            placeholder="Headline — e.g. Output vs Hype"
-            value={String(parsed.hook?.headline ?? '')}
-            onChange={(e) => setHook('headline', e.target.value)}
-          />
-          <input
-            className={inputCls}
-            placeholder="Subline — e.g. what AI tools actually deliver."
-            value={String(parsed.hook?.sub ?? '')}
-            onChange={(e) => setHook('sub', e.target.value)}
-          />
+      {/* Optional title slide (hook) */}
+      {parsed.hook ? (
+        <div className={card}>
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#00E5FF]">Title slide</div>
+            <button type="button" onClick={removeHook} className="text-[10px] font-bold uppercase tracking-[0.12em] text-gray-500 hover:text-red-400">
+              Remove
+            </button>
+          </div>
+          <div className="flex flex-col gap-2">
+            <input
+              className={inputCls}
+              placeholder="Headline — e.g. Output vs Hype"
+              value={String(parsed.hook?.headline ?? '')}
+              onChange={(e) => setHook('headline', e.target.value)}
+            />
+            <input
+              className={inputCls}
+              placeholder="Subline — e.g. what AI tools actually deliver."
+              value={String(parsed.hook?.sub ?? '')}
+              onChange={(e) => setHook('sub', e.target.value)}
+            />
+          </div>
         </div>
-      </div>
+      ) : (
+        <button type="button" onClick={addHook} className={miniBtn + ' self-start'}>
+          + Add title slide
+        </button>
+      )}
 
       {/* Tools */}
       <div className="flex items-center justify-between">
@@ -233,11 +281,23 @@ export default function HypeEditor({ jsonText, onChange, logoThumb, onPickLogo, 
                   value={String(t.name ?? '')}
                   onChange={(e) => setTool(i, { name: e.target.value })}
                 />
-                <div className="flex flex-col gap-0.5 shrink-0">
-                  <button type="button" onClick={() => moveTool(i, -1)} disabled={i === 0} className="text-gray-500 hover:text-white disabled:opacity-25 leading-none text-xs">▲</button>
-                  <button type="button" onClick={() => moveTool(i, 1)} disabled={i === tools.length - 1} className="text-gray-500 hover:text-white disabled:opacity-25 leading-none text-xs">▼</button>
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => moveTool(i, -1)}
+                    disabled={i === 0}
+                    title="Move slide up"
+                    className="w-7 h-7 rounded-md flex items-center justify-center text-sm text-gray-400 border border-white/10 bg-white/[0.04] hover:text-white hover:border-white/25 disabled:opacity-25 disabled:cursor-not-allowed"
+                  >↑</button>
+                  <button
+                    type="button"
+                    onClick={() => moveTool(i, 1)}
+                    disabled={i === tools.length - 1}
+                    title="Move slide down"
+                    className="w-7 h-7 rounded-md flex items-center justify-center text-sm text-gray-400 border border-white/10 bg-white/[0.04] hover:text-white hover:border-white/25 disabled:opacity-25 disabled:cursor-not-allowed"
+                  >↓</button>
                 </div>
-                <button type="button" onClick={() => removeTool(i)} title="Remove tool" className="shrink-0 text-gray-600 hover:text-red-400 text-lg leading-none">×</button>
+                <button type="button" onClick={() => removeTool(i)} title="Remove tool" className="shrink-0 w-7 h-7 rounded-md flex items-center justify-center text-lg text-gray-500 border border-white/10 bg-white/[0.04] hover:text-red-400 hover:border-red-400/40 leading-none">×</button>
               </div>
 
               {/* logo controls */}
@@ -318,6 +378,31 @@ export default function HypeEditor({ jsonText, onChange, logoThumb, onPickLogo, 
           );
         })}
       </div>
+
+      {/* Optional CTA slide (last) */}
+      {parsed.cta ? (
+        <div className={card}>
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#00E5FF]">Call-to-action slide</div>
+            <button type="button" onClick={removeCta} className="text-[10px] font-bold uppercase tracking-[0.12em] text-gray-500 hover:text-red-400">
+              Remove
+            </button>
+          </div>
+          <div className="flex flex-col gap-2">
+            <input className={inputCls} placeholder="Headline" value={String(parsed.cta.headline ?? '')} onChange={(e) => setCta('headline', e.target.value)} />
+            <div className="flex gap-2">
+              <input className={inputCls} placeholder="search" value={String(parsed.cta.instructionAbove ?? '')} onChange={(e) => setCta('instructionAbove', e.target.value)} />
+              <input className={inputCls} placeholder="Iro AI" value={String(parsed.cta.searchTerm ?? '')} onChange={(e) => setCta('searchTerm', e.target.value)} />
+            </div>
+            <input className={inputCls} placeholder="on the App Store." value={String(parsed.cta.instructionBelow ?? '')} onChange={(e) => setCta('instructionBelow', e.target.value)} />
+            <input className={inputCls} placeholder="Slogan" value={String(parsed.cta.slogan ?? '')} onChange={(e) => setCta('slogan', e.target.value)} />
+          </div>
+        </div>
+      ) : (
+        <button type="button" onClick={addCta} className={miniBtn + ' self-start'}>
+          + Add CTA slide
+        </button>
+      )}
     </div>
   );
 }
