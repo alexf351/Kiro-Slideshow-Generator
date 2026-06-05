@@ -40,6 +40,9 @@ type Props = {
   onPickLogo: (i: number, name: string) => void;
   onPasteLogo: (i: number) => void;
   onClearLogoBg: (i: number) => void;
+  // Keep the index-keyed logo/background in sync with tool reorder/remove.
+  onReorderTool: (from: number, to: number) => void;
+  onRemoveTool: (i: number, count: number) => void;
 };
 
 // Background gradients offered in the picker. `null` = the engine's
@@ -85,7 +88,7 @@ function clampInt(v: unknown, fallback: number): number {
   return Math.max(0, Math.min(100, Math.round(n)));
 }
 
-export default function HypeEditor({ jsonText, onChange, logoThumb, onPickLogo, onPasteLogo, onClearLogoBg }: Props) {
+export default function HypeEditor({ jsonText, onChange, logoThumb, onPickLogo, onPasteLogo, onClearLogoBg, onReorderTool, onRemoveTool }: Props) {
   const parsed = tryParse(jsonText);
 
   if (!parsed) {
@@ -121,7 +124,8 @@ export default function HypeEditor({ jsonText, onChange, logoThumb, onPickLogo, 
   }
 
   function removeTool(i: number) {
-    onClearLogoBg(i);
+    // Shift the index-keyed logo/background media down to match the splice.
+    onRemoveTool(i, tools.length);
     commit((draft) => {
       (draft.tools as Tool[]).splice(i, 1);
     });
@@ -130,6 +134,8 @@ export default function HypeEditor({ jsonText, onChange, logoThumb, onPickLogo, 
   function moveTool(i: number, dir: -1 | 1) {
     const j = i + dir;
     if (j < 0 || j >= tools.length) return;
+    // Swap the index-keyed logo/background so it travels with the tool.
+    onReorderTool(i, j);
     commit((draft) => {
       const arr = draft.tools as Tool[];
       [arr[i], arr[j]] = [arr[j], arr[i]];

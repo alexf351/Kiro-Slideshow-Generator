@@ -763,6 +763,41 @@ export default function App() {
     });
   }
 
+  // Per-tool media (logo + optional background) is keyed by slide index in
+  // slideBgs, but the tool's name/values live in the JSON. So when the
+  // Output vs Hype editor reorders or removes a tool, we have to move the
+  // index-keyed media in lockstep — otherwise the logo/background would
+  // stay on the old row while everything else shifts.
+  const TOOL_BG_PREFIXES = ['tool', 'tool-logo'];
+  function swapToolBgs(from: number, to: number) {
+    setSlideBgs((prev) => {
+      const next = { ...prev };
+      for (const p of TOOL_BG_PREFIXES) {
+        const ka = `${p}:${from}`;
+        const kb = `${p}:${to}`;
+        const va = next[ka];
+        const vb = next[kb];
+        if (vb !== undefined) next[ka] = vb; else delete next[ka];
+        if (va !== undefined) next[kb] = va; else delete next[kb];
+      }
+      return next;
+    });
+  }
+  function shiftToolBgsAfterRemove(idx: number, count: number) {
+    setSlideBgs((prev) => {
+      const next = { ...prev };
+      for (const p of TOOL_BG_PREFIXES) {
+        for (let k = idx; k < count - 1; k++) {
+          const cur = `${p}:${k}`;
+          const nxt = `${p}:${k + 1}`;
+          if (next[nxt] !== undefined) next[cur] = next[nxt]; else delete next[cur];
+        }
+        delete next[`${p}:${count - 1}`];
+      }
+      return next;
+    });
+  }
+
   // Triggered by Patterns → "Clone again". Switches the user back to
   // the Edit pane and feeds the source URL into the Clone panel.
   function handleCloneAgain(sourceUrl: string) {
@@ -1443,6 +1478,8 @@ export default function App() {
                   onPickLogo={(i, name) => void handlePickForSlide(`tool-logo:${i}`, `${name} logo`)}
                   onPasteLogo={(i) => void handlePasteUrlForSlide(`tool-logo:${i}`)}
                   onClearLogoBg={(i) => handleClearBgForSlide(`tool-logo:${i}`)}
+                  onReorderTool={swapToolBgs}
+                  onRemoveTool={shiftToolBgsAfterRemove}
                 />
               ) : (
                 <QuickEdit jsonText={jsonText} onChange={setJsonText} />
