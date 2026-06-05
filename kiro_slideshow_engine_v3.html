@@ -1145,6 +1145,93 @@
     .paste-panel { display: none; }
   }
   @media print { body { background: #000; } .hud { display: none; } .stage { gap: 0; padding: 0; } .slide { box-shadow: none; page-break-after: always; width: 100vw; height: 100vh; } }
+
+  /* ============================================================
+     TEXT OVERLAYS — TikTok-style editable text on a slide.
+     Each slide gets a .text-layer; overlays are absolutely
+     positioned (by % of the slide, so zoom-independent), and can
+     be dragged, resized, rotated, and styled (color, stroke,
+     background pill). Editing chrome (selection outline + handles)
+     is hidden during html2canvas capture via body.capturing, and
+     positions/styles live in design-px so exports match the preview.
+     ============================================================ */
+  .text-layer { position: absolute; inset: 0; z-index: 45; pointer-events: none; }
+  .tov {
+    position: absolute; display: inline-block; pointer-events: auto;
+    transform: translate(-50%, -50%) rotate(var(--rot, 0deg));
+    transform-origin: center center;
+    max-width: 92%;
+    outline: 3px solid transparent; outline-offset: 10px; border-radius: 6px;
+    cursor: grab; touch-action: none;
+  }
+  .tov.selected { outline-color: #00E5FF; }
+  .tov.dragging { cursor: grabbing; }
+  .tov-text {
+    font-family: 'Inter', sans-serif; font-weight: 800; line-height: 1.18;
+    color: #fff; text-align: center; white-space: pre-wrap;
+    word-break: break-word; overflow-wrap: anywhere;
+    padding: 6px 12px; border-radius: 16px;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.45);
+    user-select: none; -webkit-user-select: none; outline: none;
+    caret-color: #00E5FF;
+  }
+  .tov.editing { cursor: text; }
+  .tov.editing .tov-text { user-select: text; -webkit-user-select: text; }
+  .tov-text:empty::before { content: 'Type text…'; opacity: 0.55; }
+  /* Round handles, anchored to the (rotated) box corners */
+  .tov-handle {
+    position: absolute; width: 48px; height: 48px; border-radius: 50%;
+    background: #00E5FF; border: 4px solid #06121a; color: #06121a;
+    display: none; align-items: center; justify-content: center;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.55); pointer-events: auto; z-index: 60;
+  }
+  .tov.selected .tov-handle { display: flex; }
+  .tov-handle svg { width: 24px; height: 24px; }
+  .tov-handle-resize { right: -24px; bottom: -24px; cursor: nwse-resize; }
+  .tov-handle-rotate { left: 50%; top: -78px; margin-left: -24px; cursor: grab; }
+  .tov-handle-delete { left: -24px; top: -24px; cursor: pointer; background: #ff5a5a; color: #2a0606; }
+  /* During capture: strip all editing affordances so PNGs are clean */
+  body.capturing .tov { outline: none !important; cursor: default; }
+  body.capturing .tov-handle { display: none !important; }
+  body.capturing .tov-text:empty { display: none; }
+  body.capturing .tov-text:empty::before { content: none; }
+
+  /* Floating text toolbar (shown when an overlay is selected) */
+  .tov-toolbar {
+    position: fixed; top: 72px; left: 50%; transform: translateX(-50%);
+    display: none; flex-wrap: wrap; gap: 7px; align-items: center;
+    padding: 9px 11px; border-radius: 14px; z-index: 1200;
+    background: rgba(13,17,28,0.97); border: 1px solid rgba(255,255,255,0.12);
+    box-shadow: 0 14px 44px rgba(0,0,0,0.6); backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    font-family: 'Inter', sans-serif; max-width: calc(100vw - 20px);
+  }
+  .tov-toolbar.show { display: flex; }
+  .tov-tool {
+    display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
+    padding: 8px 11px; border-radius: 9px; font-size: 13px; font-weight: 700;
+    color: #dfe3ee; background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.10); user-select: none; white-space: nowrap;
+  }
+  .tov-tool:hover { background: rgba(255,255,255,0.11); color: #fff; }
+  .tov-tool.active { background: #00E5FF; color: #06121a; border-color: #00E5FF; }
+  .tov-tool.danger:hover { background: #ff5a5a; color: #fff; border-color: #ff5a5a; }
+  .tov-sep { width: 1px; height: 28px; background: rgba(255,255,255,0.12); margin: 0 3px; }
+  .tov-swatches { display: inline-flex; gap: 5px; align-items: center; }
+  .tov-swatch {
+    width: 27px; height: 27px; border-radius: 50%; cursor: pointer;
+    border: 2px solid rgba(255,255,255,0.3); box-sizing: border-box;
+  }
+  .tov-swatch.active { border-color: #00E5FF; box-shadow: 0 0 0 2px rgba(0,229,255,0.45); }
+  .tov-chip {
+    width: 22px; height: 22px; border-radius: 6px; display: inline-block;
+    border: 1px solid rgba(255,255,255,0.35);
+  }
+  .tov-chip-none {
+    background:
+      linear-gradient(45deg, transparent 43%, #ff5a5a 43%, #ff5a5a 57%, transparent 57%),
+      #2a2f3e;
+  }
 </style>
 </head>
 <body>
@@ -1271,6 +1358,10 @@ const SLIDES = {
     <span class="hud-badge">1080 × 1920</span>
   </div>
   <div class="hud-right">
+    <button class="hud-btn hud-btn-ghost" id="add-text-btn" onclick="addTextOverlay()">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7V5h16v2"></path><path d="M12 5v14"></path><path d="M9 19h6"></path></svg>
+      Add text
+    </button>
     <button class="hud-btn hud-btn-ghost" id="safe-zone-btn" onclick="toggleSafeZone()">
       <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="5" width="14" height="14" rx="1" stroke-dasharray="3 2"></rect></svg>
       Safe zone
@@ -1617,6 +1708,11 @@ function render() {
     `;
     stage.appendChild(slide);
   });
+
+  // Re-attach any user text overlays after the slide DOM is rebuilt.
+  // Guarded so the very first module-level render() (which runs before
+  // the overlay module initialises TEXT_OVERLAYS) doesn't throw.
+  if (typeof applyOverlays === 'function') applyOverlays();
 }
 
 function buildHook(h) {
@@ -2122,6 +2218,416 @@ function buildHypeCTA(c, attribution) {
   return `<div class="ovh-cta">${headline}${searchRow}${below}${slogan}</div>${attr}`;
 }
 
+// ============================================================
+// TEXT OVERLAY EDITOR — TikTok-native editable text on slides.
+// Add text via the HUD button, then drag to reposition, use the
+// corner handle to resize, the top handle to rotate, and the
+// floating toolbar to set color, stroke (outline), and background
+// pill. Overlays are stored per slide index, persisted to
+// localStorage, and re-attached after every render() so they
+// survive content/design changes. Editing chrome is stripped
+// during html2canvas capture so exported PNGs are clean.
+// ============================================================
+var TEXT_OVERLAYS = loadOverlays();   // { [slideIndex]: [overlay, ...] }
+var TOV_SEL = null;                   // { el, ov, si } or null
+
+var TEXT_COLORS = ['#ffffff', '#000000', '#ff2d55', '#ff9500', '#ffd60a', '#34c759', '#00E5FF', '#af52de'];
+var STROKE_CYCLE = [null, '#000000', '#ffffff'];               // off → black → white
+var BG_CYCLE = [null, '#000000', '#ffffff', '#ff2d55', '#00E5FF', '#ffd60a', '#34c759'];
+var FONT_CYCLE = [
+  { label: 'Classic', css: "'Inter', sans-serif", weight: 800 },
+  { label: 'Serif', css: "Georgia, 'Times New Roman', serif", weight: 700 },
+  { label: 'Script', css: "'Caveat', cursive", weight: 700 },
+];
+
+var ROTATE_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v4h4"/></svg>';
+var RESIZE_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H3v-6"/><path d="M21 9V3h-6"/><path d="M3 21 10 14"/><path d="M21 3l-7 7"/></svg>';
+var DELETE_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
+
+function loadOverlays() {
+  try { var s = localStorage.getItem('kiro_text_overlays'); return s ? JSON.parse(s) : {}; }
+  catch (e) { return {}; }
+}
+function saveOverlays() {
+  try { localStorage.setItem('kiro_text_overlays', JSON.stringify(TEXT_OVERLAYS)); } catch (e) {}
+}
+
+// Build a tight 0px-blur outline out of many directional text-shadows —
+// html2canvas renders text-shadow reliably (unlike -webkit-text-stroke),
+// so the exported PNG matches the preview.
+function strokeShadow(color, w) {
+  var out = [], n = 24, i, a;
+  for (i = 0; i < n; i++) { a = 2 * Math.PI * i / n; out.push((Math.cos(a) * w).toFixed(1) + 'px ' + (Math.sin(a) * w).toFixed(1) + 'px 0 ' + color); }
+  for (i = 0; i < n; i++) { a = 2 * Math.PI * i / n; out.push((Math.cos(a) * w * 0.55).toFixed(1) + 'px ' + (Math.sin(a) * w * 0.55).toFixed(1) + 'px 0 ' + color); }
+  out.push('0 3px 10px rgba(0,0,0,0.4)');
+  return out.join(',');
+}
+
+function newOverlay() {
+  return {
+    id: 't' + Date.now() + Math.random().toString(36).slice(2, 6),
+    text: '', xPct: 50, yPct: 38, fontSize: 96,
+    color: '#ffffff', font: "'Inter', sans-serif", weight: 800, align: 'center',
+    stroke: { on: false, color: '#000000' },
+    bg: { on: false, color: '#000000' },
+    rotation: 0,
+  };
+}
+
+// Which slide is most centered in the viewport right now.
+function currentSlideIndex() {
+  var slides = document.querySelectorAll('.slide');
+  var mid = window.innerHeight / 2, best = 0, bestD = Infinity;
+  slides.forEach(function (s, i) {
+    var r = s.getBoundingClientRect();
+    var d = Math.abs((r.top + r.height / 2) - mid);
+    if (d < bestD) { bestD = d; best = i; }
+  });
+  return best;
+}
+
+function styleOverlay(el, ov) {
+  el.style.left = ov.xPct + '%';
+  el.style.top = ov.yPct + '%';
+  el.style.setProperty('--rot', (ov.rotation || 0) + 'deg');
+  var t = el.querySelector('.tov-text');
+  t.style.fontSize = ov.fontSize + 'px';
+  t.style.color = ov.color;
+  t.style.fontFamily = ov.font;
+  t.style.fontWeight = ov.weight || 800;
+  t.style.textAlign = ov.align || 'center';
+  if (ov.stroke && ov.stroke.on) {
+    t.style.textShadow = strokeShadow(ov.stroke.color, Math.max(2, Math.round(ov.fontSize * 0.07)));
+  } else {
+    t.style.textShadow = '0 2px 8px rgba(0,0,0,0.45)';
+  }
+  if (ov.bg && ov.bg.on) {
+    t.style.background = ov.bg.color;
+    t.style.padding = '12px 28px';
+    t.style.borderRadius = '18px';
+  } else {
+    t.style.background = 'transparent';
+    t.style.padding = '6px 12px';
+    t.style.borderRadius = '16px';
+  }
+}
+
+function makeHandle(cls, svg) {
+  var h = document.createElement('div');
+  h.className = 'tov-handle ' + cls;
+  h.innerHTML = svg;
+  return h;
+}
+
+function renderOverlayEl(ov, si) {
+  var el = document.createElement('div');
+  el.className = 'tov';
+  el._si = si; el._ov = ov;
+  var t = document.createElement('div');
+  t.className = 'tov-text';
+  t.textContent = ov.text || '';
+  el.appendChild(t);
+
+  var rot = makeHandle('tov-handle-rotate', ROTATE_SVG);
+  var res = makeHandle('tov-handle-resize', RESIZE_SVG);
+  var del = makeHandle('tov-handle-delete', DELETE_SVG);
+  el.appendChild(rot); el.appendChild(res); el.appendChild(del);
+
+  styleOverlay(el, ov);
+
+  el.addEventListener('pointerdown', function (e) {
+    if (e.target.closest('.tov-handle')) return;
+    startDrag(e, el, ov, si);
+  });
+  el.addEventListener('dblclick', function (e) { e.preventDefault(); enterEdit(el, ov); });
+  t.addEventListener('input', function () { ov.text = t.innerText; });
+  t.addEventListener('blur', function () { commitEdit(el, ov); });
+  rot.addEventListener('pointerdown', function (e) { startRotate(e, el, ov); });
+  res.addEventListener('pointerdown', function (e) { startResize(e, el, ov); });
+  del.addEventListener('pointerdown', function (e) { e.stopPropagation(); });
+  del.addEventListener('click', function (e) { e.stopPropagation(); removeOverlay(ov, el._si); deselectAll(); });
+  return el;
+}
+
+// Rebuild overlay DOM on every slide after a (re)render.
+function applyOverlays() {
+  var slides = document.querySelectorAll('.slide');
+  slides.forEach(function (slide, i) {
+    var old = slide.querySelector('.text-layer');
+    if (old) old.remove();
+    var list = TEXT_OVERLAYS[i];
+    if (!list || !list.length) return;
+    var layer = document.createElement('div');
+    layer.className = 'text-layer';
+    list.forEach(function (ov) { layer.appendChild(renderOverlayEl(ov, i)); });
+    slide.appendChild(layer);
+  });
+  TOV_SEL = null;
+  hideToolbar();
+}
+
+function addTextOverlay() {
+  var si = currentSlideIndex();
+  var slide = document.querySelectorAll('.slide')[si];
+  if (!slide) return;
+  if (!TEXT_OVERLAYS[si]) TEXT_OVERLAYS[si] = [];
+  var ov = newOverlay();
+  TEXT_OVERLAYS[si].push(ov);
+  var layer = slide.querySelector('.text-layer');
+  if (!layer) { layer = document.createElement('div'); layer.className = 'text-layer'; slide.appendChild(layer); }
+  var el = renderOverlayEl(ov, si);
+  layer.appendChild(el);
+  saveOverlays();
+  slide.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  selectOverlay(el, ov, si);
+  setTimeout(function () { enterEdit(el, ov); }, 80);
+}
+
+function removeOverlay(ov, si) {
+  var list = TEXT_OVERLAYS[si];
+  if (list) {
+    var idx = list.indexOf(ov);
+    if (idx >= 0) list.splice(idx, 1);
+    if (!list.length) delete TEXT_OVERLAYS[si];
+  }
+  var slides = document.querySelectorAll('.slide');
+  if (slides[si]) {
+    var layer = slides[si].querySelector('.text-layer');
+    if (layer) {
+      [].slice.call(layer.children).forEach(function (c) { if (c._ov === ov) c.remove(); });
+    }
+  }
+  saveOverlays();
+}
+
+function selectOverlay(el, ov, si) {
+  if (TOV_SEL && TOV_SEL.el !== el) TOV_SEL.el.classList.remove('selected', 'editing');
+  TOV_SEL = { el: el, ov: ov, si: si };
+  el.classList.add('selected');
+  showToolbar();
+  refreshToolbar();
+}
+
+function deselectAll() {
+  if (TOV_SEL) {
+    var el = TOV_SEL.el, ov = TOV_SEL.ov, si = TOV_SEL.si;
+    if (el.classList.contains('editing')) commitEdit(el, ov);
+    el.classList.remove('selected');
+    if (!ov.text || !ov.text.trim()) removeOverlay(ov, si);
+  }
+  TOV_SEL = null;
+  hideToolbar();
+}
+
+function enterEdit(el, ov) {
+  selectOverlay(el, ov, el._si);
+  el.classList.add('editing');
+  var t = el.querySelector('.tov-text');
+  t.setAttribute('contenteditable', 'true');
+  t.focus();
+  try {
+    var range = document.createRange();
+    range.selectNodeContents(t); range.collapse(false);
+    var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
+  } catch (e) {}
+}
+
+function commitEdit(el, ov) {
+  var t = el.querySelector('.tov-text');
+  t.removeAttribute('contenteditable');
+  el.classList.remove('editing');
+  ov.text = (t.innerText || '').replace(/ /g, ' ').replace(/\n$/, '');
+  saveOverlays();
+}
+
+// ---- drag / resize / rotate ----
+function startDrag(e, el, ov, si) {
+  if (el.classList.contains('editing')) return; // typing — let the caret work
+  e.preventDefault();
+  selectOverlay(el, ov, si);
+  var slide = el.closest('.slide');
+  var rect = slide.getBoundingClientRect();
+  var startX = e.clientX, startY = e.clientY, ox = ov.xPct, oy = ov.yPct, moved = false;
+  try { el.setPointerCapture(e.pointerId); } catch (er) {}
+  function move(ev) {
+    if (Math.abs(ev.clientX - startX) + Math.abs(ev.clientY - startY) > 3) { moved = true; el.classList.add('dragging'); }
+    ov.xPct = Math.max(2, Math.min(98, ox + (ev.clientX - startX) / rect.width * 100));
+    ov.yPct = Math.max(2, Math.min(98, oy + (ev.clientY - startY) / rect.height * 100));
+    el.style.left = ov.xPct + '%'; el.style.top = ov.yPct + '%';
+  }
+  function up(ev) {
+    el.removeEventListener('pointermove', move);
+    el.removeEventListener('pointerup', up);
+    el.classList.remove('dragging');
+    if (moved) saveOverlays();
+  }
+  el.addEventListener('pointermove', move);
+  el.addEventListener('pointerup', up);
+}
+
+function startResize(e, el, ov) {
+  e.preventDefault(); e.stopPropagation();
+  var r = el.getBoundingClientRect();
+  var cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+  var startDist = Math.hypot(e.clientX - cx, e.clientY - cy) || 1;
+  var startFont = ov.fontSize, handle = e.currentTarget;
+  try { handle.setPointerCapture(e.pointerId); } catch (er) {}
+  function move(ev) {
+    var d = Math.hypot(ev.clientX - cx, ev.clientY - cy);
+    ov.fontSize = Math.max(20, Math.min(360, Math.round(startFont * d / startDist)));
+    styleOverlay(el, ov);
+  }
+  function up(ev) {
+    handle.removeEventListener('pointermove', move);
+    handle.removeEventListener('pointerup', up);
+    saveOverlays(); refreshToolbar();
+  }
+  handle.addEventListener('pointermove', move);
+  handle.addEventListener('pointerup', up);
+}
+
+function startRotate(e, el, ov) {
+  e.preventDefault(); e.stopPropagation();
+  var r = el.getBoundingClientRect();
+  var cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+  var startAng = Math.atan2(e.clientY - cy, e.clientX - cx);
+  var startRot = ov.rotation || 0, handle = e.currentTarget;
+  try { handle.setPointerCapture(e.pointerId); } catch (er) {}
+  function move(ev) {
+    var deg = startRot + (Math.atan2(ev.clientY - cy, ev.clientX - cx) - startAng) * 180 / Math.PI;
+    [0, 90, -90, 180, -180].forEach(function (s) { if (Math.abs(deg - s) < 5) deg = s; });
+    ov.rotation = Math.round(deg);
+    el.style.setProperty('--rot', ov.rotation + 'deg');
+  }
+  function up(ev) {
+    handle.removeEventListener('pointermove', move);
+    handle.removeEventListener('pointerup', up);
+    saveOverlays();
+  }
+  handle.addEventListener('pointermove', move);
+  handle.addEventListener('pointerup', up);
+}
+
+// ---- toolbar ----
+function tovTool(label, onClick) {
+  var b = document.createElement('div');
+  b.className = 'tov-tool';
+  if (label) b.textContent = label;
+  b.addEventListener('click', onClick);
+  return b;
+}
+function tovSep() { var s = document.createElement('div'); s.className = 'tov-sep'; return s; }
+
+function initToolbar() {
+  if (document.getElementById('tov-toolbar')) return;
+  var tb = document.createElement('div');
+  tb.className = 'tov-toolbar'; tb.id = 'tov-toolbar';
+
+  tb.appendChild(tovTool('✓ Done', function () { deselectAll(); }));
+  tb.appendChild(tovSep());
+
+  var fontBtn = tovTool('Classic', function () { cycleFont(); });
+  fontBtn.id = 'tov-font-btn'; tb.appendChild(fontBtn);
+  tb.appendChild(tovTool('A−', function () { changeSize(-8); }));
+  tb.appendChild(tovTool('A+', function () { changeSize(8); }));
+  var alignBtn = tovTool('Center', function () { cycleAlign(); });
+  alignBtn.id = 'tov-align-btn'; tb.appendChild(alignBtn);
+  tb.appendChild(tovSep());
+
+  var sw = document.createElement('div');
+  sw.className = 'tov-swatches'; sw.id = 'tov-color-swatches';
+  TEXT_COLORS.forEach(function (col) {
+    var s = document.createElement('div');
+    s.className = 'tov-swatch'; s.style.background = col; s.dataset.col = col;
+    s.addEventListener('click', function () { setColor(col); });
+    sw.appendChild(s);
+  });
+  tb.appendChild(sw);
+  tb.appendChild(tovSep());
+
+  var strokeBtn = tovTool('', function () { cycleStroke(); });
+  strokeBtn.id = 'tov-stroke-btn';
+  strokeBtn.innerHTML = '<span class="tov-chip" id="tov-stroke-chip"></span> Stroke';
+  tb.appendChild(strokeBtn);
+  var bgBtn = tovTool('', function () { cycleBg(); });
+  bgBtn.id = 'tov-bg-btn';
+  bgBtn.innerHTML = '<span class="tov-chip" id="tov-bg-chip"></span> BG';
+  tb.appendChild(bgBtn);
+  tb.appendChild(tovSep());
+
+  var del = tovTool('Delete', function () { if (TOV_SEL) { removeOverlay(TOV_SEL.ov, TOV_SEL.si); deselectAll(); } });
+  del.classList.add('danger');
+  tb.appendChild(del);
+
+  document.body.appendChild(tb);
+
+  // Click anywhere outside an overlay / the toolbar deselects (and
+  // commits/removes empty text). Capture phase so it runs before the
+  // stage's own handlers.
+  document.addEventListener('pointerdown', function (e) {
+    if (e.target.closest('.tov') || e.target.closest('.tov-toolbar') || e.target.closest('#add-text-btn')) return;
+    if (TOV_SEL) deselectAll();
+  }, true);
+}
+
+function withSel(mut) {
+  if (!TOV_SEL) return;
+  mut(TOV_SEL.ov, TOV_SEL.el);
+  styleOverlay(TOV_SEL.el, TOV_SEL.ov);
+  saveOverlays();
+  refreshToolbar();
+}
+function changeSize(d) { withSel(function (ov) { ov.fontSize = Math.max(20, Math.min(360, ov.fontSize + d)); }); }
+function setColor(c) { withSel(function (ov) { ov.color = c; }); }
+function cycleStroke() {
+  withSel(function (ov) {
+    var cur = ov.stroke.on ? ov.stroke.color : null;
+    var i = STROKE_CYCLE.indexOf(cur);
+    var next = STROKE_CYCLE[(i + 1) % STROKE_CYCLE.length];
+    ov.stroke = next ? { on: true, color: next } : { on: false, color: ov.stroke.color };
+  });
+}
+function cycleBg() {
+  withSel(function (ov) {
+    var cur = ov.bg.on ? ov.bg.color : null;
+    var i = BG_CYCLE.indexOf(cur);
+    var next = BG_CYCLE[(i + 1) % BG_CYCLE.length];
+    ov.bg = next ? { on: true, color: next } : { on: false, color: ov.bg.color };
+  });
+}
+function cycleFont() {
+  withSel(function (ov) {
+    var i = FONT_CYCLE.findIndex(function (f) { return f.css === ov.font; });
+    var next = FONT_CYCLE[(i + 1) % FONT_CYCLE.length];
+    ov.font = next.css; ov.weight = next.weight;
+  });
+}
+function cycleAlign() {
+  withSel(function (ov) { var a = ['center', 'left', 'right']; ov.align = a[(a.indexOf(ov.align) + 1) % 3]; });
+}
+
+function showToolbar() { var tb = document.getElementById('tov-toolbar'); if (tb) tb.classList.add('show'); }
+function hideToolbar() { var tb = document.getElementById('tov-toolbar'); if (tb) tb.classList.remove('show'); }
+
+function refreshToolbar() {
+  if (!TOV_SEL) return;
+  var ov = TOV_SEL.ov;
+  document.querySelectorAll('#tov-color-swatches .tov-swatch').forEach(function (s) {
+    s.classList.toggle('active', String(s.dataset.col).toLowerCase() === String(ov.color).toLowerCase());
+  });
+  var sc = document.getElementById('tov-stroke-chip');
+  if (sc) { if (ov.stroke.on) { sc.className = 'tov-chip'; sc.style.background = ov.stroke.color; } else { sc.className = 'tov-chip tov-chip-none'; sc.style.background = ''; } }
+  var sb = document.getElementById('tov-stroke-btn'); if (sb) sb.classList.toggle('active', ov.stroke.on);
+  var bc = document.getElementById('tov-bg-chip');
+  if (bc) { if (ov.bg.on) { bc.className = 'tov-chip'; bc.style.background = ov.bg.color; } else { bc.className = 'tov-chip tov-chip-none'; bc.style.background = ''; } }
+  var bb = document.getElementById('tov-bg-btn'); if (bb) bb.classList.toggle('active', ov.bg.on);
+  var ab = document.getElementById('tov-align-btn'); if (ab) ab.textContent = ov.align.charAt(0).toUpperCase() + ov.align.slice(1);
+  var fb = document.getElementById('tov-font-btn');
+  if (fb) { var f = FONT_CYCLE.find(function (x) { return x.css === ov.font; }); fb.textContent = f ? f.label : 'Aa'; fb.style.fontFamily = ov.font; }
+}
+
+initToolbar();
+
 render();
 
 // ============================================================
@@ -2183,9 +2689,16 @@ window.addEventListener('message', async (e) => {
         return;
       }
       // 0.25 scale → ~270×480 PNG, ~30 KB. Plenty for a list thumbnail.
-      const canvas = await html2canvas(slide, {
-        width: PAGE_W, height: PAGE_H, scale: 0.25, useCORS: true, backgroundColor: '#000000',
-      });
+      // Hide overlay editing chrome so the thumbnail matches the export.
+      document.body.classList.add('capturing');
+      let canvas;
+      try {
+        canvas = await html2canvas(slide, {
+          width: PAGE_W, height: PAGE_H, scale: 0.25, useCORS: true, backgroundColor: '#000000',
+        });
+      } finally {
+        document.body.classList.remove('capturing');
+      }
       const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
       e.source.postMessage({ type: 'thumb', requestId: msg.requestId, blob }, '*');
     } catch (err) {
@@ -2428,6 +2941,9 @@ async function captureAllSlidesAsFiles(label) {
     try {
       const weights = [400, 500, 600, 700, 800, 900];
       await Promise.all(weights.map((w) => document.fonts.load(`${w} 100px Inter`)));
+      // Caveat powers the handwritten preset + the text overlay "Script"
+      // font — load it explicitly so overlays capture with the right face.
+      try { await document.fonts.load('700 100px Caveat'); } catch (e) {}
       if (document.fonts.ready) await document.fonts.ready;
     } catch (e) {}
   }
@@ -2435,6 +2951,10 @@ async function captureAllSlidesAsFiles(label) {
   const safeWasOn = document.body.classList.contains('show-safezone');
   if (safeWasOn) document.body.classList.remove('show-safezone');
   document.querySelector('.hud').style.visibility = 'hidden';
+  // Commit any in-progress text edit and strip overlay editing chrome
+  // (selection outline + handles) so the exported PNGs are clean.
+  if (typeof deselectAll === 'function') deselectAll();
+  document.body.classList.add('capturing');
 
   const now = new Date();
   const stamp = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}`;
@@ -2460,6 +2980,7 @@ async function captureAllSlidesAsFiles(label) {
   } finally {
     if (safeWasOn) document.body.classList.add('show-safezone');
     document.querySelector('.hud').style.visibility = 'visible';
+    document.body.classList.remove('capturing');
   }
   return files;
 }

@@ -1368,7 +1368,7 @@ export default function App() {
               {status.kind === 'ok' && (
                 <div className="flex items-center gap-2 text-[#00E5FF]">
                   <span className="w-1.5 h-1.5 rounded-full bg-[#00E5FF] shadow-[0_0_8px_rgba(0,229,255,0.8)]"></span>
-                  <span>Rendered — hit Download in the top bar.</span>
+                  <span>Rendered — use “Add text” or Download in the top bar.</span>
                 </div>
               )}
               {status.kind === 'rendering' && (
