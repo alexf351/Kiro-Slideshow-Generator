@@ -270,6 +270,22 @@ function extractSlideMeta(parsed: unknown): SlideMeta[] {
   return out;
 }
 
+// True when the JSON box is empty or still holds one of the built-in
+// example posts (i.e. the user hasn't done custom work yet). Lets us
+// auto-swap examples on format change without a confirm, but still
+// guard real edits. Caption has the same check.
+function isExampleJson(txt: string): boolean {
+  const t = txt.trim();
+  if (!t) return true;
+  if (t === DEFAULT_JSON.trim()) return true; // the first-run starter content
+  return PRESET_KEYS.some((k) => PRESETS[k].defaultJson.trim() === t);
+}
+function isExampleCaption(txt: string): boolean {
+  const t = txt.trim();
+  if (!t) return true;
+  return PRESET_KEYS.some((k) => PRESETS[k].defaultCaption.trim() === t);
+}
+
 export default function App() {
   const ui = useUI();
   const initial = useMemo(loadPersisted, []);
@@ -893,6 +909,30 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
+  // Picking a format chip loads that format's example post into the
+  // content + JSON editors and the caption, so the user can choose a
+  // template and immediately have something to tweak. We only confirm
+  // when the current content/caption is custom (not a built-in example
+  // and not empty), so the common "browse the templates" flow stays
+  // one tap. Re-tapping the active format with its example already
+  // loaded is a no-op. Note: the sidebar preset overrides the JSON's
+  // own `preset` at render, so each format must load its matching
+  // example or the engine would render mismatched content.
+  async function selectFormat(key: PresetKey) {
+    if (key === preset && isExampleJson(jsonText)) return;
+    const dirty = !isExampleJson(jsonText) || !isExampleCaption(caption);
+    if (dirty) {
+      const ok = await ui.confirm({
+        message: `Load the ${PRESETS[key].label} example post? This replaces your current content and caption.`,
+        confirmLabel: 'Load example',
+      });
+      if (!ok) return;
+    }
+    setPreset(key);
+    setJsonText(PRESETS[key].defaultJson);
+    setCaption(PRESETS[key].defaultCaption);
+  }
+
   // Command palette entries, rebuilt when the bits they reference change.
   const commands = useMemo<Command[]>(() => {
     const goto = (main: MainView, mobile: MobileView): (() => void) => () => {
@@ -904,7 +944,7 @@ export default function App() {
       { id: 'save', section: 'Actions', label: 'Save to history', keywords: 'post track', run: () => void handleSaveToHistory() },
       { id: 'hashtags', section: 'Actions', label: 'Suggest hashtags', keywords: 'tags caption', run: () => void handleSuggestHashtags() },
       { id: 'copycap', section: 'Actions', label: 'Copy caption', run: () => { if (caption) void navigator.clipboard?.writeText(caption); } },
-      { id: 'loaddefault', section: 'Actions', label: `Load default content for ${PRESETS[preset].label}`, keywords: 'reset template', run: () => setJsonText(PRESETS[preset].defaultJson) },
+      { id: 'loaddefault', section: 'Actions', label: `Load ${PRESETS[preset].label} example post`, keywords: 'reset template default', run: () => { setJsonText(PRESETS[preset].defaultJson); setCaption(PRESETS[preset].defaultCaption); } },
       { id: 'toggle-edit', section: 'Actions', label: `Switch editor to ${editMode === 'quick' ? 'JSON' : 'Quick edit'}`, run: () => setEditMode((m) => (m === 'quick' ? 'json' : 'quick')) },
       { id: 'export-backup', section: 'Actions', label: 'Export backup', keywords: 'download save data', run: () => void handleExportBackup() },
       { id: 'welcome', section: 'Actions', label: 'Show welcome / how it works', keywords: 'help onboarding guide', run: () => setShowOnboarding(true) },
@@ -915,14 +955,14 @@ export default function App() {
       { id: 'go-stats', section: 'Go to', label: 'Performance', keywords: 'analytics stats scores', run: goto('analytics', 'analytics') },
     ];
     for (const k of PRESET_KEYS) {
-      list.push({ id: `fmt-${k}`, section: 'Format', label: `Format: ${PRESETS[k].label}`, keywords: 'preset', run: () => setPreset(k) });
+      list.push({ id: `fmt-${k}`, section: 'Format', label: `Format: ${PRESETS[k].label}`, keywords: 'preset template example', run: () => void selectFormat(k) });
     }
     for (const k of ASPECT_KEYS) {
       list.push({ id: `asp-${k}`, section: 'Aspect ratio', label: `Aspect: ${k} (${ASPECTS[k].sub})`, keywords: 'size resize', run: () => setDesign((d) => ({ ...d, aspect: k })) });
     }
     return list;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [preset, editMode, caption]);
+  }, [preset, editMode, caption, jsonText]);
 
   // Wired to the CloneFromTikTok panel. Takes the clone result and
   // populates everything in one shot: JSON, preset, caption, per-slide
@@ -1173,7 +1213,7 @@ export default function App() {
                   <button
                     key={key}
                     type="button"
-                    onClick={() => setPreset(key)}
+                    onClick={() => void selectFormat(key)}
                     style={selected ? {
                       borderColor: meta.accent + '99',
                       boxShadow: `0 0 0 1px ${meta.accent}26, 0 8px 24px -10px ${meta.accent}80`,
@@ -1209,15 +1249,17 @@ export default function App() {
               })}
             </div>
             <p className="mt-3 text-xs text-gray-500 leading-relaxed">{PRESETS[preset].pitch}</p>
+            <p className="mt-1 text-[11px] text-gray-600 leading-relaxed">Tap a format to drop its example post into the editor and caption — then tweak and render.</p>
             <button
               type="button"
               onClick={async () => {
-                if (jsonText.trim() && !(await ui.confirm({ message: `Replace the content with the ${PRESETS[preset].label} default?`, confirmLabel: 'Replace' }))) return;
+                if (!isExampleJson(jsonText) && !(await ui.confirm({ message: `Reset the content and caption to the ${PRESETS[preset].label} example?`, confirmLabel: 'Reset' }))) return;
                 setJsonText(PRESETS[preset].defaultJson);
+                setCaption(PRESETS[preset].defaultCaption);
               }}
               className="mt-3 text-[11px] font-bold uppercase tracking-[0.14em] text-gray-500 hover:text-[#00E5FF]"
             >
-              Load default JSON for {PRESETS[preset].label} →
+              Reset to {PRESETS[preset].label} example post →
             </button>
           </section>
 
