@@ -1636,28 +1636,28 @@ const PRESETS = {
     fallbackBg: 'photo',
     buildSlides(S) {
       const out = [];
-      // `bgGradient` (chosen in the editor's background picker) applies to
-      // every slide unless one has its own photo bg; `background` keeps the
-      // older shared-photo behaviour as a fallback.
+      // Background precedence per slide: an explicit photo (`bg`) wins,
+      // then that slide's own gradient (`bgGradient`), then the all-slides
+      // default (`S.bgGradient`), then the legacy shared photo.
       const shared = S.bgGradient || S.background;
       // Hook + CTA are optional bookends — a pure "one slide per tool"
       // carousel (like the original post) is valid too.
       if (S.hook) {
         out.push({
           html: buildHypeHook(S.hook),
-          bg: (S.hook && S.hook.bg) || shared,
+          bg: (S.hook && S.hook.bg) || (S.hook && S.hook.bgGradient) || shared,
         });
       }
       (S.tools || []).forEach((t) => {
         out.push({
           html: buildHypeTool(t, S.attribution),
-          bg: (t && t.bg) || shared,
+          bg: (t && t.bg) || (t && t.bgGradient) || shared,
         });
       });
       if (S.cta) {
         out.push({
           html: buildHypeCTA(S.cta, S.attribution),
-          bg: (S.cta && S.cta.bg) || shared,
+          bg: (S.cta && S.cta.bg) || (S.cta && S.cta.bgGradient) || shared,
         });
       }
       return out;

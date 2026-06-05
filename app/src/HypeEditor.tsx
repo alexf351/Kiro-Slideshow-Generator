@@ -13,11 +13,12 @@ type Tool = {
   accent?: string;
   output?: number;
   hype?: number;
+  bgGradient?: string;
   [k: string]: unknown;
 };
 
 type Parsed = {
-  hook?: { headline?: string; sub?: string; [k: string]: unknown };
+  hook?: { headline?: string; sub?: string; bgGradient?: string; [k: string]: unknown };
   tools?: Tool[];
   cta?: {
     headline?: string;
@@ -25,6 +26,7 @@ type Parsed = {
     searchTerm?: string;
     instructionBelow?: string;
     slogan?: string;
+    bgGradient?: string;
     [k: string]: unknown;
   };
   bgGradient?: string;
@@ -73,6 +75,50 @@ const DEFAULT_CTA = {
   instructionBelow: 'on the App Store.',
   slogan: 'less hype. more output.',
 };
+
+// Reusable gradient swatch picker. `null` value = the first chip
+// (engine default for the global picker, or "inherit" for a per-slide
+// one). Module-scoped so it never remounts its parent's inputs.
+function GradientRow({
+  value,
+  onChange,
+  firstLabel,
+  compact = false,
+}: {
+  value: string | null;
+  onChange: (css: string | null) => void;
+  firstLabel: string;
+  compact?: boolean;
+}) {
+  return (
+    <div className={'grid gap-2 ' + (compact ? 'grid-cols-5' : 'grid-cols-3 sm:grid-cols-4')}>
+      {BG_GRADIENTS.map((g) => {
+        const isFirst = g.css === null;
+        const active = (g.css ?? null) === value;
+        return (
+          <button
+            key={g.name}
+            type="button"
+            onClick={() => onChange(g.css)}
+            title={isFirst ? firstLabel : g.name}
+            className={
+              'relative rounded-lg overflow-hidden border transition-all ' +
+              (compact ? 'h-9' : 'h-12') + ' ' +
+              (active ? 'border-[#00E5FF] shadow-[0_0_0_2px_rgba(0,229,255,0.4)]' : 'border-white/10 hover:border-white/30')
+            }
+            style={{ background: g.css ?? ENGINE_DEFAULT_BG }}
+          >
+            {(!compact || isFirst) && (
+              <span className="absolute bottom-0 inset-x-0 text-[9px] font-bold uppercase tracking-[0.08em] text-white/85 bg-black/40 py-0.5">
+                {isFirst ? firstLabel : g.name}
+              </span>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 function tryParse(txt: string): Parsed | null {
   try {
@@ -173,6 +219,31 @@ export default function HypeEditor({ jsonText, onChange, logoThumb, onPickLogo, 
       else delete draft.bgGradient;
     });
   }
+  // Per-slide gradients override the all-slides default. null = clear the
+  // override (inherit the default).
+  function setToolGradient(i: number, css: string | null) {
+    commit((draft) => {
+      const arr = draft.tools as Tool[];
+      const t = { ...arr[i] };
+      if (css) t.bgGradient = css; else delete t.bgGradient;
+      arr[i] = t;
+    });
+  }
+  function setHookGradient(css: string | null) {
+    commit((draft) => {
+      const h = { ...(draft.hook as Record<string, unknown>) };
+      if (css) h.bgGradient = css; else delete h.bgGradient;
+      draft.hook = h;
+    });
+  }
+  function setCtaGradient(css: string | null) {
+    commit((draft) => {
+      if (!draft.cta) return;
+      const c = { ...draft.cta };
+      if (css) c.bgGradient = css; else delete c.bgGradient;
+      draft.cta = c;
+    });
+  }
 
   const card = 'rounded-xl border border-white/[0.08] bg-[#0b1224]/60 p-3';
   const inputCls =
@@ -189,31 +260,13 @@ export default function HypeEditor({ jsonText, onChange, logoThumb, onPickLogo, 
         <strong className="text-gray-300">Hype</strong>, and pick a background. Changes render on the next “Render slides”.
       </p>
 
-      {/* Background gradient picker */}
+      {/* Background gradient picker — sets the default for every slide;
+          each slide below can override it with its own. */}
       <div className={card}>
-        <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-gray-400 mb-2">Background</div>
-        <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-          {BG_GRADIENTS.map((g) => {
-            const active = (g.css ?? null) === currentBg;
-            return (
-              <button
-                key={g.name}
-                type="button"
-                onClick={() => setBgGradient(g.css)}
-                title={g.name}
-                className={
-                  'relative h-12 rounded-lg overflow-hidden border transition-all ' +
-                  (active ? 'border-[#00E5FF] shadow-[0_0_0_2px_rgba(0,229,255,0.4)]' : 'border-white/10 hover:border-white/30')
-                }
-                style={{ background: g.css ?? ENGINE_DEFAULT_BG }}
-              >
-                <span className="absolute bottom-0 inset-x-0 text-[9px] font-bold uppercase tracking-[0.1em] text-white/85 bg-black/40 py-0.5">
-                  {g.name}
-                </span>
-              </button>
-            );
-          })}
+        <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-gray-400 mb-2">
+          Background <span className="text-gray-600">· all slides</span>
         </div>
+        <GradientRow value={currentBg} onChange={setBgGradient} firstLabel="None" />
       </div>
 
       {/* Optional title slide (hook) */}
@@ -238,6 +291,8 @@ export default function HypeEditor({ jsonText, onChange, logoThumb, onPickLogo, 
               value={String(parsed.hook?.sub ?? '')}
               onChange={(e) => setHook('sub', e.target.value)}
             />
+            <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-gray-500 mt-1">Slide background</div>
+            <GradientRow value={parsed.hook?.bgGradient ?? null} onChange={setHookGradient} firstLabel="Inherit" compact />
           </div>
         </div>
       ) : (
@@ -380,6 +435,12 @@ export default function HypeEditor({ jsonText, onChange, logoThumb, onPickLogo, 
                   />
                 </label>
               </div>
+
+              {/* per-slide background */}
+              <div className="mt-3">
+                <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-gray-500 mb-1.5">Slide background</div>
+                <GradientRow value={t.bgGradient ?? null} onChange={(c) => setToolGradient(i, c)} firstLabel="Inherit" compact />
+              </div>
             </div>
           );
         })}
@@ -402,6 +463,8 @@ export default function HypeEditor({ jsonText, onChange, logoThumb, onPickLogo, 
             </div>
             <input className={inputCls} placeholder="on the App Store." value={String(parsed.cta.instructionBelow ?? '')} onChange={(e) => setCta('instructionBelow', e.target.value)} />
             <input className={inputCls} placeholder="Slogan" value={String(parsed.cta.slogan ?? '')} onChange={(e) => setCta('slogan', e.target.value)} />
+            <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-gray-500 mt-1">Slide background</div>
+            <GradientRow value={parsed.cta.bgGradient ?? null} onChange={setCtaGradient} firstLabel="Inherit" compact />
           </div>
         </div>
       ) : (
