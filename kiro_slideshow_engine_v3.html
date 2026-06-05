@@ -765,19 +765,16 @@
   }
   .preset-output-vs-hype .ovh-bar {
     width: 230px; border-radius: 120px 120px 10px 10px;
-    /* The glossy top sheen is baked into the gradient rather than an
-       inset box-shadow: html2canvas mis-renders inset shadows on large
-       corner radii (triangular seams in the exported PNG), but gradients
-       capture cleanly. A thin top-only highlight via an ::before keeps
-       the tube edge without an inset ring. */
-    background: linear-gradient(180deg,
-      rgba(255,255,255,0.82) 0%,
-      var(--ovh-light, #66f0ff) 14%,
-      var(--ovh-accent, #00E5FF) 56%,
-      var(--ovh-dark, #008a99) 100%);
+    /* The gradient fill lives in an inline SVG child (.ovh-bar-fill), not
+       a CSS background. html2canvas renders a CSS gradient on a
+       large-radius rounded box with triangular seams, but it rasterises
+       inline SVG natively (via the browser), so the SVG fill exports
+       clean. The div itself only carries the rounded outer glow. */
+    background: transparent;
     box-shadow: 0 0 55px -8px var(--ovh-accent, #00E5FF);
     position: relative;
   }
+  .preset-output-vs-hype .ovh-bar-fill { display: block; width: 100%; height: 100%; }
   /* Soft glow puddle where the bar meets the floor */
   .preset-output-vs-hype .ovh-bar::after {
     content: ''; position: absolute; left: -28px; right: -28px; bottom: -6px; height: 26px;
@@ -2181,14 +2178,29 @@ function buildHypeBar(label, value, accent) {
   const h = Math.round(MIN + (MAX - MIN) * (value / 100));
   const light = shadeHex(accent, 0.4);
   const dark = shadeHex(accent, -0.4);
-  const style = `height:${h}px;--ovh-accent:${accent};--ovh-light:${light};--ovh-dark:${dark}`;
+  // Rounded-"tube" path: semicircle top (radius = half width), small
+  // rounded bottom. Drawn in an inline SVG so the gradient fill exports
+  // cleanly through html2canvas (a CSS gradient on this rounded box
+  // renders with triangular seams).
+  const W = 230, rt = 115, rb = 10;
+  const gid = 'ovhg' + Math.random().toString(36).slice(2, 8);
+  const path = `M0 ${h - rb} L0 ${rt} A${rt} ${rt} 0 0 1 ${W} ${rt} L${W} ${h - rb} Q${W} ${h} ${W - rb} ${h} L${rb} ${h} Q0 ${h} 0 ${h - rb} Z`;
+  const svg =
+    `<svg class="ovh-bar-fill" width="${W}" height="${h}" viewBox="0 0 ${W} ${h}" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">` +
+    `<defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">` +
+    `<stop offset="0" stop-color="#ffffff" stop-opacity="0.82"/>` +
+    `<stop offset="0.14" stop-color="${light}"/>` +
+    `<stop offset="0.56" stop-color="${accent}"/>` +
+    `<stop offset="1" stop-color="${dark}"/>` +
+    `</linearGradient></defs>` +
+    `<path d="${path}" fill="url(#${gid})"/></svg>`;
   return `<div class="ovh-col">
       <div class="ovh-col-label">
         <span class="ovh-col-word">${label}</span>
         <span class="ovh-connector"></span>
         <span class="ovh-dot" style="--ovh-accent:${accent};background:${accent}"></span>
       </div>
-      <div class="ovh-bar" style="${style}"></div>
+      <div class="ovh-bar" style="height:${h}px;--ovh-accent:${accent}">${svg}</div>
     </div>`;
 }
 
