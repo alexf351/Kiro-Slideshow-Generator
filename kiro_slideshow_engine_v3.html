@@ -699,27 +699,32 @@
      don't resolve reliably, which would clamp the chart and the
      tallest bar. inset:0 against the (positioned) frame gives a hard
      1080×1920 box the inner chart can flex within. */
+  /* Anchored to the TikTok safe zone (top 14% / bottom 24% / sides 12%)
+     so the logo, name and bars never sit under TikTok's top bar or get
+     covered by the caption + side buttons. The bar heights (in the JS
+     builder) are tuned to the resulting chart height. */
   .preset-output-vs-hype .ovh-tool {
-    position: absolute; inset: 0; box-sizing: border-box;
+    position: absolute; top: 14%; bottom: 24%; left: 12%; right: 12%;
+    box-sizing: border-box;
     display: flex; flex-direction: column; align-items: center;
-    padding: 210px 110px 150px 110px;
+    padding: 8px 0 0 0;
   }
   .preset-output-vs-hype .ovh-tool-head {
-    display: flex; flex-direction: column; align-items: center; gap: 30px;
+    display: flex; flex-direction: column; align-items: center; gap: 24px;
     flex-shrink: 0;
   }
   .preset-output-vs-hype .ovh-tool-logo {
-    width: 188px; height: 188px; border-radius: 44px; object-fit: contain;
+    width: 150px; height: 150px; border-radius: 36px; object-fit: contain;
     background: rgba(255,255,255,0.04);
     box-shadow: 0 10px 36px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.07);
   }
   .preset-output-vs-hype .ovh-tool-logo-empty {
     display: flex; align-items: center; justify-content: center;
-    font-family: 'Inter', sans-serif; font-size: 96px; font-weight: 800;
+    font-family: 'Inter', sans-serif; font-size: 80px; font-weight: 800;
     color: #ffffff;
   }
   .preset-output-vs-hype .ovh-tool-name {
-    font-family: 'Inter', sans-serif; font-size: 84px; font-weight: 800;
+    font-family: 'Inter', sans-serif; font-size: 76px; font-weight: 800;
     color: #ffffff; line-height: 1.05; letter-spacing: -0.01em; text-align: center;
     text-shadow: 0 3px 16px rgba(0,0,0,0.7);
   }
@@ -727,7 +732,7 @@
   .preset-output-vs-hype .ovh-chart {
     flex: 1; width: 100%; min-height: 0;
     display: flex; align-items: flex-end; justify-content: center;
-    gap: 150px; padding-top: 90px;
+    gap: 150px; padding-top: 40px;
     position: relative;
   }
   /* Reflective floor line under the bars */
@@ -2169,8 +2174,9 @@ function shadeHex(hex, amt) {
 function buildHypeBar(label, value, accent) {
   // Bar height range (px) within the chart area. A non-zero floor
   // keeps even a "0" bar visible as a stub; MAX leaves headroom for
-  // the label that sits above the tallest bar.
-  const MIN = 180, MAX = 1000;
+  // the label that sits above the tallest bar AND keeps the whole bar
+  // inside the safe-zone-anchored chart (see .ovh-tool).
+  const MIN = 140, MAX = 700;
   const h = Math.round(MIN + (MAX - MIN) * (value / 100));
   const light = shadeHex(accent, 0.4);
   const dark = shadeHex(accent, -0.4);
