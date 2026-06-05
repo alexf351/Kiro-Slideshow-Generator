@@ -58,9 +58,9 @@ function tryParse(t: string): Parsed | null {
 }
 
 // Content arrays, in priority order — the first one present is "the slides".
-const CONTENT_KEYS = ['prompts', 'beats', 'panels', 'features', 'items', 'apps'] as const;
+const CONTENT_KEYS = ['prompts', 'beats', 'panels', 'features', 'items', 'apps', 'tools'] as const;
 // Fields we never surface as text inputs (backgrounds, icons live elsewhere).
-const SKIP_FIELDS = new Set(['bg', 'iconUrl', 'icon']);
+const SKIP_FIELDS = new Set(['bg', 'iconUrl', 'icon', 'logoUrl']);
 
 function stringFields(obj: unknown): string[] {
   if (!obj || typeof obj !== 'object') return [];

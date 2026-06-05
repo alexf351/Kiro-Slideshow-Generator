@@ -4,7 +4,7 @@ You are generating SLIDES JSON for the Iro Slideshow Generator, a tool that rend
 
 ## Workflow
 
-1. User picks one of 6 **presets** in the app. They tell you which preset.
+1. User picks one of the **presets** in the app. They tell you which preset.
 2. User gives you a topic / angle / hook idea.
 3. You return a JSON object that matches the preset's schema and tone.
 4. User pastes it, the engine renders, they post.
@@ -465,6 +465,71 @@ Mixing 1-2 cross/warning items at the end with mostly checks is high-engagement.
 ```
 
 **Don't:** put `<strong>` / `<em>` / `<br/>` in handwritten_pack text — handwriting fonts don't have a meaningful bold variant and HTML tags will render literally as accent text. Just write the plain sentence; the visual interest comes from the font + paper, not inline accents.
+
+---
+
+## Preset 8: `output_vs_hype`
+
+**Use case:** "Output vs Hype — what AI tools actually deliver." A per-tool bar-chart carousel: one slide per AI tool/brand, each showing the brand logo + two vertical bars labelled **Output** and **Hype**. The point of the format is the *contrast* between the bars — some tools over-deliver (Output > Hype), some are overhyped (Hype > Output). Strong save/share + comment-bait ("what's overrated?").
+**Voice:** Minimal. The tool name is just the brand name; the editorializing happens through the bar values and the caption. Keep the optional hook short ("Output vs Hype") and the CTA on-brand for Iro.
+**Slide count:** optional hook + 3-8 tools + optional CTA. A pure "one slide per tool" set (no hook/CTA) is valid — mirrors the original format.
+**Renders:** Dark radial background, brand logo (or a letter fallback) + name up top, two glowing rounded bars below tinted with each tool's `accent`. Bars scale 0–100; the taller bar reads as the dominant trait. A subtle reflective floor + glow puddle sits under the bars. Top counter shown.
+
+### Schema
+```ts
+{
+  preset: "output_vs_hype",
+  hook?: {              // optional title slide
+    headline: string,   // e.g. "Output <span style=\"color:#00E5FF\">vs</span> Hype" — inline HTML OK
+    sub?: string        // e.g. "what AI tools actually deliver."
+  },
+  tools: Array<{
+    name: string,       // brand name, e.g. "Claude"
+    logoUrl?: string,   // brand logo (square). Omit → letter-initial fallback. Can also be set via the app's logo picker.
+    accent?: string,    // #rrggbb that tints the bars + label dot. Defaults to brand cyan.
+    output: number,     // 0–100 — how much the tool actually delivers
+    hype: number,       // 0–100 — how much it's hyped
+    outputLabel?: string, // override the "Output" label
+    hypeLabel?: string    // override the "Hype" label
+  }>,
+  cta?: {               // optional Iro CTA slide (same shape as other presets)
+    headline: string,
+    instructionAbove: string,
+    searchTerm: string,
+    instructionBelow: string,
+    slogan: string
+  },
+  attribution: "@tryiro"
+}
+```
+
+### Working example
+```json
+{
+  "preset": "output_vs_hype",
+  "hook": {
+    "headline": "Output <span style=\"color:#00E5FF\">vs</span> Hype",
+    "sub": "what AI tools actually deliver."
+  },
+  "tools": [
+    { "name": "Claude", "accent": "#D97757", "output": 92, "hype": 70 },
+    { "name": "Perplexity", "accent": "#22D3EE", "output": 84, "hype": 62 },
+    { "name": "Lovable", "accent": "#F5707A", "output": 48, "hype": 95 },
+    { "name": "NotebookLM", "accent": "#5B8DEF", "output": 88, "hype": 55 },
+    { "name": "Magnific", "accent": "#E5E7EB", "output": 76, "hype": 64 }
+  ],
+  "cta": {
+    "headline": "want to actually <strong>get good</strong> at AI?",
+    "instructionAbove": "search",
+    "searchTerm": "Iro AI",
+    "instructionBelow": "on the App Store.",
+    "slogan": "less hype. more output."
+  },
+  "attribution": "@tryiro"
+}
+```
+
+**Don't:** make every tool the same shape — the whole format dies if Output and Hype are equal on every slide. Give each tool a real point of view (clearly taller bar one way or the other). Keep `output`/`hype` as numbers 0–100.
 
 ---
 

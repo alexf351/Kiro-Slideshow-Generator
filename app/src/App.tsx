@@ -173,7 +173,7 @@ function stripJsonWrappers(t: string): string {
     .trim();
 }
 
-const CONTENT_KEYS = ['hook', 'prompts', 'beats', 'panels', 'features', 'items', 'apps'];
+const CONTENT_KEYS = ['hook', 'prompts', 'beats', 'panels', 'features', 'items', 'apps', 'tools'];
 
 // If someone pastes a whole clone / propose payload
 // ({ preset, slides: {...}, caption, cloneAnalysis, bgAssignments }) into the
@@ -214,6 +214,7 @@ function extractSlideMeta(parsed: unknown): SlideMeta[] {
     panels?: { top?: string; bottom?: string }[];
     features?: { headline?: string }[];
     apps?: { name?: string }[];
+    tools?: { name?: string }[];
     cta?: unknown;
   };
   const out: SlideMeta[] = [];
@@ -250,6 +251,13 @@ function extractSlideMeta(parsed: unknown): SlideMeta[] {
       const t = clean(a?.name || `App ${i + 1}`);
       out.push({ key: `app:${i}`, label: truncate(`${i + 1}. ${t}`, 40) });
       out.push({ key: `app-icon:${i}`, label: truncate(`${i + 1}. ${t} · icon`, 40) });
+    });
+  }
+  if (Array.isArray(p.tools)) {
+    p.tools.forEach((t, i) => {
+      const n = clean(t?.name || `Tool ${i + 1}`);
+      out.push({ key: `tool:${i}`, label: truncate(`${i + 1}. ${n}`, 40) });
+      out.push({ key: `tool-logo:${i}`, label: truncate(`${i + 1}. ${n} · logo`, 40) });
     });
   }
   if (Array.isArray((p as { items?: { text?: string }[] }).items)) {
@@ -571,6 +579,7 @@ export default function App() {
       { field: 'features', prefix: 'feature' },
       { field: 'items', prefix: 'item' },
       { field: 'apps', prefix: 'app' },
+      { field: 'tools', prefix: 'tool' },
     ];
     for (const { field, prefix } of contentArrays) {
       const arr = slides[field];
@@ -589,6 +598,17 @@ export default function App() {
         (slides['apps'] as Record<string, unknown>[]).map(async (item, i) => {
           const iconUrl = await resolveSlideBg(slideBgs[`app-icon:${i}`]);
           return iconUrl ? { ...item, iconUrl } : item;
+        }),
+      );
+    }
+
+    // Resolve tool logos for output_vs_hype — same picker UX as app icons,
+    // travels to the engine as `logoUrl` on each tool.
+    if (Array.isArray(slides['tools'])) {
+      slides['tools'] = await Promise.all(
+        (slides['tools'] as Record<string, unknown>[]).map(async (item, i) => {
+          const logoUrl = await resolveSlideBg(slideBgs[`tool-logo:${i}`]);
+          return logoUrl ? { ...item, logoUrl } : item;
         }),
       );
     }
