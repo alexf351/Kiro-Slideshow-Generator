@@ -950,7 +950,21 @@
     text-shadow: 0 4px 10px rgba(0,0,0,0.8);
   }
   .bg-vignette { position: absolute; inset: 0; background: radial-gradient(ellipse at center, rgba(0,0,0,0.0) 0%, rgba(0,0,0,0.30) 70%, rgba(0,0,0,0.65) 100%), linear-gradient(180deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.0) 25%, rgba(0,0,0,0.0) 50%, rgba(0,0,0,1.0) 82%, rgba(0,0,0,1.0) 100%); pointer-events: none; }
-  body.show-safezone .slide::after { content: ''; position: absolute; top: 14%; bottom: 24%; left: 12%; right: 12%; border: 4px dashed rgba(255, 80, 80, 0.55); pointer-events: none; z-index: 50; }
+  /* TikTok safe zone — asymmetric to match the real For-You UI: the
+     action-button rail sits on the RIGHT (~14%), the caption + @handle +
+     sound + carousel dots sit across the BOTTOM (~30%), the top nav is
+     ~10%, and the left edge is mostly clear (~5%). The dashed box is the
+     "keep key content here" area; the huge red box-shadow (clipped by the
+     slide's overflow:hidden) tints everything outside it so you can see
+     exactly where TikTok will cover your content. Approximate — exact
+     pixels shift with caption length + app version. */
+  body.show-safezone .slide::after {
+    content: ''; position: absolute;
+    top: 10%; bottom: 30%; left: 5%; right: 14%;
+    border: 3px dashed rgba(255,255,255,0.75); border-radius: 8px;
+    box-shadow: 0 0 0 9999px rgba(255, 45, 45, 0.16);
+    pointer-events: none; z-index: 50;
+  }
   .frame { position: absolute; inset: 0; padding: 140px 90px 200px 90px; display: flex; flex-direction: column; z-index: 10; }
   .top-counter { position: absolute; top: 80px; right: 90px; font-size: 44px; font-weight: 600; color: var(--ink-muted); background: rgba(0,0,0,0.4); padding: 12px 28px; border-radius: 999px; backdrop-filter: blur(8px); }
   .body { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding-bottom: 100px; }
