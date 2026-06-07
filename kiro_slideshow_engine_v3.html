@@ -1700,7 +1700,21 @@ function render() {
     } else if (typeof bg === 'string' && bg.length > 0) {
       // Escape single quotes so a URL with a quote can't break the inline style.
       const safeBg = bg.replace(/'/g, "\\'");
-      bgLayer = `<div class="bg-photo" style="background-image: url('${safeBg}')"></div>
+      // Optional per-photo crop adjustment (pan + zoom), keyed by URL in
+      // SLIDES.bgAdjust. background-position pans the cover; a scale()
+      // transform zooms in (giving room to pan). Values are sanitised to a
+      // numeric-only charset.
+      const adj = (SLIDES.bgAdjust && typeof SLIDES.bgAdjust === 'object') ? SLIDES.bgAdjust[bg] : null;
+      let bgExtra = '';
+      if (adj) {
+        if (typeof adj.pos === 'string') {
+          const safePos = adj.pos.replace(/[^0-9.%\s-]/g, '');
+          if (safePos) bgExtra += `background-position:${safePos};`;
+        }
+        const z = Number(adj.zoom);
+        if (isFinite(z) && z > 1) bgExtra += `transform:scale(${Math.min(4, z)});`;
+      }
+      bgLayer = `<div class="bg-photo" style="background-image: url('${safeBg}');${bgExtra}"></div>
                  <div class="bg-photo-scrim"></div>`;
     } else if (preset.fallbackBg === 'mascot') {
       const mascotKey = SLIDES.mascot || 'platinum';
