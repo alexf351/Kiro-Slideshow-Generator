@@ -12,6 +12,7 @@ import PredictPanel from './PredictPanel';
 import DesignPanel from './DesignPanel';
 import QuickEdit from './QuickEdit';
 import HypeEditor from './HypeEditor';
+import CropAdjust, { DEFAULT_CROP, type CropValue } from './CropAdjust';
 import { coerceDesign, DEFAULT_DESIGN, designPayload, ASPECT_KEYS, ASPECTS, type BrandDesign } from './design';
 import { exportBackup, importBackup, downloadBlob, timestampSlug } from './backup';
 import { suggestHashtags } from './insights';
@@ -100,6 +101,7 @@ type Persisted = {
   platform: Platform;
   jsonText: string;
   slideBgs: SlideBgMap;
+  slideBgAdjust: Record<string, CropValue>;
   caption: string;
   preset: PresetKey;
   pexelsKey: string;
@@ -132,6 +134,7 @@ function loadPersisted(): Persisted {
         platform: p.platform === 'chatgpt' ? 'chatgpt' : 'claude',
         jsonText: typeof p.jsonText === 'string' ? p.jsonText : DEFAULT_JSON,
         slideBgs: (p.slideBgs && typeof p.slideBgs === 'object' ? p.slideBgs : {}) as SlideBgMap,
+        slideBgAdjust: (p.slideBgAdjust && typeof p.slideBgAdjust === 'object' ? p.slideBgAdjust : {}) as Record<string, CropValue>,
         caption: typeof p.caption === 'string' ? p.caption : '',
         preset: PRESET_KEYS.includes(p.preset as PresetKey) ? (p.preset as PresetKey) : 'prompt_pack',
         pexelsKey: typeof p.pexelsKey === 'string' ? p.pexelsKey : '',
@@ -152,6 +155,7 @@ function loadPersisted(): Persisted {
     platform: 'claude',
     jsonText: DEFAULT_JSON,
     slideBgs: {},
+    slideBgAdjust: {},
     caption: '',
     preset: 'prompt_pack',
     pexelsKey: '',
@@ -348,6 +352,10 @@ export default function App() {
   const [mobileView, setMobileView] = useState<MobileView>('edit');
   const [mainView, setMainView] = useState<MainView>('preview');
   const [slideBgs, setSlideBgs] = useState<SlideBgMap>(initial.slideBgs);
+  // Per-slide photo crop (pan + zoom), keyed by the same slide key as
+  // slideBgs. Persisted with the rest of the workspace.
+  const [slideBgAdjust, setSlideBgAdjust] = useState<Record<string, CropValue>>(initial.slideBgAdjust);
+  const [openCropKey, setOpenCropKey] = useState<string | null>(null);
   const [caption, setCaption] = useState<string>(initial.caption);
   const [preset, setPreset] = useState<PresetKey>(initial.preset);
   const [pexelsKey, setPexelsKey] = useState<string>(initial.pexelsKey);
@@ -470,6 +478,7 @@ export default function App() {
           platform,
           jsonText,
           slideBgs,
+          slideBgAdjust,
           caption,
           preset,
           pexelsKey,
@@ -488,6 +497,7 @@ export default function App() {
     platform,
     jsonText,
     slideBgs,
+    slideBgAdjust,
     caption,
     preset,
     pexelsKey,
@@ -607,16 +617,29 @@ export default function App() {
     // about which format the JSON was authored for.
     const slides: Record<string, unknown> = { ...parsed, mascot: mascotKey(mascot, variant), platform, preset };
 
+    // Per-photo crop adjustments, keyed by the resolved URL so the engine
+    // can apply pan/zoom to that exact background.
+    const bgAdjust: Record<string, { pos: string; zoom: number }> = {};
+    const recordAdjust = (key: string, url: string | null) => {
+      if (!url) return;
+      const a = slideBgAdjust[key];
+      if (a && (a.x !== 50 || a.y !== 50 || a.zoom !== 1)) {
+        bgAdjust[url] = { pos: `${a.x}% ${a.y}%`, zoom: a.zoom };
+      }
+    };
+
     // Resolve and inject bg per-slide. Done in parallel so big slideshows with
     // multiple uploaded photos don't render serially.
     const hookBg = await resolveSlideBg(slideBgs['hook']);
     if (hookBg && slides.hook && typeof slides.hook === 'object') {
       slides.hook = { ...(slides.hook as object), bg: hookBg };
     }
+    recordAdjust('hook', hookBg);
     const ctaBg = await resolveSlideBg(slideBgs['cta']);
     if (ctaBg && slides.cta && typeof slides.cta === 'object') {
       slides.cta = { ...(slides.cta as object), bg: ctaBg };
     }
+    recordAdjust('cta', ctaBg);
 
     // Native-overlay mode: blank the text fields on hook + cta so the
     // engine renders bg + mascot only. The user types the actual hook
@@ -658,6 +681,7 @@ export default function App() {
       slides[field] = await Promise.all(
         (arr as Record<string, unknown>[]).map(async (item, i) => {
           const bg = await resolveSlideBg(slideBgs[`${prefix}:${i}`]);
+          recordAdjust(`${prefix}:${i}`, bg);
           return bg ? { ...item, bg } : item;
         }),
       );
@@ -684,6 +708,7 @@ export default function App() {
       );
     }
 
+    slides.bgAdjust = bgAdjust;
     iframe.contentWindow.postMessage({ type: 'render', slides, design: designPayload(design) }, '*');
     engineReadyRef.current = true;
     // On a user-initiated render, jump to the preview so they see the result
@@ -761,6 +786,13 @@ export default function App() {
       delete next[slideKey];
       return next;
     });
+    setSlideBgAdjust((prev) => {
+      if (!prev[slideKey]) return prev;
+      const next = { ...prev };
+      delete next[slideKey];
+      return next;
+    });
+    setOpenCropKey((k) => (k === slideKey ? null : k));
   }
 
   // Per-tool media (logo + optional background) is keyed by slide index in
@@ -1569,12 +1601,13 @@ export default function App() {
                     <div
                       key={key}
                       className={
-                        'relative rounded-xl border px-3 py-2.5 flex gap-3 transition-colors ' +
+                        'relative rounded-xl border px-3 py-2.5 flex flex-col gap-2.5 transition-colors ' +
                         (set
                           ? 'border-[#00E5FF]/25 bg-gradient-to-br from-[#0e2030] to-[#0a1424]'
                           : 'border-white/[0.07] bg-[#0b1224]/60')
                       }
                     >
+                     <div className="flex gap-3">
                       {/* Hidden per-slide file input — triggered by the
                          "Upload from device" menu item. */}
                       <input
@@ -1615,7 +1648,7 @@ export default function App() {
                         >
                           {bgLabel}
                         </div>
-                        <div className="mt-1.5">
+                        <div className="mt-1.5 flex flex-wrap gap-1.5">
                           <button
                             type="button"
                             onClick={() => setOpenBgMenuKey(menuOpen ? null : key)}
@@ -1624,8 +1657,32 @@ export default function App() {
                           >
                             {editing ? 'AI editing…' : 'Image source'} <span aria-hidden>▾</span>
                           </button>
+                          {set && thumb && (
+                            <button
+                              type="button"
+                              onClick={() => setOpenCropKey(openCropKey === key ? null : key)}
+                              className={
+                                'inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] rounded-md border ' +
+                                (openCropKey === key
+                                  ? 'bg-[#00E5FF]/15 text-[#00E5FF] border-[#00E5FF]/40'
+                                  : 'bg-white/[0.04] text-gray-300 hover:bg-[#00E5FF]/15 hover:text-[#00E5FF] border-white/10')
+                              }
+                            >
+                              Adjust crop
+                            </button>
+                          )}
                         </div>
                       </div>
+                      </div>
+
+                      {set && thumb && openCropKey === key && (
+                        <CropAdjust
+                          url={thumb}
+                          value={slideBgAdjust[key] || DEFAULT_CROP}
+                          onChange={(v) => setSlideBgAdjust((prev) => ({ ...prev, [key]: v }))}
+                          onClose={() => setOpenCropKey(null)}
+                        />
+                      )}
 
                       {menuOpen && (
                         <>
