@@ -951,15 +951,14 @@
   }
   .bg-vignette { position: absolute; inset: 0; background: radial-gradient(ellipse at center, rgba(0,0,0,0.0) 0%, rgba(0,0,0,0.30) 70%, rgba(0,0,0,0.65) 100%), linear-gradient(180deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.0) 25%, rgba(0,0,0,0.0) 50%, rgba(0,0,0,1.0) 82%, rgba(0,0,0,1.0) 100%); pointer-events: none; }
   /* "Visible area" guide — what TikTok actually SHOWS of the exported
-     image (not where its buttons float). TikTok displays the full height
-     of a 9:16 photo; on tall phones it zooms to fill and shaves ~10% off
-     the left/right edges. So the box is full-height with ~10% side
-     margins: keep anything you don't want cropped inside it. The red tint
-     outside marks the edges that may get shaved. Approximate — the exact
-     side crop depends on the viewer's phone aspect ratio. */
+     image. Per real-world posting: the FULL WIDTH is shown, but the TOP
+     and BOTTOM get clipped (TikTok crops the 9:16 image's height to fit
+     the feed). So the box is full-width with ~10% top/bottom margins —
+     keep anything you don't want clipped between the lines. The red tint
+     marks the top/bottom strips that get cut. Approximate amount. */
   body.show-safezone .slide::after {
     content: ''; position: absolute;
-    top: 3%; bottom: 3%; left: 10%; right: 10%;
+    top: 10%; bottom: 10%; left: 1.5%; right: 1.5%;
     border: 3px dashed rgba(255,255,255,0.8); border-radius: 8px;
     box-shadow: 0 0 0 9999px rgba(255, 45, 45, 0.14);
     pointer-events: none; z-index: 50;
