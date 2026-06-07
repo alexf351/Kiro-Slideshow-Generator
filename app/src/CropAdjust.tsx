@@ -82,18 +82,18 @@ export default function CropAdjust({
             className="absolute inset-0 w-full h-full object-cover pointer-events-none"
             style={{ objectPosition: `${v.x}% ${v.y}%`, transform: `scale(${v.zoom})` }}
           />
-          {/* TikTok "visible area": full height, ~10% may be shaved off the
-              sides on tall phones. Keep the subject inside the dashed box. */}
+          {/* TikTok "visible area": full width, ~10% clipped off the top and
+              bottom in the feed. Keep the subject between the dashed lines. */}
           <div
             className="absolute border-2 border-dashed border-white/80 rounded pointer-events-none"
-            style={{ top: '3%', bottom: '3%', left: '10%', right: '10%', boxShadow: '0 0 0 999px rgba(255,45,45,0.16)' }}
+            style={{ top: '10%', bottom: '10%', left: '1.5%', right: '1.5%', boxShadow: '0 0 0 999px rgba(255,45,45,0.16)' }}
           />
         </div>
 
         {/* controls */}
         <div className="flex-1 flex flex-col justify-center gap-3">
           <p className="text-[11px] text-gray-500 leading-relaxed">
-            Drag the photo to reposition it. Keep the subject inside the dashed box — TikTok can shave the edges to fit the screen.
+            Drag the photo to reposition it. Keep the subject between the dashed lines — TikTok clips the top &amp; bottom in the feed.
           </p>
           <label className="flex flex-col gap-1">
             <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-500 flex justify-between">
