@@ -174,6 +174,36 @@ export default function QuickEdit({ jsonText, onChange }: Props) {
               />
             ))}
           </div>
+          {(parsed as { preset?: string }).preset === 'prompt_pack' &&
+            typeof (parsed.hook as Record<string, unknown>).sub === 'string' && (
+            (() => {
+              const raw = Number((parsed.hook as Record<string, unknown>).subEmphasis);
+              const emphasis = Number.isFinite(raw) ? raw : 30;
+              return (
+                <label className="mt-3 flex flex-col gap-1">
+                  <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-500 flex justify-between">
+                    <span>Save-bait visibility</span>
+                    <span className="text-gray-400 tabular-nums">{emphasis}</span>
+                  </span>
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    step={5}
+                    value={emphasis}
+                    onChange={(e) =>
+                      commit((draft) => {
+                        draft.hook = { ...(draft.hook as object), subEmphasis: Number(e.target.value) };
+                      })
+                    }
+                    className="w-full cursor-pointer"
+                    style={{ accentColor: '#00E5FF' }}
+                  />
+                  <span className="text-[10px] text-gray-600">Brightens &amp; bolds the “save these…” line so it reads on busy photos.</span>
+                </label>
+              );
+            })()
+          )}
         </div>
       )}
 
