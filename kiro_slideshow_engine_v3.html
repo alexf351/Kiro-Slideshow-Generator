@@ -1747,6 +1747,20 @@ function render() {
   if (typeof applyOverlays === 'function') applyOverlays();
 }
 
+// Inline style for the hook sub-line ("save bait"). `e` is 0–100: low
+// keeps it subtle, high makes it brighter, bolder, and adds a drop-shadow
+// so it reads on busy photos. Undefined → '' (keep the muted CSS default).
+function subEmphasisStyle(e) {
+  if (e === undefined || e === null || e === '') return '';
+  const v = Math.max(0, Math.min(100, Number(e) || 0));
+  const op = (0.6 + 0.4 * v / 100).toFixed(3);
+  const w = 400 + Math.round(300 * Math.max(0, v - 30) / 70);
+  const sy = (2 + 3 * v / 100).toFixed(1);
+  const sb = (8 + 16 * v / 100).toFixed(1);
+  const sa = (0.35 + 0.45 * v / 100).toFixed(2);
+  return `color: rgba(255,255,255,${op}); font-weight:${w}; text-shadow: 0 ${sy}px ${sb}px rgba(0,0,0,${sa});`;
+}
+
 function buildHook(h) {
   // Count visible text length (strip HTML tags for sizing math)
   const visibleLength = h.headline.replace(/<[^>]+>/g, '').length;
@@ -1762,7 +1776,7 @@ function buildHook(h) {
 
   return `<div class="body">
     <div class="hook" style="font-size: ${fontSize}px;">${h.headline}</div>
-    <div class="hook-sub">${h.sub}</div>
+    <div class="hook-sub" style="${subEmphasisStyle(h.subEmphasis == null ? 30 : h.subEmphasis)}">${h.sub}</div>
   </div>`;
 }
 
