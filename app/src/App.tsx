@@ -518,6 +518,22 @@ export default function App() {
         if (typeof msg.slideCount === 'number') setSlideCount(msg.slideCount);
       }
       if (msg.type === 'error') setStatus({ kind: 'err', msg: String(msg.message || 'render failed') });
+      // App Stack: the user dragged an icon+text cluster (or dblclicked to
+      // change its layout) in the preview. The engine already shows it —
+      // fold x/y/layout back into the JSON so the change survives the next
+      // render and is persisted.
+      if (msg.type === 'appLayout' && typeof msg.index === 'number') {
+        setJsonText((prev) => {
+          try {
+            const o = JSON.parse(stripJsonWrappers(prev.trim())) as { apps?: Record<string, unknown>[] };
+            if (Array.isArray(o.apps) && o.apps[msg.index]) {
+              o.apps[msg.index] = { ...o.apps[msg.index], x: msg.x, y: msg.y, layout: msg.layout };
+              return JSON.stringify(o, null, 2);
+            }
+          } catch {}
+          return prev;
+        });
+      }
     };
     window.addEventListener('message', onMessage);
     return () => window.removeEventListener('message', onMessage);
@@ -1540,7 +1556,11 @@ export default function App() {
               {status.kind === 'ok' && (
                 <div className="flex items-center gap-2 text-[#00E5FF]">
                   <span className="w-1.5 h-1.5 rounded-full bg-[#00E5FF] shadow-[0_0_8px_rgba(0,229,255,0.8)]"></span>
-                  <span>Rendered — use “Add text” or Download in the top bar.</span>
+                  <span>
+                    {preset === 'app_stack'
+                      ? 'Rendered — drag an app card on its slide to reposition it; double-click it to switch the icon/text layout.'
+                      : 'Rendered — use “Add text” or Download in the top bar.'}
+                  </span>
                 </div>
               )}
               {status.kind === 'rendering' && (
