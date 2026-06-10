@@ -1,14 +1,33 @@
-import { useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 // Per-photo crop adjuster. Shows the image in a 9:16 frame (matching a
-// slide) with the TikTok safe zone overlaid, so you can drag the photo to
-// pan and zoom in until the subject sits inside the safe area. The same
-// background-position / scale is applied by the engine on export, so this
-// preview is WYSIWYG.
+// slide). Drag to pan, zoom to scale in. We size the image from its aspect
+// ratio so that zooming creates real overflow in BOTH axes — then panning
+// works vertically as well as horizontally (a wide photo at no-zoom only
+// has horizontal room, since its full height already shows). The same
+// background-size / background-position is applied by the engine on export,
+// so this preview is WYSIWYG.
 
-export type CropValue = { x: number; y: number; zoom: number };
+export type CropValue = { x: number; y: number; zoom: number; ar?: number };
 
 export const DEFAULT_CROP: CropValue = { x: 50, y: 50, zoom: 1 };
+
+const FRAME_AR = 9 / 16; // width / height, matches the slide
+
+// Background-size (in % of the frame) so the image covers at zoom 1 and
+// overflows both axes once zoomed in.
+export function coverSizePct(ar: number, zoom: number): [number, number] {
+  let sw: number;
+  let sh: number;
+  if (ar >= FRAME_AR) {
+    sh = 100;
+    sw = (ar / FRAME_AR) * 100;
+  } else {
+    sw = 100;
+    sh = (FRAME_AR / ar) * 100;
+  }
+  return [sw * zoom, sh * zoom];
+}
 
 function clamp(n: number, lo: number, hi: number) {
   return Math.max(lo, Math.min(hi, n));
@@ -27,6 +46,33 @@ export default function CropAdjust({
 }) {
   const frameRef = useRef<HTMLDivElement | null>(null);
   const v = value || DEFAULT_CROP;
+  const vRef = useRef(v);
+  vRef.current = v;
+  const [ar, setAr] = useState<number | undefined>(v.ar);
+
+  // Read the image's natural aspect ratio so we can size it correctly and
+  // persist it (the engine needs it to compute background-size on export).
+  useEffect(() => {
+    let cancelled = false;
+    const img = new Image();
+    img.onload = () => {
+      if (cancelled) return;
+      const a = img.naturalWidth / img.naturalHeight;
+      if (a > 0) {
+        setAr(a);
+        const cur = vRef.current;
+        if (!cur.ar || Math.abs(cur.ar - a) > 0.001) onChange({ ...cur, ar: a });
+      }
+    };
+    img.src = url;
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [url]);
+
+  const effAr = ar || v.ar || FRAME_AR;
+  const [sw, sh] = coverSizePct(effAr, v.zoom);
 
   function startDrag(e: React.PointerEvent) {
     e.preventDefault();
@@ -38,17 +84,13 @@ export default function CropAdjust({
     const vy = v.y;
     (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
     const move = (ev: PointerEvent) => {
-      // Drag the photo with the finger: moving right reveals the left of
-      // the image, i.e. object-position x decreases. Sensitivity scaled by
-      // zoom so it feels consistent when zoomed in.
       const dx = ((ev.clientX - sx) / frame.width) * 100 / v.zoom;
       const dy = ((ev.clientY - sy) / frame.height) * 100 / v.zoom;
-      onChange({ x: clamp(vx - dx, 0, 100), y: clamp(vy - dy, 0, 100), zoom: v.zoom });
+      onChange({ ...vRef.current, x: clamp(vx - dx, 0, 100), y: clamp(vy - dy, 0, 100) });
     };
-    const up = (ev: PointerEvent) => {
+    const up = () => {
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', up);
-      void ev;
     };
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up);
@@ -60,7 +102,7 @@ export default function CropAdjust({
         <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-gray-400">Adjust crop</div>
         <button
           type="button"
-          onClick={() => onChange({ ...DEFAULT_CROP })}
+          onClick={() => onChange({ ...DEFAULT_CROP, ar: effAr })}
           className="text-[10px] font-bold uppercase tracking-[0.12em] text-gray-500 hover:text-[#00E5FF]"
         >
           Reset
@@ -73,27 +115,20 @@ export default function CropAdjust({
           ref={frameRef}
           onPointerDown={startDrag}
           className="relative shrink-0 rounded-lg overflow-hidden border border-white/15 cursor-grab active:cursor-grabbing touch-none select-none bg-black"
-          style={{ width: 150, height: 267 }}
-        >
-          <img
-            src={url}
-            alt=""
-            draggable={false}
-            className="absolute inset-0 w-full h-full object-cover pointer-events-none"
-            style={{ objectPosition: `${v.x}% ${v.y}%`, transform: `scale(${v.zoom})` }}
-          />
-          {/* TikTok "visible area": full width, ~10% clipped off the top and
-              bottom in the feed. Keep the subject between the dashed lines. */}
-          <div
-            className="absolute border-2 border-dashed border-white/80 rounded pointer-events-none"
-            style={{ top: '10%', bottom: '10%', left: '1.5%', right: '1.5%', boxShadow: '0 0 0 999px rgba(255,45,45,0.16)' }}
-          />
-        </div>
+          style={{
+            width: 150,
+            height: 267,
+            backgroundImage: `url("${url}")`,
+            backgroundRepeat: 'no-repeat',
+            backgroundSize: `${sw}% ${sh}%`,
+            backgroundPosition: `${v.x}% ${v.y}%`,
+          }}
+        />
 
         {/* controls */}
         <div className="flex-1 flex flex-col justify-center gap-3">
           <p className="text-[11px] text-gray-500 leading-relaxed">
-            Drag the photo to reposition it. Keep the subject between the dashed lines — TikTok clips the top &amp; bottom in the feed.
+            Drag the photo to reposition it. To move it up/down, <strong className="text-gray-300">zoom in</strong> a little first — a wide photo already shows its full height.
           </p>
           <label className="flex flex-col gap-1">
             <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-500 flex justify-between">
@@ -106,7 +141,7 @@ export default function CropAdjust({
               max={3}
               step={0.05}
               value={v.zoom}
-              onChange={(e) => onChange({ ...v, zoom: Number(e.target.value) })}
+              onChange={(e) => onChange({ ...v, zoom: Number(e.target.value), ar: effAr })}
               className="w-full cursor-pointer"
               style={{ accentColor: '#00E5FF' }}
             />
