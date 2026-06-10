@@ -623,10 +623,26 @@
   /* App slide — icon + name + description cluster in upper portion */
   .preset-app-stack .as-app-wrap {
     width: 100%; padding: 560px 140px 100px 140px; box-sizing: border-box;
+    cursor: grab; touch-action: none;
+  }
+  /* Repositioned cluster: the user dragged it. left/top are % of the
+     slide and target the cluster's CENTER (translate -50/-50) — same
+     pattern as the text overlays, which exports 1:1 via html2canvas
+     (percentage insets that define a box do NOT, see output_vs_hype). */
+  .preset-app-stack .as-app-wrap.as-positioned {
+    position: absolute; width: max-content; max-width: 820px;
+    padding: 0; transform: translate(-50%, -50%);
   }
   .preset-app-stack .as-app-row {
     display: flex; align-items: center; gap: 44px;
   }
+  /* Layout variants (dblclick cycles): icon above text / icon to the right */
+  .preset-app-stack .as-app-row.as-layout-stack {
+    flex-direction: column; text-align: center;
+  }
+  .preset-app-stack .as-app-row.as-layout-stack .as-app-info { align-items: center; }
+  .preset-app-stack .as-app-row.as-layout-reverse { flex-direction: row-reverse; }
+  .preset-app-stack .as-app-row.as-layout-reverse .as-app-info { align-items: flex-end; text-align: right; }
   .preset-app-stack .as-app-icon {
     width: 170px; height: 170px; border-radius: 38px; object-fit: cover;
     box-shadow: 0 8px 28px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.08);
@@ -1754,6 +1770,8 @@ function render() {
   // Guarded so the very first module-level render() (which runs before
   // the overlay module initialises TEXT_OVERLAYS) doesn't throw.
   if (typeof applyOverlays === 'function') applyOverlays();
+  // Wire drag-to-reposition on app_stack slides (no-op for other presets).
+  if (typeof initAppDrag === 'function') initAppDrag();
 }
 
 // Inline style for the hook sub-line ("save bait"). `e` is 0–100: low
@@ -2176,7 +2194,84 @@ function buildAppStackApp(a, attribution) {
   const name = a.name ? `<div class="as-app-name">${a.name}</div>` : '';
   const desc = a.description ? `<div class="as-app-desc">${a.description}</div>` : '';
   const attr = attribution ? `<div class="as-attribution">${attribution}</div>` : '';
-  return `<div class="as-app-wrap"><div class="as-app-row">${icon}<div class="as-app-info">${name}${desc}</div></div></div>${attr}`;
+  // Optional per-app placement: x/y = cluster center in % of the slide
+  // (set by dragging in the preview), layout = row | stack | reverse
+  // (cycled by double-clicking). Absent → the classic fixed layout.
+  const hasPos = isFinite(Number(a.x)) && isFinite(Number(a.y));
+  const px = hasPos ? Math.max(0, Math.min(100, Number(a.x))) : 0;
+  const py = hasPos ? Math.max(0, Math.min(100, Number(a.y))) : 0;
+  const wrapCls = 'as-app-wrap' + (hasPos ? ' as-positioned' : '');
+  const posStyle = hasPos ? ` style="left:${px}%;top:${py}%"` : '';
+  const layout = (a.layout === 'stack' || a.layout === 'reverse') ? a.layout : 'row';
+  const rowCls = 'as-app-row' + (layout === 'row' ? '' : ' as-layout-' + layout);
+  return `<div class="${wrapCls}"${posStyle}><div class="${rowCls}">${icon}<div class="as-app-info">${name}${desc}</div></div></div>${attr}`;
+}
+
+// ============================================================
+// APP STACK — drag-to-reposition. Each app slide's icon+text cluster
+// can be dragged anywhere on its slide; double-click cycles the
+// arrangement (icon left → icon above → icon right). Position is
+// written into SLIDES.apps[i].x/y (cluster center, % of slide) and
+// reported to the parent shell so the JSON stays in sync.
+// ============================================================
+function initAppDrag() {
+  if (SLIDES.preset !== 'app_stack') return;
+  const wraps = document.querySelectorAll('.preset-app-stack .as-app-wrap');
+  wraps.forEach(function (el, i) {
+    el.addEventListener('pointerdown', function (e) { startAppDrag(e, el, i); });
+    el.addEventListener('dblclick', function (e) { e.preventDefault(); cycleAppLayout(i); });
+  });
+}
+
+function startAppDrag(e, el, i) {
+  const app = (SLIDES.apps || [])[i];
+  if (!app) return;
+  e.preventDefault();
+  const slide = el.closest('.slide');
+  const rect = slide.getBoundingClientRect();
+  // Anchor on the visible cluster's center (the row), not the wrap —
+  // the unpositioned wrap spans the whole slide, so its center is off.
+  const row = el.querySelector('.as-app-row') || el;
+  const rr = row.getBoundingClientRect();
+  const startX = ((rr.left + rr.width / 2) - rect.left) / rect.width * 100;
+  const startY = ((rr.top + rr.height / 2) - rect.top) / rect.height * 100;
+  const sx = e.clientX, sy = e.clientY;
+  let moved = false;
+  try { el.setPointerCapture(e.pointerId); } catch (err) {}
+  function move(ev) {
+    moved = true;
+    app.x = Math.round(Math.max(2, Math.min(98, startX + (ev.clientX - sx) / rect.width * 100)) * 10) / 10;
+    app.y = Math.round(Math.max(2, Math.min(98, startY + (ev.clientY - sy) / rect.height * 100)) * 10) / 10;
+    el.classList.add('as-positioned');
+    el.style.left = app.x + '%';
+    el.style.top = app.y + '%';
+  }
+  function up() {
+    el.removeEventListener('pointermove', move);
+    el.removeEventListener('pointerup', up);
+    if (moved) notifyAppLayout(i, app);
+  }
+  el.addEventListener('pointermove', move);
+  el.addEventListener('pointerup', up);
+}
+
+function cycleAppLayout(i) {
+  const app = (SLIDES.apps || [])[i];
+  if (!app) return;
+  const order = ['row', 'stack', 'reverse'];
+  const cur = order.indexOf(app.layout) >= 0 ? app.layout : 'row';
+  app.layout = order[(order.indexOf(cur) + 1) % order.length];
+  rerender();
+  notifyAppLayout(i, app);
+}
+
+// Tell the React shell so it can fold x/y/layout back into the JSON box
+// (the engine's live SLIDES copy is already up to date).
+function notifyAppLayout(i, app) {
+  if (window.parent === window) return;
+  try {
+    window.parent.postMessage({ type: 'appLayout', index: i, x: app.x, y: app.y, layout: app.layout || 'row' }, '*');
+  } catch (e) {}
 }
 
 // ============================================================
