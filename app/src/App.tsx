@@ -619,12 +619,12 @@ export default function App() {
 
     // Per-photo crop adjustments, keyed by the resolved URL so the engine
     // can apply pan/zoom to that exact background.
-    const bgAdjust: Record<string, { pos: string; zoom: number }> = {};
+    const bgAdjust: Record<string, { pos: string; zoom: number; ar?: number }> = {};
     const recordAdjust = (key: string, url: string | null) => {
       if (!url) return;
       const a = slideBgAdjust[key];
       if (a && (a.x !== 50 || a.y !== 50 || a.zoom !== 1)) {
-        bgAdjust[url] = { pos: `${a.x}% ${a.y}%`, zoom: a.zoom };
+        bgAdjust[url] = { pos: `${a.x}% ${a.y}%`, zoom: a.zoom, ar: a.ar };
       }
     };
 
