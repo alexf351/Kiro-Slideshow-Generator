@@ -178,7 +178,7 @@ function stripJsonWrappers(t: string): string {
     .trim();
 }
 
-const CONTENT_KEYS = ['hook', 'prompts', 'beats', 'panels', 'features', 'items', 'apps', 'tools'];
+const CONTENT_KEYS = ['hook', 'prompts', 'beats', 'panels', 'features', 'items', 'apps', 'tools', 'picks'];
 
 // If someone pastes a whole clone / propose payload
 // ({ preset, slides: {...}, caption, cloneAnalysis, bgAssignments }) into the
@@ -263,6 +263,13 @@ function extractSlideMeta(parsed: unknown): SlideMeta[] {
       const n = clean(t?.name || `Tool ${i + 1}`);
       out.push({ key: `tool:${i}`, label: truncate(`${i + 1}. ${n}`, 40) });
       out.push({ key: `tool-logo:${i}`, label: truncate(`${i + 1}. ${n} · logo`, 40) });
+    });
+  }
+  if (Array.isArray((p as { picks?: { headline?: string }[] }).picks)) {
+    (p as { picks: { headline?: string }[] }).picks.forEach((pk, i) => {
+      const t = clean(pk?.headline || `Item ${i + 1}`);
+      out.push({ key: `pick:${i}`, label: truncate(`${i + 1}. ${t}`, 40) });
+      out.push({ key: `pick-card:${i}`, label: truncate(`${i + 1}. ${t} · card`, 40) });
     });
   }
   if (Array.isArray((p as { items?: { text?: string }[] }).items)) {
@@ -690,6 +697,7 @@ export default function App() {
       { field: 'items', prefix: 'item' },
       { field: 'apps', prefix: 'app' },
       { field: 'tools', prefix: 'tool' },
+      { field: 'picks', prefix: 'pick' },
     ];
     for (const { field, prefix } of contentArrays) {
       const arr = slides[field];
@@ -720,6 +728,17 @@ export default function App() {
         (slides['tools'] as Record<string, unknown>[]).map(async (item, i) => {
           const logoUrl = await resolveSlideBg(slideBgs[`tool-logo:${i}`]);
           return logoUrl ? { ...item, logoUrl } : item;
+        }),
+      );
+    }
+
+    // Resolve recommendation cards for curated_list — the second image on
+    // each slide (book / podcast / app screenshot), as `cardUrl`.
+    if (Array.isArray(slides['picks'])) {
+      slides['picks'] = await Promise.all(
+        (slides['picks'] as Record<string, unknown>[]).map(async (item, i) => {
+          const cardUrl = await resolveSlideBg(slideBgs[`pick-card:${i}`]);
+          return cardUrl ? { ...item, cardUrl } : item;
         }),
       );
     }

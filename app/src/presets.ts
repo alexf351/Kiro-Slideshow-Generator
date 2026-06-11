@@ -15,6 +15,7 @@ export const PRESET_KEYS = [
   'handwritten_pack',
   'app_stack',
   'output_vs_hype',
+  'curated_list',
 ] as const;
 
 export type PresetKey = (typeof PRESET_KEYS)[number];
@@ -363,6 +364,46 @@ want to cut through the hype and actually get good at AI? search "Iro AI" on the
 
 #aitools #ai #claude #perplexity #aitok`;
 
+const CURATED_LIST_JSON = `{
+  "preset": "curated_list",
+  "hook": {
+    "headline": "Habits to Become<br/>Disgustingly Well-Educated<br/>(and end brainrot)"
+  },
+  "picks": [
+    {
+      "headline": "One Substack Article a Day",
+      "sub": "Long-form writing builds real depth.",
+      "label": "my recent read"
+    },
+    {
+      "headline": "Use Podcasts During \\"Dead Time\\"",
+      "sub": "Commutes, walks, chores = learning time.",
+      "label": "my favorite on Spotify"
+    },
+    {
+      "headline": "Replace Doomscrolling With Microlearning Apps",
+      "sub": "Small lessons compound faster than you think.",
+      "label": "my favorite app",
+      "highlight": true
+    },
+    {
+      "headline": "Look Up Everything You Don't Understand",
+      "sub": "Words, ideas, references — don't skip them. Curiosity practiced consistently turns into intelligence."
+    }
+  ],
+  "attribution": "@tryiro"
+}`;
+
+const CURATED_LIST_CAPTION = `habits to become disgustingly well-educated (and end brainrot) 📚
+
+small, boring habits compound into a scary-good level of knowledge. save these and actually do them.
+
+which one are you starting with? 👇
+
+want to actually get good at AI while you're at it? search "Iro AI" on the App Store.
+
+#educated #knowledge #selfimprovement #microlearning #studytok`;
+
 const APP_STACK_CAPTION = `5 apps that actually make your phone useful 📱
 
 these aren't "top 10 AI tools" clickbait. these are the 5 I open every single day.
@@ -460,5 +501,14 @@ export const PRESETS: Record<PresetKey, PresetMeta> = {
     defaultJson: OUTPUT_VS_HYPE_JSON,
     defaultCaption: OUTPUT_VS_HYPE_CAPTION,
     accent: '#00E5FF', // brand cyan, matches the chart labels
+  },
+  curated_list: {
+    key: 'curated_list',
+    label: 'Curated List',
+    pitch: 'Aesthetic photo + cream heading (optional highlighter) + a recommendation card per slide.',
+    status: 'ready',
+    defaultJson: CURATED_LIST_JSON,
+    defaultCaption: CURATED_LIST_CAPTION,
+    accent: '#F1DF79', // warm highlighter yellow
   },
 };
