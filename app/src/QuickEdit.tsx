@@ -250,6 +250,23 @@ export default function QuickEdit({ jsonText, onChange }: Props) {
                     />
                   ))}
                 </div>
+                {contentKey === 'picks' && (
+                  <label className="mt-2 flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={item.highlight === true}
+                      onChange={(e) =>
+                        commit((draft) => {
+                          const arr = (draft[contentKey] as Record<string, unknown>[]).slice();
+                          arr[i] = { ...arr[i], highlight: e.target.checked };
+                          draft[contentKey] = arr;
+                        })
+                      }
+                      className="w-4 h-4 accent-[#F1DF79] cursor-pointer"
+                    />
+                    <span className="text-[11px] text-gray-300">Highlight (yellow marker on heading + sub)</span>
+                  </label>
+                )}
               </div>
             );
           })}
