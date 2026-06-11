@@ -687,6 +687,7 @@
   /* Hook (cover) — title low-left over the scene */
   .preset-curated-list .cl-hook {
     position: absolute; left: 96px; right: 150px; top: 1040px;
+    cursor: grab; touch-action: none;
   }
   .preset-curated-list .cl-hook-text {
     font-family: 'Inter', sans-serif; font-weight: 700; line-height: 1.22;
@@ -698,7 +699,7 @@
     color: #ddd0b6; margin-top: 22px; text-shadow: 0 2px 12px rgba(0,0,0,0.85);
   }
   /* Item heading block — top-left */
-  .preset-curated-list .cl-head { position: absolute; left: 96px; right: 150px; top: 560px; }
+  .preset-curated-list .cl-head { position: absolute; left: 96px; right: 150px; top: 560px; cursor: grab; touch-action: none; }
   .preset-curated-list .cl-headline {
     font-family: 'Inter', sans-serif; font-weight: 700; font-size: 70px; line-height: 1.16;
     color: #efe6d3; letter-spacing: -0.01em;
@@ -721,13 +722,32 @@
     position: absolute; left: 96px; right: 150px; top: 1040px;
     font-family: 'Inter', sans-serif; font-style: italic; font-weight: 500; font-size: 46px;
     color: #efe6d3; text-shadow: 0 2px 12px rgba(0,0,0,0.85);
+    cursor: grab; touch-action: none;
   }
-  /* embedded recommendation card */
+  /* embedded recommendation card (the overlaid screenshot) — a wrapper so
+     it can be dragged + resized; the image fills it. */
   .preset-curated-list .cl-card {
     position: absolute; left: 50%; top: 1140px; transform: translateX(-50%);
-    width: 560px; max-height: 720px; object-fit: contain;
-    border-radius: 20px; box-shadow: 0 28px 70px rgba(0,0,0,0.65), 0 0 0 1px rgba(255,255,255,0.06);
+    width: 560px; cursor: grab; touch-action: none;
   }
+  .preset-curated-list .cl-card-img {
+    display: block; width: 100%; height: auto; border-radius: 20px;
+    box-shadow: 0 28px 70px rgba(0,0,0,0.65), 0 0 0 1px rgba(255,255,255,0.06);
+  }
+  /* Dragged elements: anchor on their center so they place where you drop. */
+  .preset-curated-list .cl-pos { transform: translate(-50%, -50%); }
+  .preset-curated-list .cl-head.cl-pos { left: auto; right: auto; width: 840px; max-width: 86%; }
+  .preset-curated-list .cl-label.cl-pos { left: auto; right: auto; width: max-content; max-width: 80%; }
+  .preset-curated-list .cl-card.cl-pos { top: auto; }
+  .preset-curated-list .cl-hook.cl-pos { left: auto; right: auto; width: 840px; max-width: 86%; }
+  /* Resize handle on the card (hidden during export) */
+  .preset-curated-list .cl-card-handle {
+    position: absolute; right: -23px; bottom: -23px; width: 46px; height: 46px;
+    border-radius: 50%; background: #f1df79; border: 4px solid #14100a;
+    cursor: nwse-resize; display: none; z-index: 5;
+  }
+  .preset-curated-list .cl-card:hover .cl-card-handle { display: block; }
+  body.capturing .preset-curated-list .cl-card-handle { display: none !important; }
   .preset-curated-list .cl-attribution {
     position: absolute; bottom: 70px; left: 0; right: 0; text-align: center;
     font-family: 'Inter', sans-serif; font-size: 32px; font-weight: 700; letter-spacing: 0.20em;
@@ -1757,8 +1777,8 @@ const PRESETS = {
       if (S.hook) {
         out.push({ html: buildCuratedHook(S.hook), bg: (S.hook && S.hook.bg) || shared });
       }
-      (S.picks || []).forEach((p) => {
-        out.push({ html: buildCuratedItem(p, S.attribution), bg: (p && p.bg) || shared });
+      (S.picks || []).forEach((p, i) => {
+        out.push({ html: buildCuratedItem(p, S.attribution, i), bg: (p && p.bg) || shared });
       });
       if (S.cta) {
         out.push({ html: buildCuratedCTA(S.cta, S.attribution), bg: (S.cta && S.cta.bg) || shared });
@@ -1854,8 +1874,9 @@ function render() {
   // Guarded so the very first module-level render() (which runs before
   // the overlay module initialises TEXT_OVERLAYS) doesn't throw.
   if (typeof applyOverlays === 'function') applyOverlays();
-  // Wire drag-to-reposition on app_stack slides (no-op for other presets).
+  // Wire drag-to-reposition (no-op for presets that don't use it).
   if (typeof initAppDrag === 'function') initAppDrag();
+  if (typeof initCuratedDrag === 'function') initCuratedDrag();
 }
 
 // Inline style for the hook sub-line ("save bait"). `e` is 0–100: low
@@ -2359,6 +2380,103 @@ function notifyAppLayout(i, app) {
 }
 
 // ============================================================
+// CURATED LIST — drag the heading / label / card to place them, and
+// resize the card (the overlaid screenshot). Positions are written to
+// SLIDES.picks[i].{head,label,card}X/Y (+ cardW) and reported to the
+// React shell so the JSON stays in sync. The hook title is draggable too
+// (stored on SLIDES.hook).
+// ============================================================
+function clClamp(n, lo, hi) { return Math.max(lo, Math.min(hi, n)); }
+
+function clTarget(pickKey) {
+  if (pickKey === 'hook') return SLIDES.hook;
+  return (SLIDES.picks || [])[Number(pickKey)];
+}
+
+function initCuratedDrag() {
+  if (SLIDES.preset !== 'curated_list') return;
+  document.querySelectorAll('.slide.preset-curated-list [data-pick]').forEach(function (el) {
+    const key = el.getAttribute('data-pick');
+    const which = el.getAttribute('data-el'); // head | label | card | hook
+    el.addEventListener('pointerdown', function (e) {
+      if (e.target.classList && e.target.classList.contains('cl-card-handle')) return;
+      startCuratedDrag(e, el, key, which);
+    });
+    const handle = el.querySelector('.cl-card-handle');
+    if (handle) handle.addEventListener('pointerdown', function (e) { startCuratedResize(e, el, key); });
+  });
+}
+
+function startCuratedDrag(e, el, key, which) {
+  const t = clTarget(key);
+  if (!t) return;
+  e.preventDefault();
+  const slide = el.closest('.slide');
+  const rect = slide.getBoundingClientRect();
+  const er = el.getBoundingClientRect();
+  const startX = ((er.left + er.width / 2) - rect.left) / rect.width * 100;
+  const startY = ((er.top + er.height / 2) - rect.top) / rect.height * 100;
+  const sx = e.clientX, sy = e.clientY;
+  let moved = false;
+  try { el.setPointerCapture(e.pointerId); } catch (err) {}
+  // hook position lives on hook.x/y; item parts on head/label/card X/Y.
+  const fx = which === 'hook' ? 'x' : which + 'X';
+  const fy = which === 'hook' ? 'y' : which + 'Y';
+  function move(ev) {
+    moved = true;
+    t[fx] = Math.round(clClamp(startX + (ev.clientX - sx) / rect.width * 100, 2, 98) * 10) / 10;
+    t[fy] = Math.round(clClamp(startY + (ev.clientY - sy) / rect.height * 100, 2, 98) * 10) / 10;
+    el.classList.add('cl-pos');
+    el.style.left = t[fx] + '%';
+    el.style.top = t[fy] + '%';
+  }
+  function up() {
+    el.removeEventListener('pointermove', move);
+    el.removeEventListener('pointerup', up);
+    if (moved) notifyCurated(key, t);
+  }
+  el.addEventListener('pointermove', move);
+  el.addEventListener('pointerup', up);
+}
+
+function startCuratedResize(e, el, key) {
+  const t = clTarget(key);
+  if (!t) return;
+  e.preventDefault(); e.stopPropagation();
+  const slide = el.closest('.slide');
+  const rect = slide.getBoundingClientRect();
+  const scale = rect.width / PAGE_W; // screen px per design px
+  const startW = el.getBoundingClientRect().width / scale; // design px
+  const sx = e.clientX, sy = e.clientY;
+  const handle = e.currentTarget;
+  try { handle.setPointerCapture(e.pointerId); } catch (err) {}
+  function move(ev) {
+    const d = ((ev.clientX - sx) + (ev.clientY - sy)) / 2 / scale;
+    t.cardW = Math.round(clClamp(startW + d * 2, 180, 960));
+    el.style.width = t.cardW + 'px';
+  }
+  function up() {
+    handle.removeEventListener('pointermove', move);
+    handle.removeEventListener('pointerup', up);
+    notifyCurated(key, t);
+  }
+  handle.addEventListener('pointermove', move);
+  handle.addEventListener('pointerup', up);
+}
+
+function notifyCurated(key, t) {
+  if (window.parent === window) return;
+  try {
+    window.parent.postMessage({
+      type: 'curatedLayout', key: key,
+      x: t.x, y: t.y, headX: t.headX, headY: t.headY,
+      labelX: t.labelX, labelY: t.labelY,
+      cardX: t.cardX, cardY: t.cardY, cardW: t.cardW,
+    }, '*');
+  } catch (e) {}
+}
+
+// ============================================================
 // PRESET: output_vs_hype builders
 // "Output vs Hype — what AI tools actually deliver." One slide per
 // tool: brand logo + name, then two vertical bars scaled by a 0–100
@@ -2475,6 +2593,19 @@ function buildHypeCTA(c, attribution) {
 // like a marker), a small "my recent read" label, and an embedded
 // recommendation card image (book / podcast / app screenshot).
 // ============================================================
+// Positioning helper: if x/y are set on an element (by dragging), return
+// the absolute-center class + inline left/top; otherwise the default CSS
+// position applies. extra = any extra inline style (e.g. card width).
+function clPos(x, y, extra) {
+  const hasPos = isFinite(Number(x)) && isFinite(Number(y));
+  const px = hasPos ? Math.max(0, Math.min(100, Number(x))) : 0;
+  const py = hasPos ? Math.max(0, Math.min(100, Number(y))) : 0;
+  return {
+    cls: hasPos ? ' cl-pos' : '',
+    style: ` style="${hasPos ? `left:${px}%;top:${py}%;` : ''}${extra || ''}"`,
+  };
+}
+
 function buildCuratedHook(h) {
   if (!h) return '';
   const text = h.headline || h.text || '';
@@ -2482,18 +2613,34 @@ function buildCuratedHook(h) {
   let fs = 76;
   if (len >= 80) fs = 56; else if (len >= 55) fs = 64; else if (len >= 38) fs = 70;
   const sub = h.sub ? `<div class="cl-hook-sub">${h.sub}</div>` : '';
-  return `<div class="cl-hook"><div class="cl-hook-text" style="font-size:${fs}px">${text}</div>${sub}</div>`;
+  const pos = clPos(h.x, h.y);
+  return `<div class="cl-hook${pos.cls}" data-pick="hook" data-el="hook"${pos.style}><div class="cl-hook-text" style="font-size:${fs}px">${text}</div>${sub}</div>`;
 }
 
-function buildCuratedItem(p, attribution) {
+function buildCuratedItem(p, attribution, idx) {
   if (!p) return '';
   const mark = (t) => (p.highlight ? `<mark class="cl-mark">${t}</mark>` : t);
   const headline = p.headline ? `<div class="cl-headline">${mark(p.headline)}</div>` : '';
   const sub = p.sub ? `<div class="cl-sub${p.highlight ? ' cl-sub-mark' : ''}">${mark(p.sub)}</div>` : '';
-  const head = (headline || sub) ? `<div class="cl-head">${headline}${sub}</div>` : '';
-  const label = p.label ? `<div class="cl-label">${p.label}</div>` : '';
-  const safeCard = p.cardUrl ? String(p.cardUrl).replace(/'/g, "\\'") : '';
-  const card = safeCard ? `<img class="cl-card" src="${safeCard}" alt="" />` : '';
+  let head = '';
+  if (headline || sub) {
+    const hp = clPos(p.headX, p.headY);
+    head = `<div class="cl-head${hp.cls}" data-pick="${idx}" data-el="head"${hp.style}>${headline}${sub}</div>`;
+  }
+  let label = '';
+  if (p.label) {
+    const lp = clPos(p.labelX, p.labelY);
+    label = `<div class="cl-label${lp.cls}" data-pick="${idx}" data-el="label"${lp.style}>${p.label}</div>`;
+  }
+  let card = '';
+  if (p.cardUrl) {
+    const safeCard = String(p.cardUrl).replace(/'/g, "\\'");
+    const w = isFinite(Number(p.cardW)) ? Math.max(180, Math.min(960, Number(p.cardW))) : 560;
+    const cp = clPos(p.cardX, p.cardY, `width:${w}px`);
+    card = `<div class="cl-card${cp.cls}" data-pick="${idx}" data-el="card"${cp.style}>` +
+      `<img class="cl-card-img" src="${safeCard}" alt="" />` +
+      `<div class="cl-card-handle"></div></div>`;
+  }
   const attr = attribution ? `<div class="cl-attribution">${attribution}</div>` : '';
   return `${head}${label}${card}${attr}`;
 }
