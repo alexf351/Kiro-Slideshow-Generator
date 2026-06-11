@@ -541,6 +541,29 @@ export default function App() {
           return prev;
         });
       }
+      // Curated List: the user dragged the heading/label/card (or the hook
+      // title) in the preview. Fold the defined position fields back into
+      // the JSON so the layout persists and survives re-renders.
+      if (msg.type === 'curatedLayout' && typeof msg.key === 'string') {
+        const m = msg as Record<string, unknown> & { key: string };
+        const FIELDS = ['x', 'y', 'headX', 'headY', 'labelX', 'labelY', 'cardX', 'cardY', 'cardW'];
+        setJsonText((prev) => {
+          try {
+            const o = JSON.parse(stripJsonWrappers(prev.trim())) as {
+              hook?: Record<string, unknown>;
+              picks?: Record<string, unknown>[];
+            };
+            const target = m.key === 'hook' ? o.hook : (Array.isArray(o.picks) ? o.picks[Number(m.key)] : undefined);
+            if (!target) return prev;
+            const patch: Record<string, unknown> = { ...target };
+            for (const f of FIELDS) if (typeof m[f] === 'number') patch[f] = m[f];
+            if (m.key === 'hook') o.hook = patch;
+            else (o.picks as Record<string, unknown>[])[Number(m.key)] = patch;
+            return JSON.stringify(o, null, 2);
+          } catch {}
+          return prev;
+        });
+      }
     };
     window.addEventListener('message', onMessage);
     return () => window.removeEventListener('message', onMessage);
@@ -1578,7 +1601,9 @@ export default function App() {
                   <span>
                     {preset === 'app_stack'
                       ? 'Rendered — drag an app card on its slide to reposition it; double-click it to switch the icon/text layout.'
-                      : 'Rendered — use “Add text” or Download in the top bar.'}
+                      : preset === 'curated_list'
+                        ? 'Rendered — drag the heading, label, or card on a slide to place them; drag the card’s corner to resize it.'
+                        : 'Rendered — use “Add text” or Download in the top bar.'}
                   </span>
                 </div>
               )}
