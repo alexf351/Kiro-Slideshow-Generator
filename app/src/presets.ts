@@ -24,6 +24,7 @@ export const PRESET_KEYS = [
   'this_or_that',
   'quote_card',
   'before_after',
+  'countdown',
 ] as const;
 
 export type PresetKey = (typeof PRESET_KEYS)[number];
@@ -683,6 +684,37 @@ want the after? search "Iro AI" on the App Store. 5 min a day.
 
 #beforeandafter #ai #productivity #aitok #glowup`;
 
+const COUNTDOWN_JSON = `{
+  "preset": "countdown",
+  "hook": {
+    "headline": "top 5 <strong>AI skills</strong><br/>that actually pay",
+    "subline": "#1 is the one everyone skips"
+  },
+  "items": [
+    { "title": "Prompt structuring", "body": "Context + task + format. Boring, but it's 80% of good output." },
+    { "title": "Verifying outputs", "body": "Knowing when the model is confidently wrong." },
+    { "title": "Chaining tools", "body": "Wiring AI into the apps you already use." },
+    { "title": "Automating the boring", "body": "Turning repeat tasks into one-click flows." },
+    { "title": "Actually shipping", "body": "Building one small real thing beats 100 saved tutorials." }
+  ],
+  "cta": {
+    "headline": "Learn all five —<br/><strong>5 minutes a day.</strong>",
+    "instructionAbove": "search:",
+    "searchTerm": "Iro AI",
+    "instructionBelow": "on the App Store.",
+    "slogan": "stop collecting tips.<br/><strong>start building.</strong>"
+  },
+  "attribution": ""
+}`;
+
+const COUNTDOWN_CAPTION = `top 5 AI skills that actually pay 💸 ranked
+
+#1 is the one everyone scrolls past — don't.
+
+want to learn them for real? search "Iro AI" on the App Store.
+
+#ai #skills #aitok #careertok #productivity`;
+
 export const PRESETS: Record<PresetKey, PresetMeta> = {
   prompt_pack: {
     key: 'prompt_pack',
@@ -845,5 +877,14 @@ export const PRESETS: Record<PresetKey, PresetMeta> = {
     defaultJson: BEFORE_AFTER_JSON,
     defaultCaption: BEFORE_AFTER_CAPTION,
     accent: '#22C55E', // transformation green
+  },
+  countdown: {
+    key: 'countdown',
+    label: 'Countdown',
+    pitch: 'Ranked listicle counting down to a gold #1. "Top 5… #1 will surprise you".',
+    status: 'ready',
+    defaultJson: COUNTDOWN_JSON,
+    defaultCaption: COUNTDOWN_CAPTION,
+    accent: '#FFC857', // gold #1
   },
 };
