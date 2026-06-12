@@ -38,6 +38,22 @@ export const PRESET_KEYS = [
 
 export type PresetKey = (typeof PRESET_KEYS)[number];
 
+// Coarse buckets for the format picker's filter chips — with ~28 formats a
+// flat grid is hard to scan, so the chips let the creator narrow by intent
+// (e.g. "Social" for the screenshot-style cards). Kept as a separate map so
+// adding a format only needs one line here, not a PresetMeta change.
+export const FORMAT_CATEGORIES = ['AI', 'List', 'Story', 'Social', 'Facts', 'Takes'] as const;
+export type FormatCategory = (typeof FORMAT_CATEGORIES)[number];
+
+export const FORMAT_CATEGORY: Record<PresetKey, FormatCategory> = {
+  prompt_pack: 'AI', product_demo: 'AI', handwritten_pack: 'AI', app_stack: 'AI',
+  checklist: 'List', curated_list: 'List', tier_list: 'List', countdown: 'List', flags: 'List', steps: 'List',
+  pain_story: 'Story', aspirational: 'Story', notes: 'Story', storytime: 'Story',
+  receipts: 'Social', tweet: 'Social', reddit: 'Social',
+  output_vs_hype: 'Facts', myth_fact: 'Facts', stat_drop: 'Facts', definition: 'Facts', qa: 'Facts', timeline: 'Facts',
+  meme_pov: 'Takes', hot_take: 'Takes', this_or_that: 'Takes', quote_card: 'Takes', before_after: 'Takes',
+};
+
 export type PresetMeta = {
   key: PresetKey;
   label: string;

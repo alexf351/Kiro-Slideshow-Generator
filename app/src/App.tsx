@@ -6,7 +6,7 @@ import Patterns from './Patterns';
 import Propose from './Propose';
 import { addStockItem, blobToDataUrl, getItem } from './mediaBank';
 import { addPost, listPosts, type CloneAnalysisSnapshot, type PostPrediction } from './posts';
-import { PRESETS, PRESET_KEYS, type PresetKey } from './presets';
+import { PRESETS, PRESET_KEYS, FORMAT_CATEGORIES, FORMAT_CATEGORY, type PresetKey, type FormatCategory } from './presets';
 import CloneFromTikTok from './CloneFromTikTok';
 import PredictPanel from './PredictPanel';
 import DesignPanel from './DesignPanel';
@@ -477,14 +477,16 @@ export default function App() {
     } catch { /* no history / IDB unavailable — picker just shows no badges */ }
   }
   useEffect(() => { void loadFormatPerf(); }, []);
+  const [formatCategory, setFormatCategory] = useState<FormatCategory | 'All'>('All');
   const orderedFormatKeys = useMemo(() => {
     const fav = PRESET_KEYS.filter((k) => favFormats.includes(k));
     const rest = PRESET_KEYS.filter((k) => !favFormats.includes(k));
     let keys = [...fav, ...rest];
+    if (formatCategory !== 'All') keys = keys.filter((k) => FORMAT_CATEGORY[k] === formatCategory);
     const q = formatQuery.trim().toLowerCase();
     if (q) keys = keys.filter((k) => (PRESETS[k].label + ' ' + PRESETS[k].pitch).toLowerCase().includes(q));
     return keys;
-  }, [favFormats, formatQuery]);
+  }, [favFormats, formatQuery, formatCategory]);
   // Pre-publish quality checks, derived from the current JSON + caption.
   const prePublishChecks = useMemo(() => {
     let parsed: Record<string, unknown> | null = null;
@@ -2470,8 +2472,26 @@ export default function App() {
               value={formatQuery}
               onChange={(e) => setFormatQuery(e.target.value)}
               placeholder={`Filter ${PRESET_KEYS.length} formats… (e.g. "tier", "quote", "story")`}
-              className="w-full mb-2.5 bg-[#070b18] border border-white/[0.08] rounded-lg px-3 py-2 text-[12px] text-gray-200 placeholder:text-gray-600 focus:border-[#00E5FF]/40 focus:outline-none"
+              className="w-full mb-2 bg-[#070b18] border border-white/[0.08] rounded-lg px-3 py-2 text-[12px] text-gray-200 placeholder:text-gray-600 focus:border-[#00E5FF]/40 focus:outline-none"
             />
+            <div className="mb-2.5 flex items-center gap-1.5 flex-wrap">
+              {(['All', ...FORMAT_CATEGORIES] as const).map((cat) => {
+                const active = formatCategory === cat;
+                return (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => setFormatCategory(cat)}
+                    className={
+                      'px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-[0.1em] transition-colors ' +
+                      (active ? 'bg-[#00E5FF] text-[#0a0e1a]' : 'bg-white/[0.04] text-gray-400 hover:bg-white/[0.08] hover:text-gray-200')
+                    }
+                  >
+                    {cat}
+                  </button>
+                );
+              })}
+            </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
               {orderedFormatKeys.length === 0 && (
                 <div className="col-span-2 md:col-span-4 text-[11px] text-gray-500 py-2 text-center">No formats match “{formatQuery}”.</div>
