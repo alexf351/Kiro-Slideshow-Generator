@@ -1153,19 +1153,31 @@ export default function App() {
   // Search keyless Openverse from a slide-meta label and import the first
   // result, returning its media id (or null when nothing matched). Shared by
   // the single-slide action and the whole-deck auto-fill.
+  // Prefer the user's best-curated stock provider (Pexels > Unsplash >
+  // Pixabay) when they've added a key, falling back to keyless Openverse.
+  // Pexels/Unsplash photos are far better stock-background material than the
+  // CC-mixed Openverse pool, so auto-fill looks better the moment a key exists.
+  function bestStockProvider(): { provider: 'pexels' | 'unsplash' | 'pixabay' | 'openverse'; key: string } {
+    if (pexelsKey.trim()) return { provider: 'pexels', key: pexelsKey.trim() };
+    if (unsplashKey.trim()) return { provider: 'unsplash', key: unsplashKey.trim() };
+    if (pixabayKey.trim()) return { provider: 'pixabay', key: pixabayKey.trim() };
+    return { provider: 'openverse', key: '' };
+  }
+
   async function resolveStockBgForLabel(label: string): Promise<{ mediaId: string; query: string } | null> {
     const seed = cleanLabelForQuery(label);
     const query = (extractStockQuery(seed) || seed.slice(0, 30)).trim();
     if (!query) return null;
     const { searchStock, fetchStockBlob, pickBestStockPhoto } = await import('./stockPhotos');
-    const photos = await searchStock('openverse', query, '', 8);
+    const { provider, key } = bestStockProvider();
+    const photos = await searchStock(provider, query, key, 8);
     const photo = pickBestStockPhoto(photos);
     if (!photo) return null;
     const blob = await fetchStockBlob(photo);
     const item = await addStockItem({
       blob,
       mimeType: blob.type || 'image/jpeg',
-      name: `openverse-${query.replace(/\s+/g, '-').slice(0, 40)}`,
+      name: `${photo.provider}-${query.replace(/\s+/g, '-').slice(0, 40)}`,
       source: { provider: photo.provider, photographer: photo.photographer, photographerUrl: photo.photographerUrl, photoUrl: photo.photoUrl },
     });
     return { mediaId: item.id, query };
@@ -3037,7 +3049,7 @@ export default function App() {
               type="button"
               onClick={() => void handleAutoFillStockBgs()}
               disabled={!!autoBgBusy}
-              title="Search Openverse from each slide's text and fill empty backgrounds — free, no API key"
+              title="Search your best stock provider (Pexels/Unsplash if keyed, else free Openverse) from each slide's text and fill empty backgrounds"
               className="w-full mb-4 py-2.5 rounded-lg text-[11px] font-bold uppercase tracking-[0.1em]
                          border border-white/[0.12] bg-white/[0.03] text-gray-200
                          disabled:opacity-50 disabled:cursor-not-allowed hover:border-[#00E5FF]/40 hover:text-[#00E5FF] transition-all"
@@ -3256,7 +3268,7 @@ export default function App() {
                               sub: 'Direct link to a publicly reachable image.',
                             })}
                             {menuItem('🔍 Auto stock photo', () => void handleStockBgForSlide(key, label), {
-                              sub: 'Free Openverse search from this slide’s text (prefers portrait). Tap again for a new one.',
+                              sub: 'Searches your best stock provider (Pexels/Unsplash if keyed, else free Openverse), prefers portrait. Tap again for a new one.',
                             })}
                             {openaiKey && menuItem(
                               editing ? 'Generating…' : '✨ Generate with AI',
