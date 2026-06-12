@@ -352,5 +352,17 @@ const eq = (n, a, b) => ok(n + ` (got ${JSON.stringify(a)})`, JSON.stringify(a) 
   eq('merge empty incoming keeps current', mergeArrays([{ id: 'a' }], []), [{ id: 'a' }]);
 }
 
+// ---- postShare (shareable post code round-trip) ----
+{
+  const { encodePost, decodePost } = await load('postShare.ts');
+  const post = { preset: 'tweet', json: '{"preset":"tweet"}', caption: 'hook 🔥 with emoji\n#ai' };
+  const code = encodePost(post);
+  ok('share has prefix', code.startsWith('IRO1:'));
+  eq('share round-trips (emoji-safe)', decodePost(code), post);
+  eq('share tolerates missing prefix', decodePost(code.slice('IRO1:'.length)), post);
+  ok('share garbage -> null', decodePost('not a real code !!!') === null);
+  ok('share missing json -> null', decodePost('IRO1:' + btoa('{"preset":"x"}')) === null);
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
