@@ -79,30 +79,51 @@ export async function callClaude(opts: CallOptions): Promise<ClaudeResponse> {
   if (opts.tools && opts.tools.length > 0) body.tools = opts.tools;
   if (opts.toolChoice) body.tool_choice = opts.toolChoice;
 
-  const res = await fetch(ENDPOINT, {
-    method: 'POST',
-    headers: {
-      'x-api-key': opts.apiKey,
-      'anthropic-version': ANTHROPIC_VERSION,
-      'anthropic-dangerous-direct-browser-access': 'true',
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify(body),
-  });
+  const headers = {
+    'x-api-key': opts.apiKey,
+    'anthropic-version': ANTHROPIC_VERSION,
+    'anthropic-dangerous-direct-browser-access': 'true',
+    'content-type': 'application/json',
+  };
+  const payload = JSON.stringify(body);
 
-  if (!res.ok) {
-    let detail = '';
+  // Retry transient throttling/overload (429 rate-limit, 529 overloaded, 5xx)
+  // and network blips with exponential backoff. Other errors surface at once.
+  const maxAttempts = 4;
+  let lastErr: AnthropicError | null = null;
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    let res: Response;
     try {
-      const j = (await res.json()) as { error?: { message?: string } };
-      detail = j?.error?.message || '';
-    } catch {}
-    throw new AnthropicError(
-      detail || `Anthropic API returned ${res.status}. Check your key, model name, and credit balance.`,
-      res.status,
-    );
-  }
+      res = await fetch(ENDPOINT, { method: 'POST', headers, body: payload });
+    } catch (e) {
+      lastErr = new AnthropicError(`Network error contacting Anthropic: ${(e as Error).message}`);
+      if (attempt < maxAttempts - 1) { await sleep(backoffMs(attempt, null)); continue; }
+      throw lastErr;
+    }
 
-  return (await res.json()) as ClaudeResponse;
+    if (res.ok) return (await res.json()) as ClaudeResponse;
+
+    let detail = '';
+    try { const j = (await res.json()) as { error?: { message?: string } }; detail = j?.error?.message || ''; } catch {}
+    const err = new AnthropicError(detail || `Anthropic API returned ${res.status}. Check your key, model name, and credit balance.`, res.status);
+
+    const retryable = res.status === 429 || res.status === 529 || res.status >= 500;
+    if (retryable && attempt < maxAttempts - 1) {
+      lastErr = err;
+      const retryAfter = Number(res.headers.get('retry-after'));
+      await sleep(backoffMs(attempt, isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : null));
+      continue;
+    }
+    throw err;
+  }
+  throw lastErr || new AnthropicError('Anthropic request failed.');
+}
+
+function sleep(ms: number): Promise<void> { return new Promise((r) => setTimeout(r, ms)); }
+// Honor the server's Retry-After when present; else exponential backoff + jitter.
+function backoffMs(attempt: number, serverMs: number | null): number {
+  if (serverMs != null) return Math.min(serverMs, 20000);
+  return Math.min(1000 * 2 ** attempt + Math.random() * 400, 12000);
 }
 
 // Pulls the first tool_use block out of the response. Used by callers
