@@ -286,5 +286,14 @@ const eq = (n, a, b) => ok(n + ` (got ${JSON.stringify(a)})`, JSON.stringify(a) 
   ok('backoff capped', backoffMs(20) === 8000);
 }
 
+// ---- drafts.uniqueCopyName ----
+{
+  const { uniqueCopyName } = await load('drafts.ts');
+  eq('copy first', uniqueCopyName('My post', []), 'My post (copy)');
+  eq('copy second', uniqueCopyName('My post', ['My post', 'My post (copy)']), 'My post (copy 2)');
+  eq('copy third', uniqueCopyName('My post', ['My post (copy)', 'My post (copy 2)']), 'My post (copy 3)');
+  eq('copy case-insensitive', uniqueCopyName('A', ['a (copy)']), 'A (copy 2)');
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

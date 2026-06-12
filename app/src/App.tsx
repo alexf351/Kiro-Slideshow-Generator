@@ -15,7 +15,7 @@ import HypeEditor from './HypeEditor';
 import CropAdjust, { DEFAULT_CROP, type CropValue } from './CropAdjust';
 import { GRADIENTS, SOLID_BGS } from './gradients';
 import { coerceDesign, DEFAULT_DESIGN, designPayload, ASPECT_KEYS, ASPECTS, type BrandDesign } from './design';
-import { listDrafts, saveDraft, deleteDraft, setDraftSchedule, setDraftPosted, clearPostedDrafts, type Draft } from './drafts';
+import { listDrafts, saveDraft, deleteDraft, duplicateDraft, setDraftSchedule, setDraftPosted, clearPostedDrafts, type Draft } from './drafts';
 import { exportBackup, importBackup, downloadBlob, timestampSlug } from './backup';
 import { suggestHashtags, parseHashtags } from './insights';
 import { findSimilarHooks } from './similarity';
@@ -3970,6 +3970,15 @@ export default function App() {
                       aria-label={`Schedule date for ${d.name}`}
                       className="shrink-0 w-[34px] hover:w-auto bg-transparent text-[10px] text-gray-500 cursor-pointer focus:w-auto focus:text-gray-200 [color-scheme:dark]"
                     />
+                    <button
+                      type="button"
+                      onClick={() => { setDrafts(duplicateDraft(d.id)); ui.notify(`Duplicated “${d.name}”.`, { type: 'success' }); }}
+                      className="shrink-0 w-7 h-7 rounded-md flex items-center justify-center text-gray-500 hover:text-[#00E5FF] hover:bg-[#00E5FF]/10"
+                      title="Duplicate draft"
+                      aria-label={`Duplicate ${d.name}`}
+                    >
+                      ⧉
+                    </button>
                     <button
                       type="button"
                       onClick={() => void handleDeleteDraft(d)}
