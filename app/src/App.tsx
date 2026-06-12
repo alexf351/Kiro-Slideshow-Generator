@@ -567,6 +567,27 @@ export default function App() {
   const [showOnboarding, setShowOnboarding] = useState(shouldOnboard);
   // Number of slides the engine actually rendered — drives the navigator.
   const [slideCount, setSlideCount] = useState(0);
+  // When loading a draft with overlays, they're applied on the next 'rendered'.
+  const pendingOverlaysRef = useRef<Record<string, unknown> | null>(null);
+
+  // Ask the engine for the current overlays so they can be saved with a draft.
+  function captureOverlays(): Promise<Record<string, unknown> | null> {
+    return new Promise((resolve) => {
+      const iframe = iframeRef.current;
+      if (!iframe?.contentWindow) { resolve(null); return; }
+      const requestId = Math.random().toString(36).slice(2);
+      const onMsg = (e: MessageEvent) => {
+        const m = e.data as { type?: string; requestId?: string; overlays?: Record<string, unknown> };
+        if (!m || m.type !== 'overlays' || m.requestId !== requestId) return;
+        window.removeEventListener('message', onMsg);
+        clearTimeout(t);
+        resolve(m.overlays && typeof m.overlays === 'object' ? m.overlays : {});
+      };
+      window.addEventListener('message', onMsg);
+      const t = setTimeout(() => { window.removeEventListener('message', onMsg); resolve(null); }, 4000);
+      iframe.contentWindow.postMessage({ type: 'getOverlays', requestId }, '*');
+    });
+  }
 
   function jumpToSlide(index: number) {
     iframeRef.current?.contentWindow?.postMessage({ type: 'scrollToSlide', index }, '*');
@@ -654,6 +675,13 @@ export default function App() {
       if (msg.type === 'rendered') {
         setStatus({ kind: 'ok', at: Date.now() });
         if (typeof msg.slideCount === 'number') setSlideCount(msg.slideCount);
+        // A draft is being loaded with its own overlays — re-apply them now
+        // that the new slides exist (consumed once).
+        if (pendingOverlaysRef.current !== null) {
+          const ov = pendingOverlaysRef.current;
+          pendingOverlaysRef.current = null;
+          iframeRef.current?.contentWindow?.postMessage({ type: 'setOverlays', overlays: ov }, '*');
+        }
       }
       if (msg.type === 'error') setStatus({ kind: 'err', msg: String(msg.message || 'render failed') });
       // App Stack: the user dragged an icon+text cluster (or dblclicked to
@@ -1741,7 +1769,8 @@ export default function App() {
   async function handleSaveDraft() {
     const name = await ui.prompt({ title: 'Save draft', message: 'Name this project (re-using a name overwrites it).', placeholder: 'e.g. Monday prompt pack', confirmLabel: 'Save', defaultValue: activeDraftName });
     if (!name || !name.trim()) return;
-    const next = saveDraft(name, currentDraftState());
+    const overlays = await captureOverlays();
+    const next = saveDraft(name, { ...currentDraftState(), overlays: overlays && Object.keys(overlays).length ? overlays : undefined });
     setDrafts(next);
     // saveDraft re-reads localStorage; if the write was rejected (quota), the
     // new draft won't be there — surface that instead of a false "saved".
@@ -1754,10 +1783,11 @@ export default function App() {
   }
 
   // Save back to the currently-loaded draft without re-typing its name.
-  function handleUpdateDraft() {
+  async function handleUpdateDraft() {
     if (!activeDraftName) return;
     const before = drafts.find((d) => d.name === activeDraftName)?.savedAt || 0;
-    const next = saveDraft(activeDraftName, currentDraftState());
+    const overlays = await captureOverlays();
+    const next = saveDraft(activeDraftName, { ...currentDraftState(), overlays: overlays && Object.keys(overlays).length ? overlays : undefined });
     setDrafts(next);
     const after = next.find((d) => d.name === activeDraftName)?.savedAt || 0;
     if (after <= before) {
@@ -1779,6 +1809,8 @@ export default function App() {
     if (s.attrPresets) setAttrPresets(s.attrPresets);
     setActiveDraftName(d.name);
     iframeRef.current?.contentWindow?.postMessage({ type: 'clearOverlays' }, '*');
+    // Restore this draft's overlays once the new slides have rendered.
+    pendingOverlaysRef.current = (s.overlays && typeof s.overlays === 'object') ? s.overlays : {};
     setTimeout(() => void handleRender({ switchView: false }), 80);
     ui.notify(`Loaded "${d.name}".`, { type: 'success' });
   }

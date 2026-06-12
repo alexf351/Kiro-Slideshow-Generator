@@ -5138,6 +5138,27 @@ window.addEventListener('message', async (e) => {
     return;
   }
 
+  // Hand the current overlays back to the parent so they can be saved with a
+  // draft (overlays otherwise live only in localStorage, keyed by slide index).
+  if (msg.type === 'getOverlays') {
+    try { e.source.postMessage({ type: 'overlays', requestId: msg.requestId, overlays: TEXT_OVERLAYS || {} }, '*'); }
+    catch (err) { try { e.source.postMessage({ type: 'overlays', requestId: msg.requestId, overlays: {} }, '*'); } catch (e2) {} }
+    return;
+  }
+
+  // Replace the overlays (used when loading a draft that has its own).
+  if (msg.type === 'setOverlays') {
+    try {
+      if (typeof TEXT_OVERLAYS === 'object' && TEXT_OVERLAYS) {
+        Object.keys(TEXT_OVERLAYS).forEach(function (k) { delete TEXT_OVERLAYS[k]; });
+        if (msg.overlays && typeof msg.overlays === 'object') Object.assign(TEXT_OVERLAYS, msg.overlays);
+        if (typeof saveOverlays === 'function') saveOverlays();
+        if (typeof applyOverlays === 'function') applyOverlays();
+      }
+    } catch (err) {}
+    return;
+  }
+
   // Captures slide 0 (the hook) at low resolution and posts the PNG blob
   // back to the parent. Used by the React shell when the user taps
   // "Save to history" so each post in the analytics list has a thumbnail.
