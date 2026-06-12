@@ -13,6 +13,7 @@ import DesignPanel from './DesignPanel';
 import QuickEdit from './QuickEdit';
 import HypeEditor from './HypeEditor';
 import CropAdjust, { DEFAULT_CROP, type CropValue } from './CropAdjust';
+import { GRADIENTS } from './gradients';
 import { coerceDesign, DEFAULT_DESIGN, designPayload, ASPECT_KEYS, ASPECTS, type BrandDesign } from './design';
 import { listDrafts, saveDraft, deleteDraft, type Draft } from './drafts';
 import { exportBackup, importBackup, downloadBlob, timestampSlug } from './backup';
@@ -1376,6 +1377,25 @@ export default function App() {
     }
   }
 
+  // Apply (or clear) a built-in gradient as the shared slide background by
+  // setting the JSON's top-level `background`. The engine paints any bg that
+  // is a CSS gradient string directly — no photo or API needed. Applies to
+  // formats that fall back to the shared background.
+  const currentBgGradient = useMemo(() => {
+    try {
+      const v = (JSON.parse(stripJsonWrappers(jsonText.trim())) as Record<string, unknown>).background;
+      return typeof v === 'string' && /-gradient\(/.test(v) ? v : null;
+    } catch { return null; }
+  }, [jsonText]);
+
+  function applyGlobalGradient(css: string | null) {
+    const parsed = parseJson(true);
+    if (!parsed) { ui.notify('Fix the JSON first.', { type: 'error' }); return; }
+    if (css) parsed.background = css; else delete parsed.background;
+    setJsonText(JSON.stringify(parsed, null, 2));
+    setTimeout(() => void handleRender({ switchView: false }), 60);
+  }
+
   // ---- Drafts (named in-progress projects) ----
   async function handleSaveDraft() {
     const name = await ui.prompt({ title: 'Save draft', message: 'Name this project (re-using a name overwrites it).', placeholder: 'e.g. Monday prompt pack', confirmLabel: 'Save' });
@@ -2024,6 +2044,32 @@ export default function App() {
           </section>
 
           <Group open={!!openGroups.bg} onToggle={() => toggleGroup('bg')} title="Backgrounds" hint="per slide">
+            {/* Quick gradient background — no photo or API key needed. */}
+            <div className="mb-4">
+              <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-gray-400 mb-2">Gradient background (all slides)</div>
+              <div className="grid grid-cols-8 gap-1.5">
+                {GRADIENTS.map((g) => {
+                  const active = g.css === currentBgGradient || (g.css === null && !currentBgGradient);
+                  return (
+                    <button
+                      key={g.name}
+                      type="button"
+                      onClick={() => applyGlobalGradient(g.css)}
+                      title={g.name}
+                      aria-label={g.name}
+                      className={
+                        'aspect-square rounded-md border transition-all ' +
+                        (active ? 'border-[#00E5FF] ring-2 ring-[#00E5FF]/40' : 'border-white/15 hover:border-white/40')
+                      }
+                      style={g.css ? { background: g.css } : { background: 'repeating-linear-gradient(45deg, #1a1f2e, #1a1f2e 4px, #0d1018 4px, #0d1018 8px)' }}
+                    />
+                  );
+                })}
+              </div>
+              <p className="text-[10px] text-gray-600 leading-relaxed mt-1.5">
+                Instant background for photo-style formats. The first (striped) swatch clears it. Per-slide photos still override this.
+              </p>
+            </div>
             {slideMetas.length === 0 ? (
               <div className="text-xs text-gray-500 leading-relaxed">
                 Fix the JSON above and the slide list will show up here.
