@@ -23,13 +23,14 @@ type Props = {
   // valid; the StockSearch panel surfaces a "no key" warning itself.
   pexelsKey: string;
   unsplashKey: string;
+  pixabayKey: string;
 };
 
 type LibraryView = 'library' | 'stock';
 
 const ALL_FILTER = '__all__';
 
-export default function Library({ pickMode, pexelsKey, unsplashKey }: Props) {
+export default function Library({ pickMode, pexelsKey, unsplashKey, pixabayKey }: Props) {
   const ui = useUI();
   const [items, setItems] = useState<MediaItem[]>([]);
   const [sets, setSets] = useState<MediaSet[]>([]);
@@ -212,7 +213,7 @@ export default function Library({ pickMode, pexelsKey, unsplashKey }: Props) {
           </div>
         </header>
         <div className="flex-1 min-h-0">
-          <StockSearch pexelsKey={pexelsKey} unsplashKey={unsplashKey} onImported={refresh} />
+          <StockSearch pexelsKey={pexelsKey} unsplashKey={unsplashKey} pixabayKey={pixabayKey} onImported={refresh} />
         </div>
       </div>
     );

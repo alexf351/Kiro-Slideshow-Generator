@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import {
   fetchStockBlob,
+  providerNeedsKey,
   searchStock,
   StockApiError,
   trackStockDownload,
@@ -10,22 +11,34 @@ import {
 import { addStockItem } from './mediaBank';
 
 type Props = {
-  // Both keys live in the App-level Settings panel and are passed in
-  // here so the search component is stateless about credentials.
+  // Keys live in the App-level Settings panel and are passed in here so the
+  // search component is stateless about credentials. Openverse needs none.
   pexelsKey: string;
   unsplashKey: string;
+  pixabayKey: string;
   // Fired after we've imported a photo; lets the parent Library refresh
   // its grid without re-querying IDB on its own.
   onImported: () => void;
 };
 
 const PROVIDER_LABEL: Record<StockProvider, string> = {
+  openverse: 'Openverse',
   pexels: 'Pexels',
   unsplash: 'Unsplash',
+  pixabay: 'Pixabay',
 };
 
-export default function StockSearch({ pexelsKey, unsplashKey, onImported }: Props) {
-  const [provider, setProvider] = useState<StockProvider>('pexels');
+const PROVIDER_NOTE: Record<StockProvider, string> = {
+  openverse: 'keyless · ~700M CC images',
+  pexels: 'free · no attribution',
+  unsplash: 'free · credit appreciated',
+  pixabay: 'free · no attribution',
+};
+
+const PROVIDER_ORDER: StockProvider[] = ['openverse', 'pexels', 'unsplash', 'pixabay'];
+
+export default function StockSearch({ pexelsKey, unsplashKey, pixabayKey, onImported }: Props) {
+  const [provider, setProvider] = useState<StockProvider>('openverse');
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<StockPhoto[]>([]);
   const [searching, setSearching] = useState(false);
@@ -35,12 +48,12 @@ export default function StockSearch({ pexelsKey, unsplashKey, onImported }: Prop
   const [importing, setImporting] = useState<Set<string>>(new Set());
   const [imported, setImported] = useState<Set<string>>(new Set());
 
-  const activeKey = provider === 'pexels' ? pexelsKey : unsplashKey;
-  const keyMissing = !activeKey;
+  const activeKey = provider === 'pexels' ? pexelsKey : provider === 'unsplash' ? unsplashKey : provider === 'pixabay' ? pixabayKey : '';
+  const keyMissing = providerNeedsKey(provider) && !activeKey;
 
   async function handleSearch() {
     if (!query.trim()) return;
-    if (!activeKey) {
+    if (keyMissing) {
       setError(`Add a ${PROVIDER_LABEL[provider]} API key in Settings (sidebar) before searching.`);
       return;
     }
@@ -96,7 +109,7 @@ export default function StockSearch({ pexelsKey, unsplashKey, onImported }: Prop
     <div className="h-full flex flex-col">
       <div className="shrink-0 px-5 md:px-8 pt-4 pb-3 border-b border-white/[0.06]">
         <div className="flex items-center gap-2 mb-3">
-          {(['pexels', 'unsplash'] as StockProvider[]).map((p) => {
+          {PROVIDER_ORDER.map((p) => {
             const active = provider === p;
             return (
               <button
@@ -115,7 +128,7 @@ export default function StockSearch({ pexelsKey, unsplashKey, onImported }: Prop
             );
           })}
           <span className="ml-auto text-[10px] uppercase tracking-[0.14em] text-gray-600">
-            {provider === 'pexels' ? 'free · no attribution' : 'free · credit appreciated'}
+            {PROVIDER_NOTE[provider]}
           </span>
         </div>
         <div className="flex gap-2">
@@ -150,7 +163,7 @@ export default function StockSearch({ pexelsKey, unsplashKey, onImported }: Prop
         {results.length === 0 && !searching && !error && (
           <div className="text-center text-gray-500 text-xs mt-12 leading-relaxed px-6">
             Search for portrait photos to drop into your media bank.<br />
-            Both providers prioritise vertical / 9:16-friendly results so they fit slide backgrounds.
+            <strong className="text-gray-400">Openverse</strong> needs no API key — just search. All providers bias toward vertical / 9:16 results so they fit slide backgrounds.
           </div>
         )}
         {results.length > 0 && (

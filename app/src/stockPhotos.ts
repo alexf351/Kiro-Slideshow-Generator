@@ -1,14 +1,27 @@
-// Provider-agnostic stock photo search. Both Pexels and Unsplash support
-// browser CORS for the search endpoints and the CDN image URLs, so the
-// whole flow runs client-side: search the API, fetch the chosen image's
-// bytes, hand the blob to the media bank.
+// Provider-agnostic stock photo search. Pexels and Unsplash support
+// browser CORS for search + CDN, so they run fully client-side. Openverse
+// (keyless, ~700M CC images) and Pixabay support CORS for search, but their
+// image bytes come from many upstream hosts without CORS — so we pull those
+// through /api/proxy-image before saving (html2canvas needs same-origin
+// bytes to export the slide).
 //
 // API keys are BYOK and live in localStorage (see App.tsx Settings
-// section). Free signup for either:
+// section). Free signup:
 //   Pexels:   https://www.pexels.com/api/
 //   Unsplash: https://unsplash.com/developers
+//   Pixabay:  https://pixabay.com/api/docs/
+//   Openverse: no key required.
 
-export type StockProvider = 'pexels' | 'unsplash';
+export type StockProvider = 'openverse' | 'pexels' | 'unsplash' | 'pixabay';
+
+// Providers whose image bytes aren't reliably CORS-enabled — fetch those
+// through our proxy so the blob is same-origin for canvas export.
+const PROXY_BLOB: Record<StockProvider, boolean> = {
+  openverse: true,
+  pixabay: true,
+  pexels: false,
+  unsplash: false,
+};
 
 // Normalised photo shape — flattens both providers' very different
 // response schemas into one thing the UI cares about.
@@ -38,6 +51,13 @@ export class StockApiError extends Error {
 
 const PEXELS_SEARCH = 'https://api.pexels.com/v1/search';
 const UNSPLASH_SEARCH = 'https://api.unsplash.com/search/photos';
+const OPENVERSE_SEARCH = 'https://api.openverse.org/v1/images/';
+const PIXABAY_SEARCH = 'https://pixabay.com/api/';
+
+// Openverse needs no key; everyone else does.
+export function providerNeedsKey(provider: StockProvider): boolean {
+  return provider !== 'openverse';
+}
 
 export async function searchStock(
   provider: StockProvider,
@@ -45,9 +65,67 @@ export async function searchStock(
   apiKey: string,
   perPage = 24,
 ): Promise<StockPhoto[]> {
-  if (!apiKey) throw new StockApiError(`Add a ${provider} API key in Settings first.`);
+  if (providerNeedsKey(provider) && !apiKey) {
+    throw new StockApiError(`Add a ${provider} API key in Settings first.`);
+  }
   const trimmed = query.trim();
   if (!trimmed) return [];
+
+  if (provider === 'openverse') {
+    // Keyless. aspect_ratio=tall biases toward portrait/9:16-friendly shots.
+    const url = `${OPENVERSE_SEARCH}?q=${encodeURIComponent(trimmed)}&page_size=${perPage}&aspect_ratio=tall&mature=false`;
+    const res = await fetch(url, { headers: { Accept: 'application/json' } });
+    if (!res.ok) {
+      throw new StockApiError(`Openverse search failed (${res.status}). Try again in a moment.`, res.status);
+    }
+    const data = (await res.json()) as {
+      results: Array<{
+        id: string; title?: string; url: string; thumbnail?: string;
+        width?: number; height?: number; creator?: string; creator_url?: string;
+        foreign_landing_url?: string;
+      }>;
+    };
+    return (data.results || []).map((p) => ({
+      id: `openverse:${p.id}`,
+      provider: 'openverse' as const,
+      thumbUrl: p.thumbnail || p.url,
+      fullUrl: p.url,
+      width: p.width || 0,
+      height: p.height || 0,
+      alt: p.title || trimmed,
+      photographer: p.creator || 'Unknown',
+      photographerUrl: p.creator_url || '',
+      photoUrl: p.foreign_landing_url || '',
+    }));
+  }
+
+  if (provider === 'pixabay') {
+    const url = `${PIXABAY_SEARCH}?key=${encodeURIComponent(apiKey)}&q=${encodeURIComponent(trimmed)}` +
+      `&image_type=photo&orientation=vertical&per_page=${perPage}&safesearch=true`;
+    const res = await fetch(url);
+    if (!res.ok) {
+      throw new StockApiError(`Pixabay search failed (${res.status}). Check your API key.`, res.status);
+    }
+    const data = (await res.json()) as {
+      hits: Array<{
+        id: number; webformatURL: string; largeImageURL: string;
+        imageWidth: number; imageHeight: number; tags: string;
+        user: string; pageURL: string;
+      }>;
+    };
+    return (data.hits || []).map((p) => ({
+      id: `pixabay:${p.id}`,
+      provider: 'pixabay' as const,
+      thumbUrl: p.webformatURL,
+      fullUrl: p.largeImageURL,
+      width: p.imageWidth,
+      height: p.imageHeight,
+      alt: p.tags || trimmed,
+      photographer: p.user,
+      photographerUrl: `https://pixabay.com/users/${encodeURIComponent(p.user)}/`,
+      photoUrl: p.pageURL,
+    }));
+  }
 
   if (provider === 'pexels') {
     const url = `${PEXELS_SEARCH}?query=${encodeURIComponent(trimmed)}&per_page=${perPage}&orientation=portrait`;
@@ -109,10 +187,14 @@ export async function searchStock(
   }));
 }
 
-// Fetch the chosen image as a blob ready for IndexedDB. CDN URLs from
-// both providers send CORS headers so this works browser-side.
+// Fetch the chosen image as a blob ready for IndexedDB. Pexels/Unsplash CDN
+// URLs send CORS headers so we fetch them directly; Openverse/Pixabay images
+// come from assorted hosts, so we route them through /api/proxy-image to get
+// same-origin bytes that html2canvas can later draw to a canvas.
 export async function fetchStockBlob(photo: StockPhoto): Promise<Blob> {
-  const res = await fetch(photo.fullUrl);
+  const direct = !PROXY_BLOB[photo.provider];
+  const target = direct ? photo.fullUrl : `/api/proxy-image?url=${encodeURIComponent(photo.fullUrl)}`;
+  const res = await fetch(target);
   if (!res.ok) throw new StockApiError(`Image download failed (${res.status})`, res.status);
   return await res.blob();
 }
