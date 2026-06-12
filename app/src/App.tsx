@@ -411,6 +411,8 @@ export default function App() {
   const [phoneErr, setPhoneErr] = useState<string | null>(null);
   // Animated MP4/WebM export progress.
   const [videoBusy, setVideoBusy] = useState<string | null>(null);
+  // PDF export (repurpose the deck as an IG / LinkedIn carousel).
+  const [pdfBusy, setPdfBusy] = useState<string | null>(null);
   // Which collapsible sidebar groups are expanded. Everything outside the
   // core Format → Content → Caption spine is collapsed by default so the
   // panel reads as a simple "make a post" funnel instead of a wall of
@@ -1252,6 +1254,30 @@ export default function App() {
     // Generous timeout — real-time recording of a long deck can take a while.
     const timer = setTimeout(() => { window.removeEventListener('message', onMessage); setVideoBusy(null); ui.notify('Video export timed out.', { type: 'error' }); }, 180000);
     iframe.contentWindow.postMessage({ type: 'capture-video', requestId, secondsPerSlide: 2.5 }, '*');
+  }
+
+  // Capture the slides and assemble a multi-page PDF (one slide per page at
+  // 1080×1920) — handy for repurposing the deck as an Instagram / LinkedIn
+  // carousel, or just archiving it.
+  async function handleExportPdf() {
+    setPdfBusy('Capturing slides…');
+    try {
+      const slides = await captureTikTokSlides();
+      if (!slides.length) throw new Error('No slides captured. Hit Render first.');
+      setPdfBusy('Building PDF…');
+      const { jsPDF } = await import('jspdf');
+      const doc = new jsPDF({ unit: 'px', format: [1080, 1920], orientation: 'portrait' });
+      slides.forEach((dataUrl, i) => {
+        if (i > 0) doc.addPage([1080, 1920], 'portrait');
+        doc.addImage(dataUrl, 'JPEG', 0, 0, 1080, 1920);
+      });
+      doc.save(`iro_${timestampSlug()}.pdf`);
+      ui.notify('PDF downloaded.', { type: 'success' });
+    } catch (e) {
+      ui.notify(`PDF export failed: ${(e as Error).message}`, { type: 'error' });
+    } finally {
+      setPdfBusy(null);
+    }
   }
 
   async function handleSaveToHistory() {
@@ -2227,6 +2253,16 @@ export default function App() {
                            disabled:opacity-60 disabled:cursor-not-allowed hover:border-[#A78BFA]/50 hover:text-[#A78BFA] transition-all"
               >
                 {videoBusy || '🎬 Export as video'}
+              </button>
+              <button
+                type="button"
+                onClick={handleExportPdf}
+                disabled={!!pdfBusy}
+                className="w-full py-3 rounded-xl text-[12px] font-bold uppercase tracking-[0.12em]
+                           border border-white/[0.12] bg-white/[0.03] text-gray-200
+                           disabled:opacity-60 disabled:cursor-not-allowed hover:border-[#FFC857]/50 hover:text-[#FFC857] transition-all"
+              >
+                {pdfBusy || '📄 Export PDF (IG / LinkedIn)'}
               </button>
               {phoneErr && <div className="text-[11px] text-red-400 leading-relaxed">{phoneErr}</div>}
               {ttToken && (
