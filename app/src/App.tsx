@@ -1021,6 +1021,7 @@ export default function App() {
   // Write a fresh caption + hashtags with Claude from the current slide
   // content. Learns the user's voice from their recent saved captions.
   const [captionAiBusy, setCaptionAiBusy] = useState(false);
+  const [captionTone, setCaptionTone] = useState('Auto');
   const [translateLang, setTranslateLang] = useState('Spanish');
   const [translateBusy, setTranslateBusy] = useState(false);
 
@@ -1056,6 +1057,7 @@ export default function App() {
       const examples = posts.map((p) => p.caption).filter((c) => c && c.trim().length > 10).slice(0, 4);
       const { caption: body, hashtags } = await generateCaption({
         json: jsonText, preset, apiKey: anthropicKey, model: claudeModel, examples,
+        tone: captionTone === 'Auto' ? undefined : captionTone,
       });
       setCaption(composeCaption(body, hashtags));
       ui.notify('Caption written.', { type: 'success' });
@@ -2436,6 +2438,17 @@ export default function App() {
               >
                 {captionAiBusy ? '✨ Writing…' : '✨ AI caption'}
               </button>
+              <select
+                value={captionTone}
+                onChange={(e) => setCaptionTone(e.target.value)}
+                aria-label="AI caption tone"
+                title="Tone for AI caption"
+                className="bg-[#070b18] border border-white/[0.10] rounded-md px-1.5 py-1 text-[11px] text-gray-300 focus:outline-none focus:border-[#A78BFA]/50"
+              >
+                {['Auto', 'Funny', 'Educational', 'Aesthetic', 'Hype', 'Relatable'].map((t) => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+              </select>
               <EmojiPicker onPick={insertEmoji} />
               <span className="flex items-center gap-1">
                 <select
