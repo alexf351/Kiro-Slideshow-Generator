@@ -1117,6 +1117,84 @@
   }
 
   /* ============================================================
+     PRESET: quote_card
+     Aesthetic centered serif quote with a decorative mark + author.
+     ============================================================ */
+  .preset-quote-card .frame {
+    padding: 200px 110px 220px 110px;
+    display: flex; flex-direction: column;
+    justify-content: center; align-items: center; text-align: center;
+  }
+  .preset-quote-card .bg-photo-scrim {
+    background: linear-gradient(180deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.35) 50%, rgba(0,0,0,0.55) 100%);
+  }
+  .preset-quote-card .bg-solid {
+    background:
+      radial-gradient(ellipse 100% 60% at 50% 40%, rgba(255,200,87,0.08) 0%, transparent 62%),
+      linear-gradient(180deg, #161310 0%, #0a0807 100%);
+  }
+  .preset-quote-card .qc-hook {
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 130px; font-weight: 700; line-height: 1.04;
+    letter-spacing: -0.01em; color: #fff; max-width: 920px;
+    text-shadow: 0 4px 24px rgba(0,0,0,0.6);
+  }
+  .preset-quote-card .qc-hook strong { color: #FFC857; font-style: italic; }
+  .preset-quote-card .qc-subline {
+    margin-top: 44px;
+    font-family: 'Inter', sans-serif; font-size: 46px; font-weight: 500;
+    letter-spacing: 0.04em; color: rgba(255,255,255,0.72);
+  }
+  .preset-quote-card .qc-block {
+    display: flex; flex-direction: column; align-items: center; max-width: 920px;
+  }
+  .preset-quote-card .qc-mark {
+    font-family: Georgia, serif; font-size: 320px; line-height: 0.6;
+    color: #FFC857; height: 150px; margin-bottom: 20px;
+    text-shadow: 0 6px 30px rgba(0,0,0,0.5);
+  }
+  .preset-quote-card .qc-quote {
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 96px; font-weight: 700; font-style: italic; line-height: 1.22;
+    letter-spacing: -0.01em; color: #fff;
+    text-shadow: 0 4px 22px rgba(0,0,0,0.6);
+  }
+  .preset-quote-card .qc-author {
+    margin-top: 56px;
+    font-family: 'Inter', sans-serif; font-size: 50px; font-weight: 700;
+    letter-spacing: 0.06em; color: #FFC857;
+  }
+  .preset-quote-card .qc-cta-headline {
+    font-family: Georgia, serif;
+    font-size: 120px; font-weight: 700; line-height: 1.06;
+    color: #fff; margin-bottom: 60px; max-width: 1000px;
+    text-shadow: 0 4px 24px rgba(0,0,0,0.6);
+  }
+  .preset-quote-card .qc-cta-headline strong { color: #FFC857; font-style: italic; }
+  .preset-quote-card .qc-cta-search-row {
+    display: flex; align-items: baseline; justify-content: center; gap: 28px; margin-bottom: 28px;
+  }
+  .preset-quote-card .qc-cta-instruction {
+    font-family: 'Inter', sans-serif; font-size: 50px; font-weight: 500; color: rgba(255,255,255,0.85);
+  }
+  .preset-quote-card .qc-cta-search {
+    font-family: 'Inter', sans-serif; font-size: 130px; font-weight: 900;
+    letter-spacing: -0.02em; color: #00E5FF;
+    border-bottom: 6px solid #00E5FF; padding-bottom: 6px;
+    text-shadow: 0 0 24px rgba(0,229,255,0.35);
+  }
+  .preset-quote-card .qc-cta-slogan {
+    margin-top: 56px;
+    font-family: 'Inter', sans-serif; font-size: 50px; font-weight: 600; font-style: italic;
+    color: rgba(255,255,255,0.85);
+  }
+  .preset-quote-card .qc-attribution {
+    position: absolute; bottom: 80px; left: 0; right: 0; text-align: center;
+    font-family: 'Inter', sans-serif; font-size: 32px; font-weight: 700;
+    letter-spacing: 0.20em; color: rgba(255,255,255,0.5);
+  }
+
+  /* ============================================================
      PRESET: app_stack
      "5 apps I use every day" carousel. Hook slide with centered
      headline over a photo, then one slide per app showing a large
@@ -2278,6 +2356,23 @@ const PRESETS = {
       return out;
     },
   },
+  quote_card: {
+    label: 'Quote Card',
+    slideClass: 'preset-quote-card',
+    showCounter: false,
+    fallbackBg: 'photo',
+    buildSlides(S) {
+      const out = [];
+      if (S.hook && (S.hook.headline || S.hook.subline)) {
+        out.push({ html: buildQuoteHook(S.hook), bg: (S.hook && S.hook.bg) || S.background });
+      }
+      (S.items || []).forEach((it) => {
+        out.push({ html: buildQuoteItem(it), bg: (it && it.bg) || S.background });
+      });
+      out.push({ html: buildQuoteCTA(S.cta, S.attribution), bg: (S.cta && S.cta.bg) || S.background });
+      return out;
+    },
+  },
   handwritten_pack: {
     label: 'Handwritten Pack',
     slideClass: 'preset-handwritten-pack',
@@ -2998,6 +3093,40 @@ function buildHotCTA(c, attribution) {
   const below = c.instructionBelow ? `<div class="ht-cta-instruction">${c.instructionBelow}</div>` : '';
   const slogan = c.slogan ? `<div class="ht-cta-slogan">${c.slogan}</div>` : '';
   const attr = attribution ? `<div class="ht-attribution">${attribution}</div>` : '';
+  return `${headline}${searchRow}${below}${slogan}${attr}`;
+}
+
+// ============================================================
+// PRESET: quote_card builders
+// Aesthetic centered serif quote with a big decorative mark + author.
+// items:[{ quote, author }].
+// ============================================================
+function buildQuoteHook(h) {
+  if (!h) return '';
+  const headline = h.headline ? `<div class="qc-hook">${h.headline}</div>` : '';
+  const subline = h.subline ? `<div class="qc-subline">${h.subline}</div>` : '';
+  return `${headline}${subline}`;
+}
+
+function buildQuoteItem(it) {
+  if (!it) return '';
+  const quote = it.quote ? `<div class="qc-quote">${it.quote}</div>` : '';
+  const author = it.author ? `<div class="qc-author">— ${it.author}</div>` : '';
+  return `<div class="qc-block"><div class="qc-mark">&ldquo;</div>${quote}${author}</div>`;
+}
+
+function buildQuoteCTA(c, attribution) {
+  if (!c) return '';
+  const headline = c.headline ? `<div class="qc-cta-headline">${c.headline}</div>` : '';
+  let searchRow = '';
+  if (c.instructionAbove || c.searchTerm) {
+    const above = c.instructionAbove ? `<span class="qc-cta-instruction">${c.instructionAbove}</span>` : '';
+    const term = c.searchTerm ? `<span class="qc-cta-search">${c.searchTerm}</span>` : '';
+    searchRow = `<div class="qc-cta-search-row">${above}${term}</div>`;
+  }
+  const below = c.instructionBelow ? `<div class="qc-cta-instruction">${c.instructionBelow}</div>` : '';
+  const slogan = c.slogan ? `<div class="qc-cta-slogan">${c.slogan}</div>` : '';
+  const attr = attribution ? `<div class="qc-attribution">${attribution}</div>` : '';
   return `${headline}${searchRow}${below}${slogan}${attr}`;
 }
 

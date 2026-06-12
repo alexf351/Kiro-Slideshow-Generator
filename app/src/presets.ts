@@ -22,6 +22,7 @@ export const PRESET_KEYS = [
   'storytime',
   'stat_drop',
   'this_or_that',
+  'quote_card',
 ] as const;
 
 export type PresetKey = (typeof PRESET_KEYS)[number];
@@ -622,6 +623,36 @@ want to stop overthinking and start building? search "Iro AI" on the App Store.
 
 #thisorthat #ai #aitok #wouldyourather #tech`;
 
+const QUOTE_CARD_JSON = `{
+  "preset": "quote_card",
+  "hook": {
+    "headline": "5 quotes that <strong>rewired</strong><br/>how i use AI",
+    "subline": "save the one that hits"
+  },
+  "items": [
+    { "quote": "The future is already here — it's just not evenly distributed.", "author": "William Gibson" },
+    { "quote": "The best way to predict the future is to invent it.", "author": "Alan Kay" },
+    { "quote": "A tool is only as good as the question you bring to it.", "author": "Iro" },
+    { "quote": "Don't fear the tool. Fear being the person who refused to learn it.", "author": "Iro" }
+  ],
+  "cta": {
+    "headline": "Stop reading about it.<br/><strong>Go build something.</strong>",
+    "instructionAbove": "search:",
+    "searchTerm": "Iro AI",
+    "instructionBelow": "on the App Store.",
+    "slogan": "5 minutes a day. that's it."
+  },
+  "attribution": ""
+}`;
+
+const QUOTE_CARD_CAPTION = `save this one 🤍 5 quotes that genuinely changed how i think about AI
+
+#4 lives in my head rent free
+
+want to actually act on them? search "Iro AI" on the App Store.
+
+#quotes #ai #motivation #aitok #mindset`;
+
 export const PRESETS: Record<PresetKey, PresetMeta> = {
   prompt_pack: {
     key: 'prompt_pack',
@@ -766,5 +797,14 @@ export const PRESETS: Record<PresetKey, PresetMeta> = {
     defaultJson: THIS_OR_THAT_JSON,
     defaultCaption: THIS_OR_THAT_CAPTION,
     accent: '#FF2D9B', // hot pink (option A)
+  },
+  quote_card: {
+    key: 'quote_card',
+    label: 'Quote Card',
+    pitch: 'Aesthetic serif quotes with a big mark + author. Save-bait wisdom carousels.',
+    status: 'ready',
+    defaultJson: QUOTE_CARD_JSON,
+    defaultCaption: QUOTE_CARD_CAPTION,
+    accent: '#FFC857', // warm gold
   },
 };
