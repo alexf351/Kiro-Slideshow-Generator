@@ -462,6 +462,20 @@ export default function App() {
     });
   }
   const [formatQuery, setFormatQuery] = useState('');
+  // Per-format historical performance (avg score + count) from this account's
+  // scored posts, so the picker can surface which formats actually win here.
+  // Loaded from IndexedDB on mount and refreshed after each save.
+  const [formatPerf, setFormatPerf] = useState<Record<string, { avgScore: number; count: number }>>({});
+  async function loadFormatPerf() {
+    try {
+      const { summarizeWhatWorks } = await import('./scoring');
+      const sum = summarizeWhatWorks(await listPosts());
+      const map: Record<string, { avgScore: number; count: number }> = {};
+      for (const b of sum.byPreset) if (b.key) map[b.key] = { avgScore: b.avgScore, count: b.count };
+      setFormatPerf(map);
+    } catch { /* no history / IDB unavailable — picker just shows no badges */ }
+  }
+  useEffect(() => { void loadFormatPerf(); }, []);
   const orderedFormatKeys = useMemo(() => {
     const fav = PRESET_KEYS.filter((k) => favFormats.includes(k));
     const rest = PRESET_KEYS.filter((k) => !favFormats.includes(k));
@@ -1977,6 +1991,7 @@ export default function App() {
       });
       setSaveStatus({ kind: 'ok' });
       setPendingPrediction(null);
+      void loadFormatPerf();
       setTimeout(() => setSaveStatus({ kind: 'idle' }), 2500);
     } catch (e) {
       setSaveStatus({ kind: 'err', msg: (e as Error).message || 'save failed' });
@@ -2422,6 +2437,20 @@ export default function App() {
                         Coming soon
                       </span>
                     )}
+                    {!planned && formatPerf[key] && (() => {
+                      const p = formatPerf[key];
+                      // Green when this format out-earns 60+, amber mid, gray low.
+                      const color = p.avgScore >= 64 ? '#22C55E' : p.avgScore >= 44 ? '#FFC857' : '#9aa4b2';
+                      return (
+                        <span
+                          className="mt-1.5 inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-[0.1em]"
+                          style={{ color }}
+                          title={`Your average performance with this format across ${p.count} scored post${p.count === 1 ? '' : 's'}`}
+                        >
+                          ★ avg {p.avgScore} · {p.count}
+                        </span>
+                      );
+                    })()}
                   </button>
                 );
               })}
