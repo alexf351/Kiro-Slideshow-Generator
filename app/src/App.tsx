@@ -446,6 +446,7 @@ export default function App() {
   // Batch generate — one draft per topic line.
   const [batchTopics, setBatchTopics] = useState('');
   const [batchBusy, setBatchBusy] = useState<string | null>(null);
+  const [ideasBusy, setIdeasBusy] = useState(false);
   // Which collapsible sidebar groups are expanded. Everything outside the
   // core Format → Content → Caption spine is collapsed by default so the
   // panel reads as a simple "make a post" funnel instead of a wall of
@@ -1420,6 +1421,25 @@ export default function App() {
       ui.notify(`Rewrite failed: ${(e as Error).message}`, { type: 'error' });
     } finally {
       setRewritingIndex(null);
+    }
+  }
+
+  // Brainstorm topic ideas for a niche and drop them into the batch box.
+  async function handleGenerateIdeas() {
+    if (!anthropicKey) { ui.notify('Add an Anthropic API key in Settings to use this.', { type: 'error' }); return; }
+    const niche = await ui.prompt({ title: 'Post ideas', message: 'What niche / theme should the ideas cover?', placeholder: 'e.g. AI for small business owners', confirmLabel: 'Brainstorm' });
+    if (!niche || !niche.trim()) return;
+    setIdeasBusy(true);
+    try {
+      const { generateIdeas } = await import('./fillFromTopic');
+      const topics = await generateIdeas({ niche, count: 8, apiKey: anthropicKey, model: claudeModel });
+      if (!topics.length) throw new Error('No ideas returned.');
+      setBatchTopics((prev) => (prev.trim() ? prev.trimEnd() + '\n' + topics.join('\n') : topics.join('\n')));
+      ui.notify(`${topics.length} ideas added — review, then Generate.`, { type: 'success' });
+    } catch (e) {
+      ui.notify(`Idea generation failed: ${(e as Error).message}`, { type: 'error' });
+    } finally {
+      setIdeasBusy(false);
     }
   }
 
@@ -2633,7 +2653,17 @@ export default function App() {
             </p>
             {/* Batch generate: one AI-filled draft per topic line. */}
             <div className="mb-3 p-3 rounded-xl border border-[#A78BFA]/20 bg-[#A78BFA]/[0.06]">
-              <div className="text-[11px] font-bold text-[#C4B5FD] mb-1.5">✨ Batch a week of content</div>
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-[11px] font-bold text-[#C4B5FD]">✨ Batch a week of content</span>
+                <button
+                  type="button"
+                  onClick={() => void handleGenerateIdeas()}
+                  disabled={ideasBusy}
+                  className="text-[10px] font-bold uppercase tracking-[0.1em] text-[#C4B5FD] hover:text-white disabled:opacity-50"
+                >
+                  {ideasBusy ? '💡 …' : '💡 Ideas'}
+                </button>
+              </div>
               <textarea
                 value={batchTopics}
                 onChange={(e) => setBatchTopics(e.target.value)}
