@@ -22,6 +22,7 @@ import { findSimilarHooks } from './similarity';
 import { buildIcs, scheduledCount } from './ics';
 import { postsToCsv } from './csv';
 import { scoreHook, HOOK_TIER_COLOR, HOOK_TIER_TEXT } from './hookScore';
+import { lintHashtags, HASHTAG_TIER_COLOR, HASHTAG_TIER_TEXT } from './hashtagLint';
 import { listSets, saveSet, deleteSet, formatTags, type HashtagSet } from './hashtagSets';
 import { encodePost, decodePost } from './postShare';
 import { useUI } from './ui';
@@ -2926,6 +2927,30 @@ export default function App() {
                   {hs.tips[0] && (
                     <span className="shrink-0 max-w-[55%] truncate text-[10px] text-gray-500" title={hs.tips.join('  •  ')}>
                       Tip: {hs.tips[0]}
+                    </span>
+                  )}
+                </div>
+              );
+            })()}
+            {/* Hashtag-mix linter — grades count + broad/niche balance, the
+               strategy "Suggest hashtags" can't see. Only shown once the
+               caption has any tags. */}
+            {caption.trim() && (() => {
+              const hl = lintHashtags(caption);
+              if (hl.count === 0) return null;
+              const color = HASHTAG_TIER_COLOR[hl.tier];
+              return (
+                <div className="mt-1.5 flex items-center gap-2.5">
+                  <span
+                    className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-[0.1em]"
+                    style={{ color, backgroundColor: color + '1f', border: `1px solid ${color}40` }}
+                    title={`${hl.nicheCount} niche · ${hl.genericCount} broad`}
+                  >
+                    {HASHTAG_TIER_TEXT[hl.tier]} · {hl.count}
+                  </span>
+                  {hl.tips[0] && (
+                    <span className="shrink-0 max-w-[70%] truncate text-[10px] text-gray-500" title={hl.tips.join('  •  ')}>
+                      Tip: {hl.tips[0]}
                     </span>
                   )}
                 </div>
