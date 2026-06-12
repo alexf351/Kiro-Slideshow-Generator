@@ -13,9 +13,13 @@ export async function pickFormat(opts: {
   formats: { key: string; label: string; pitch: string }[];
   apiKey: string;
   model: ClaudeModelId;
+  prefer?: string[]; // formats the user has pinned — bias toward these on a tie
 }): Promise<string> {
   const list = opts.formats.map((f) => `- ${f.key}: ${f.pitch}`).join('\n');
-  const system = `You pick the single best TikTok slideshow format for a topic. Choose the one whose structure fits the topic most naturally and would perform best. Return only the key via the tool.`;
+  const preferLine = opts.prefer && opts.prefer.length
+    ? ` When two or more formats fit the topic about equally well, prefer the ones the creator favors: ${opts.prefer.join(', ')}.`
+    : '';
+  const system = `You pick the single best TikTok slideshow format for a topic. Choose the one whose structure fits the topic most naturally and would perform best.${preferLine} Return only the key via the tool.`;
   const res = await callClaude({
     apiKey: opts.apiKey,
     model: opts.model,
