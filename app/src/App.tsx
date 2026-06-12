@@ -2952,9 +2952,20 @@ export default function App() {
                     >
                       <div className={'text-[12px] font-bold truncate ' + (d.posted ? 'text-gray-400 line-through' : 'text-gray-200')}>{d.name}</div>
                       <div className="text-[10px] text-gray-500">
-                        {d.scheduledFor
-                          ? <span className="text-[#34D399]">📅 {new Date(d.scheduledFor).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}</span>
-                          : <>{new Date(d.savedAt).toLocaleDateString()} · {new Date(d.savedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</>}
+                        {d.scheduledFor ? (() => {
+                          const todayEnd = new Date(); todayEnd.setHours(23, 59, 59, 999);
+                          const startToday = new Date(); startToday.setHours(0, 0, 0, 0);
+                          const due = !d.posted && d.scheduledFor <= todayEnd.getTime();
+                          const overdue = !d.posted && d.scheduledFor < startToday.getTime();
+                          const dateStr = new Date(d.scheduledFor).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+                          return (
+                            <span className={due ? 'text-amber-400 font-bold' : 'text-[#34D399]'}>
+                              📅 {dateStr}{overdue ? ' · overdue' : due ? ' · due today' : ''}
+                            </span>
+                          );
+                        })() : (
+                          <>{new Date(d.savedAt).toLocaleDateString()} · {new Date(d.savedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</>
+                        )}
                       </div>
                     </button>
                     <input
