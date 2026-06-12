@@ -28,6 +28,25 @@ function isAllowedHost(url: string): boolean {
   }
 }
 
+// Fetch the CDN image, retrying transient failures (network blips, 5xx).
+async function fetchWithRetry(target: string, init: RequestInit): Promise<Response> {
+  const maxAttempts = 3;
+  let lastErr: Error | null = null;
+  for (let a = 0; a < maxAttempts; a++) {
+    let res: Response;
+    try {
+      res = await fetch(target, init);
+    } catch (e) {
+      lastErr = e as Error;
+      if (a < maxAttempts - 1) { await new Promise((r) => setTimeout(r, 600 * (a + 1))); continue; }
+      throw e;
+    }
+    if (res.ok || res.status < 500 || a === maxAttempts - 1) return res;
+    await new Promise((r) => setTimeout(r, 600 * (a + 1)));
+  }
+  throw lastErr || new Error('Upstream fetch failed.');
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
   if (req.method !== 'GET') {
     res.status(405).json({ error: 'Use GET ?url=<tiktok cdn url>' });
@@ -45,7 +64,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
   }
 
   try {
-    const upstream = await fetch(target, {
+    const upstream = await fetchWithRetry(target, {
       headers: {
         'User-Agent':
           'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 ' +
