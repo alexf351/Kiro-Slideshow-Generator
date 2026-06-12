@@ -169,12 +169,14 @@ export function splitForFirstComment(caption: string): { body: string; hashtags:
 // hashtags split out for the first comment (the reach tactic), and a short
 // checklist. Pure + exported so it's unit-testable. `slideCount` is the
 // number of slide images in the pack.
-export function buildPostingNotes(caption: string, formatLabel: string, slideCount: number): string {
+export function buildPostingNotes(caption: string, formatLabel: string, slideCount: number, audioNote = ''): string {
   const { body, hashtags } = splitForFirstComment(caption);
+  const sound = (audioNote || '').trim();
   const lines: string[] = [];
   lines.push('=== IRO POST PACK ===');
   lines.push(`Format: ${formatLabel}`);
   lines.push(`Slides: ${slideCount}  (slide-01 … slide-${String(slideCount).padStart(2, '0')})`);
+  if (sound) lines.push(`Sound: 🎵 ${sound}`);
   lines.push('');
   lines.push('--- CAPTION (paste as the post caption) ---');
   lines.push(body || '(no caption)');
@@ -185,7 +187,7 @@ export function buildPostingNotes(caption: string, formatLabel: string, slideCou
     lines.push('');
   }
   lines.push('--- CHECKLIST ---');
-  lines.push('[ ] Add a trending sound');
+  lines.push(sound ? `[ ] Add the sound: ${sound}` : '[ ] Add a trending sound');
   lines.push('[ ] Cover = slide 1 (your hook)');
   lines.push('[ ] Upload slides in order (slide-01 first)');
   if (hashtags) lines.push('[ ] Post, then immediately drop the first comment');

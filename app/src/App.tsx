@@ -1367,6 +1367,10 @@ export default function App() {
   // content. Learns the user's voice from their recent saved captions.
   const [captionAiBusy, setCaptionAiBusy] = useState(false);
   const [captionTone, setCaptionTone] = useState(() => loadPref('captionTone') || 'Auto');
+  // Reminder of the trending sound to add at post time. Persisted (survives
+  // reload) and saved with each draft.
+  const [audioNote, setAudioNote] = useState(() => loadPref('audioNote'));
+  useEffect(() => { savePref('audioNote', audioNote); }, [audioNote]);
   const [translateLang, setTranslateLang] = useState('Spanish');
   const [translateBusy, setTranslateBusy] = useState(false);
 
@@ -1844,7 +1848,7 @@ export default function App() {
       // A one-stop posting cheat sheet: caption to paste, hashtags split out
       // for the first comment, and a checklist.
       const { buildPostingNotes } = await import('./captionAI');
-      entries.push({ name: 'posting.txt', data: new TextEncoder().encode(buildPostingNotes(caption, PRESETS[preset].label, slides.length)) });
+      entries.push({ name: 'posting.txt', data: new TextEncoder().encode(buildPostingNotes(caption, PRESETS[preset].label, slides.length, audioNote)) });
       const blob = makeZip(entries);
       downloadBlob(blob, `iro_${preset}_${timestampSlug()}.zip`);
       ui.notify(`Downloaded ${slides.length} slide image${slides.length === 1 ? '' : 's'}.`, { type: 'success' });
@@ -2126,7 +2130,7 @@ export default function App() {
 
   // ---- Drafts (named in-progress projects) ----
   function currentDraftState() {
-    return { jsonText, caption, preset, slideBgs, slideBgAdjust, attribution, attrPresets };
+    return { jsonText, caption, preset, slideBgs, slideBgAdjust, attribution, attrPresets, audioNote };
   }
 
   async function handleSaveDraft() {
@@ -2170,6 +2174,7 @@ export default function App() {
     setSlideBgAdjust((s.slideBgAdjust || {}) as Record<string, CropValue>);
     setAttribution(s.attribution || '');
     if (s.attrPresets) setAttrPresets(s.attrPresets);
+    setAudioNote(s.audioNote || '');
     setActiveDraftName(d.name);
     iframeRef.current?.contentWindow?.postMessage({ type: 'clearOverlays' }, '*');
     // Restore this draft's overlays once the new slides have rendered.
@@ -3328,6 +3333,13 @@ export default function App() {
                 </div>
               );
             })()}
+            <input
+              type="text"
+              value={audioNote}
+              onChange={(e) => setAudioNote(e.target.value)}
+              placeholder="🎵 Trending sound to add at post time (saved with the draft + post pack)"
+              className="mt-2 w-full bg-[#070b18] border border-white/[0.08] rounded-lg px-3 py-2 text-[12px] text-gray-200 placeholder:text-gray-600 focus:border-[#00E5FF]/40 focus:outline-none"
+            />
             {/* Live hook-strength meter — scores the first line against the
                patterns that stop the scroll and surfaces the single most
                impactful fix. Deterministic, instant, no API. */}
