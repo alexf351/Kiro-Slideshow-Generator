@@ -377,5 +377,28 @@ const eq = (n, a, b) => ok(n + ` (got ${JSON.stringify(a)})`, JSON.stringify(a) 
   ok('viral fields present', VIRAL_PATTERNS.every((p) => p.title && p.hook && p.example && p.why && p.adapt));
 }
 
+// ---- tiktokTrends (Overview CSV parser) ----
+{
+  const { parseTikTokOverview } = await load('tiktokTrends.ts');
+  const today = new Date(2026, 5, 12); // Jun 12 2026
+  const csv = '﻿"Date","Video Views","Profile Views","Likes","Comments","Shares"\n'
+    + '"June 12","0","0","0","0","0"\n'
+    + '"April 6","108","2","1","0","0"\n'
+    + '"April 7","148","2","3","0","1"\n'
+    + '"April 8","90","0","1","0","1"\n';
+  const s = parseTikTokOverview(csv, today);
+  ok('trends parses rows', s.rows.length === 4);
+  ok('trends totals views', s.totals.videoViews === 346);
+  ok('trends totals likes', s.totals.likes === 5);
+  ok('trends active days', s.activeDays === 3); // the all-zero June 12 excluded
+  ok('trends best day', s.bestDay && s.bestDay.videoViews === 148);
+  ok('trends months bucketed', s.byMonth.length === 2); // June + April
+  ok('trends engagement rate', s.engagementRate > 0 && s.engagementRate < 1);
+  ok('trends empty -> safe', parseTikTokOverview('', today).rows.length === 0);
+  ok('trends header-only -> safe', parseTikTokOverview('"Date","Video Views"', today).rows.length === 0);
+  // April rows must land in 2026 (most recent year <= today)
+  ok('trends year anchored', s.rows[1].date.getFullYear() === 2026 && s.rows[1].date.getMonth() === 3);
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

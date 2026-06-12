@@ -4,6 +4,7 @@ import Library from './Library';
 import Analytics from './Analytics';
 import Patterns from './Patterns';
 import Discover from './Discover';
+import Trends from './Trends';
 import type { ViralPattern } from './viralLibrary';
 import Propose from './Propose';
 import { addStockItem, blobToDataUrl, getItem } from './mediaBank';
@@ -45,8 +46,8 @@ import { buildIroEditPrompt, editImage, OpenAIImageError, type OpenAIImageQualit
 type Mascot = 'bronze' | 'silver' | 'gold' | 'platinum' | 'diamond' | 'iridescent';
 type Platform = 'claude' | 'chatgpt';
 type Status = { kind: 'idle' } | { kind: 'rendering' } | { kind: 'ok'; at: number } | { kind: 'err'; msg: string };
-type MobileView = 'edit' | 'library' | 'patterns' | 'analytics' | 'discover' | 'preview';
-type MainView = 'preview' | 'library' | 'patterns' | 'analytics' | 'discover';
+type MobileView = 'edit' | 'library' | 'patterns' | 'analytics' | 'discover' | 'trends' | 'preview';
+type MainView = 'preview' | 'library' | 'patterns' | 'analytics' | 'discover' | 'trends';
 
 // Per-slide background. Either a media-bank item id (resolved to a data URL at
 // render time) or a pasted URL we hand straight through to the engine.
@@ -2525,6 +2526,7 @@ export default function App() {
       { id: 'go-lib', section: 'Go to', label: 'Media Bank', keywords: 'library photos', run: goto('library', 'library') },
       { id: 'go-patterns', section: 'Go to', label: 'Patterns', run: goto('patterns', 'patterns') },
       { id: 'go-stats', section: 'Go to', label: 'Performance', keywords: 'analytics stats scores', run: goto('analytics', 'analytics') },
+      { id: 'go-trends', section: 'Go to', label: 'Account Trends', keywords: 'analytics growth views over time tiktok overview chart', run: goto('trends', 'trends') },
     ];
     for (const k of PRESET_KEYS) {
       list.push({ id: `fmt-${k}`, section: 'Format', label: `Format: ${PRESETS[k].label}`, keywords: 'preset template example', run: () => void selectFormat(k) });
@@ -3781,7 +3783,7 @@ export default function App() {
             >
               🔥 Discover viral slideshows
             </button>
-            <div className="grid grid-cols-3 gap-2 mb-4">
+            <div className="grid grid-cols-2 gap-2 mb-4">
               <button
                 type="button"
                 onClick={() => {
@@ -3817,6 +3819,18 @@ export default function App() {
                            hover:border-[#00E5FF]/40 hover:text-[#00E5FF] transition-all"
               >
                 Analytics
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setMainView('trends');
+                  setMobileView('trends');
+                }}
+                className="py-3 rounded-xl text-[11px] md:text-xs font-bold uppercase tracking-[0.12em]
+                           border border-white/[0.10] bg-white/[0.03] text-gray-300
+                           hover:border-[#00E5FF]/40 hover:text-[#00E5FF] transition-all"
+              >
+                📈 Trends
               </button>
             </div>
 
@@ -4543,6 +4557,13 @@ export default function App() {
           (mainView === 'discover' ? 'md:block' : 'md:hidden')
         }>
           <Discover onAdapt={handleAdaptPattern} onCloneUrl={handleCloneAgain} />
+        </div>
+        <div className={
+          'absolute inset-0 ' +
+          (mobileView === 'trends' ? 'block ' : 'hidden ') +
+          (mainView === 'trends' ? 'md:block' : 'md:hidden')
+        }>
+          <Trends />
         </div>
         <div className={
           'absolute inset-0 flex flex-col ' +
