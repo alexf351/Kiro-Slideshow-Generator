@@ -315,5 +315,21 @@ const eq = (n, a, b) => ok(n + ` (got ${JSON.stringify(a)})`, JSON.stringify(a) 
   eq('hooks distinct niches', distinctValues(hooks, 'niche'), ['ai', 'tech']);
 }
 
+// ---- backup.stripSecrets (no API key may leak into a backup file) ----
+{
+  const { stripSecrets } = await load('backup.ts');
+  const settings = {
+    anthropicKey: 'sk-ant', openaiKey: 'sk-oai', pexelsKey: 'pk', unsplashKey: 'uk', pixabayKey: 'xk',
+    accent: '#00E5FF', design: { aspect: '9:16' }, mascot: 'platinum',
+  };
+  const out = stripSecrets(settings);
+  ok('strip removes anthropic', !('anthropicKey' in out));
+  ok('strip removes openai', !('openaiKey' in out));
+  ok('strip removes pexels/unsplash', !('pexelsKey' in out) && !('unsplashKey' in out));
+  ok('strip removes pixabay (regression)', !('pixabayKey' in out));
+  ok('strip keeps non-secrets', out.accent === '#00E5FF' && out.mascot === 'platinum' && !!out.design);
+  ok('strip does not mutate input', 'anthropicKey' in settings);
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

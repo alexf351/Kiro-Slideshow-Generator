@@ -12,7 +12,18 @@ import { listPosts, importPosts, type Post } from './posts';
 import { scorePost, hasStats, type ScoreBreakdown } from './scoring';
 
 const SETTINGS_KEY = 'kiro_slideshow_generator_state_v2';
-const API_KEY_FIELDS = ['anthropicKey', 'openaiKey', 'pexelsKey', 'unsplashKey'];
+// Every BYOK secret persisted in the settings blob — MUST stay out of an
+// exported backup file (it's shareable). Keep in sync with the keys written
+// to SETTINGS_KEY in App.tsx.
+const API_KEY_FIELDS = ['anthropicKey', 'openaiKey', 'pexelsKey', 'unsplashKey', 'pixabayKey'];
+
+// Return a copy of a settings object with every API key removed. Pure +
+// exported so the "secrets never hit a backup file" guarantee is testable.
+export function stripSecrets(obj: Record<string, unknown>): Record<string, unknown> {
+  const out = { ...obj };
+  for (const k of API_KEY_FIELDS) delete out[k];
+  return out;
+}
 const BACKUP_VERSION = 1;
 // Other browser-local data worth backing up (irreplaceable, not in settings).
 const DRAFTS_KEY = 'kiro_drafts';
@@ -74,8 +85,7 @@ function loadSettings(): Record<string, unknown> | null {
     if (!raw) return null;
     const obj = JSON.parse(raw) as Record<string, unknown>;
     // Strip secrets before they ever hit a file.
-    for (const k of API_KEY_FIELDS) delete obj[k];
-    return obj;
+    return stripSecrets(obj);
   } catch {
     return null;
   }
