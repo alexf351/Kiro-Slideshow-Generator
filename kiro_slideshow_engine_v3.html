@@ -6352,6 +6352,33 @@ function pickVideoMime() {
 // Render the slideshow to a vertical video. Each slide gets a slow Ken-Burns
 // zoom; consecutive slides crossfade. Recorded in real time off a canvas
 // stream, so a 6-slide × 2.5s deck takes ~15s to produce.
+// Text-aware per-slide durations: a wall-of-text slide needs longer to read
+// than a three-word hook, so we hold each in proportion to its text — while
+// keeping the AVERAGE at the user's chosen pace, and clamping the extremes so
+// nothing drags or flashes. Pure (text lengths in, seconds out) and tested.
+function computeSlideDurations(textLens, perSlide) {
+  const n = textLens.length;
+  if (n === 0) return [];
+  const weights = textLens.map((l) => 30 + Math.min(Math.max(l, 0), 400)); // 30..430
+  const avg = weights.reduce((a, b) => a + b, 0) / n;
+  return weights.map((w) => {
+    const d = perSlide * (w / avg);
+    return Math.max(perSlide * 0.6, Math.min(perSlide * 1.8, d));
+  });
+}
+function cumulativeStarts(durations) {
+  const starts = [];
+  let s = 0;
+  for (const d of durations) { starts.push(s); s += d; }
+  return { starts, total: s };
+}
+// Index of the slide showing at `elapsed`, plus the time into it + its length.
+function frameAtElapsed(starts, durations, elapsed) {
+  let idx = 0;
+  for (let i = 0; i < starts.length; i++) { if (elapsed >= starts[i]) idx = i; else break; }
+  return { idx, local: elapsed - starts[idx], dur: durations[idx] };
+}
+
 async function exportSlidesVideo(opts) {
   opts = opts || {};
   const perSlide = Math.max(1, Number(opts.secondsPerSlide) || 2.5);
@@ -6370,12 +6397,14 @@ async function exportSlidesVideo(opts) {
 
   // Pre-render every slide to a bitmap once (the expensive part).
   const frames = [];
+  const textLens = [];
   try {
     const slideEls = document.querySelectorAll('.slide');
     if (!slideEls.length) throw new Error('No slides to export. Render first.');
     for (let i = 0; i < slideEls.length; i++) {
       const c = await html2canvas(slideEls[i], { width: PAGE_W, height: PAGE_H, scale: 1, useCORS: true, backgroundColor: '#000000' });
       frames.push(c);
+      textLens.push((slideEls[i].textContent || '').replace(/\s+/g, ' ').trim().length);
       onProgress(0.15 * (i + 1) / slideEls.length);
     }
   } finally {
@@ -6409,20 +6438,20 @@ async function exportSlidesVideo(opts) {
   };
 
   const FADE = 0.45; // seconds of crossfade into the next slide
+  const durations = computeSlideDurations(textLens, perSlide);
+  const { starts, total } = cumulativeStarts(durations);
   const start = performance.now();
-  const total = frames.length * perSlide;
   await new Promise((resolve) => {
     function tick() {
       const elapsed = (performance.now() - start) / 1000;
       if (elapsed >= total) { resolve(); return; }
-      const idx = Math.min(frames.length - 1, Math.floor(elapsed / perSlide));
-      const local = elapsed - idx * perSlide;       // time within this slide
-      const t = local / perSlide;                    // 0..1 progress for zoom
+      const { idx, local, dur } = frameAtElapsed(starts, durations, elapsed);
+      const t = Math.min(1, local / dur);            // 0..1 progress for zoom
       ctx.fillStyle = '#000'; ctx.fillRect(0, 0, out.width, out.height);
       drawKB(frames[idx], t, 1);
       // Crossfade the tail of this slide into the head of the next.
-      if (idx < frames.length - 1 && local > perSlide - FADE) {
-        const a = (local - (perSlide - FADE)) / FADE;
+      if (idx < frames.length - 1 && local > dur - FADE) {
+        const a = Math.min(1, (local - (dur - FADE)) / FADE);
         drawKB(frames[idx + 1], 0, a);
       }
       onProgress(0.15 + 0.85 * Math.min(1, elapsed / total));
