@@ -29,6 +29,7 @@ export const PRESET_KEYS = [
   'qa',
   'flags',
   'steps',
+  'timeline',
 ] as const;
 
 export type PresetKey = (typeof PRESET_KEYS)[number];
@@ -837,6 +838,36 @@ want it guided? search "Iro AI" on the App Store.
 
 #ai #tutorial #howto #aitok #nocode`;
 
+const TIMELINE_JSON = `{
+  "preset": "timeline",
+  "hook": {
+    "headline": "how AI went from <strong>toy</strong><br/>to everyday tool",
+    "subline": "a 4-stop timeline"
+  },
+  "items": [
+    { "date": "2020", "title": "Cool party trick", "body": "Models could autocomplete text — fun, but not trusted with real work." },
+    { "date": "2022", "title": "The chat moment", "body": "A simple chat box put AI in everyone's hands overnight." },
+    { "date": "2024", "title": "Actually useful", "body": "Tools wired AI into the apps people already used all day." },
+    { "date": "Now", "title": "A daily habit", "body": "The people who practice a little each day are pulling ahead." }
+  ],
+  "cta": {
+    "headline": "Don't watch the timeline —<br/><strong>be on it.</strong>",
+    "instructionAbove": "search:",
+    "searchTerm": "Iro AI",
+    "instructionBelow": "on the App Store.",
+    "slogan": "5 minutes a day."
+  },
+  "attribution": ""
+}`;
+
+const TIMELINE_CAPTION = `the timeline of how AI actually became useful 📈 save this
+
+we're at the "daily habit" stage now — the gap is widening fast.
+
+want to be on the right side of it? search "Iro AI" on the App Store.
+
+#ai #timeline #aitok #futureofwork #tech`;
+
 export const PRESETS: Record<PresetKey, PresetMeta> = {
   prompt_pack: {
     key: 'prompt_pack',
@@ -1044,5 +1075,14 @@ export const PRESETS: Record<PresetKey, PresetMeta> = {
     defaultJson: STEPS_JSON,
     defaultCaption: STEPS_CAPTION,
     accent: '#00E5FF', // progress cyan
+  },
+  timeline: {
+    key: 'timeline',
+    label: 'Timeline / Journey',
+    pitch: 'Dated milestones on a vertical rail — "the evolution of X" / "how I went from A to B".',
+    status: 'ready',
+    defaultJson: TIMELINE_JSON,
+    defaultCaption: TIMELINE_CAPTION,
+    accent: '#FFC857', // timeline gold
   },
 };

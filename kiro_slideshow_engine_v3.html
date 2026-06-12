@@ -1695,6 +1695,90 @@
   }
 
   /* ============================================================
+     PRESET: timeline
+     Dated milestones — big date + a marker on a vertical rail + body.
+     ============================================================ */
+  .preset-timeline .frame {
+    padding: 160px 90px 200px 90px;
+    display: flex; flex-direction: column;
+    justify-content: center; align-items: flex-start; text-align: left;
+  }
+  .preset-timeline .bg-photo-scrim { display: none; }
+  .preset-timeline .bg-solid {
+    background:
+      radial-gradient(ellipse 110% 60% at 30% 20%, rgba(255,200,87,0.10) 0%, transparent 60%),
+      linear-gradient(180deg, #100e0a 0%, #08070a 100%);
+  }
+  .preset-timeline .tl2-hook {
+    font-family: 'Inter', sans-serif;
+    font-size: 138px; font-weight: 900; line-height: 1.0;
+    letter-spacing: -0.025em; color: #fff; max-width: 940px;
+    text-shadow: 0 4px 24px rgba(0,0,0,0.6);
+  }
+  .preset-timeline .tl2-hook strong { color: #FFC857; }
+  .preset-timeline .tl2-subline {
+    margin-top: 50px;
+    font-family: 'Inter', sans-serif; font-size: 52px; font-weight: 600; font-style: italic;
+    color: rgba(255,255,255,0.78);
+  }
+  .preset-timeline .tl2-block { display: flex; gap: 48px; width: 100%; max-width: 940px; }
+  .preset-timeline .tl2-rail {
+    flex: 0 0 auto; width: 40px; display: flex; flex-direction: column; align-items: center;
+  }
+  .preset-timeline .tl2-line { width: 8px; flex: 1; background: rgba(255,200,87,0.4); min-height: 60px; }
+  .preset-timeline .tl2-hidden { background: transparent; }
+  .preset-timeline .tl2-dot {
+    width: 40px; height: 40px; border-radius: 50%; flex: 0 0 auto;
+    background: #FFC857; border: 6px solid #100e0a;
+    box-shadow: 0 0 30px rgba(255,200,87,0.6); margin: 12px 0;
+  }
+  .preset-timeline .tl2-content { flex: 1; padding-bottom: 40px; }
+  .preset-timeline .tl2-date {
+    font-family: 'Inter', sans-serif; font-size: 96px; font-weight: 900;
+    letter-spacing: -0.02em; color: #FFC857; line-height: 1; margin-bottom: 28px;
+    text-shadow: 0 4px 20px rgba(0,0,0,0.5);
+  }
+  .preset-timeline .tl2-title {
+    font-family: 'Inter', sans-serif; font-size: 76px; font-weight: 900; line-height: 1.08;
+    letter-spacing: -0.015em; color: #fff; margin-bottom: 26px;
+    text-shadow: 0 4px 16px rgba(0,0,0,0.5);
+  }
+  .preset-timeline .tl2-body {
+    font-family: 'Inter', sans-serif; font-size: 54px; font-weight: 500; line-height: 1.3;
+    color: rgba(255,255,255,0.82);
+  }
+  .preset-timeline .tl2-cta-headline {
+    font-family: 'Inter', sans-serif;
+    font-size: 132px; font-weight: 900; line-height: 1.0;
+    letter-spacing: -0.025em; color: #fff;
+    margin-bottom: 60px; max-width: 1000px;
+    text-shadow: 0 4px 24px rgba(0,0,0,0.6);
+  }
+  .preset-timeline .tl2-cta-headline strong { color: #FFC857; font-weight: 900; }
+  .preset-timeline .tl2-cta-search-row {
+    display: flex; align-items: baseline; gap: 28px; margin-bottom: 28px;
+  }
+  .preset-timeline .tl2-cta-instruction {
+    font-family: 'Inter', sans-serif; font-size: 50px; font-weight: 500; color: rgba(255,255,255,0.85);
+  }
+  .preset-timeline .tl2-cta-search {
+    font-family: 'Inter', sans-serif; font-size: 130px; font-weight: 900;
+    letter-spacing: -0.02em; color: #00E5FF;
+    border-bottom: 6px solid #00E5FF; padding-bottom: 6px;
+    text-shadow: 0 0 24px rgba(0,229,255,0.35);
+  }
+  .preset-timeline .tl2-cta-slogan {
+    margin-top: 56px;
+    font-family: 'Inter', sans-serif; font-size: 50px; font-weight: 600; font-style: italic;
+    color: rgba(255,255,255,0.85);
+  }
+  .preset-timeline .tl2-attribution {
+    position: absolute; bottom: 80px; left: 90px; right: 90px; text-align: left;
+    font-family: 'Inter', sans-serif; font-size: 32px; font-weight: 700;
+    letter-spacing: 0.20em; color: rgba(255,255,255,0.5);
+  }
+
+  /* ============================================================
      PRESET: app_stack
      "5 apps I use every day" carousel. Hook slide with centered
      headline over a photo, then one slide per app showing a large
@@ -2967,6 +3051,22 @@ const PRESETS = {
       return out;
     },
   },
+  timeline: {
+    label: 'Timeline / Journey',
+    slideClass: 'preset-timeline',
+    showCounter: false,
+    fallbackBg: 'photo',
+    buildSlides(S) {
+      const out = [];
+      out.push({ html: buildTimelineHook(S.hook), bg: (S.hook && S.hook.bg) || S.background });
+      const items = S.items || [];
+      items.forEach((it, i) => {
+        out.push({ html: buildTimelineItem(it, i, items.length), bg: (it && it.bg) || S.background });
+      });
+      out.push({ html: buildTimelineCTA(S.cta, S.attribution), bg: (S.cta && S.cta.bg) || S.background });
+      return out;
+    },
+  },
   handwritten_pack: {
     label: 'Handwritten Pack',
     slideClass: 'preset-handwritten-pack',
@@ -3693,6 +3793,48 @@ function buildHotCTA(c, attribution) {
   const below = c.instructionBelow ? `<div class="ht-cta-instruction">${c.instructionBelow}</div>` : '';
   const slogan = c.slogan ? `<div class="ht-cta-slogan">${c.slogan}</div>` : '';
   const attr = attribution ? `<div class="ht-attribution">${attribution}</div>` : '';
+  return `${headline}${searchRow}${below}${slogan}${attr}`;
+}
+
+// ============================================================
+// PRESET: timeline builders
+// Dated milestones / journey. Each slide: a big date + a marker on a
+// vertical line + title + body. items:[{ date, title, body }].
+// ============================================================
+function buildTimelineHook(h) {
+  if (!h) return '';
+  const headline = h.headline ? `<div class="tl2-hook">${h.headline}</div>` : '';
+  const subline = h.subline ? `<div class="tl2-subline">${h.subline}</div>` : '';
+  return `${headline}${subline}`;
+}
+
+function buildTimelineItem(it, i, total) {
+  if (!it) return '';
+  const first = i === 0;
+  const last = i === total - 1;
+  const date = it.date ? `<div class="tl2-date">${it.date}</div>` : '';
+  const title = it.title ? `<div class="tl2-title">${it.title}</div>` : '';
+  const body = it.body ? `<div class="tl2-body">${it.body}</div>` : '';
+  const rail = `<div class="tl2-rail">
+    <div class="tl2-line tl2-line-top${first ? ' tl2-hidden' : ''}"></div>
+    <div class="tl2-dot"></div>
+    <div class="tl2-line tl2-line-bot${last ? ' tl2-hidden' : ''}"></div>
+  </div>`;
+  return `<div class="tl2-block">${rail}<div class="tl2-content">${date}${title}${body}</div></div>`;
+}
+
+function buildTimelineCTA(c, attribution) {
+  if (!c) return '';
+  const headline = c.headline ? `<div class="tl2-cta-headline">${c.headline}</div>` : '';
+  let searchRow = '';
+  if (c.instructionAbove || c.searchTerm) {
+    const above = c.instructionAbove ? `<span class="tl2-cta-instruction">${c.instructionAbove}</span>` : '';
+    const term = c.searchTerm ? `<span class="tl2-cta-search">${c.searchTerm}</span>` : '';
+    searchRow = `<div class="tl2-cta-search-row">${above}${term}</div>`;
+  }
+  const below = c.instructionBelow ? `<div class="tl2-cta-instruction">${c.instructionBelow}</div>` : '';
+  const slogan = c.slogan ? `<div class="tl2-cta-slogan">${c.slogan}</div>` : '';
+  const attr = attribution ? `<div class="tl2-attribution">${attribution}</div>` : '';
   return `${headline}${searchRow}${below}${slogan}${attr}`;
 }
 
