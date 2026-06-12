@@ -5364,6 +5364,15 @@ window.addEventListener('message', async (e) => {
     return;
   }
 
+  // Toggle the TikTok safe-zone guide from the React shell. `on` forces a
+  // state; omit it to flip. The guide is automatically stripped during
+  // capture (see capture handlers), so it never bleeds into an export.
+  if (msg.type === 'toggle-safezone') {
+    if (typeof msg.on === 'boolean') document.body.classList.toggle('show-safezone', msg.on);
+    else document.body.classList.toggle('show-safezone');
+    return;
+  }
+
   // Capture every slide as a JPEG data URL and post them back to the
   // parent — used by the "Send to TikTok" flow, which uploads each image
   // and pushes them to the connected account's inbox. JPEG (not PNG) keeps

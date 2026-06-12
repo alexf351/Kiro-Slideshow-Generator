@@ -599,6 +599,9 @@ export default function App() {
   const [showOnboarding, setShowOnboarding] = useState(shouldOnboard);
   // Number of slides the engine actually rendered — drives the navigator.
   const [slideCount, setSlideCount] = useState(0);
+  // TikTok safe-zone guide overlay on the preview (off by default). The
+  // engine strips it automatically during any capture, so it never exports.
+  const [safeZone, setSafeZone] = useState(() => loadPref('safeZone') === '1');
   // When loading a draft with overlays, they're applied on the next 'rendered'.
   const pendingOverlaysRef = useRef<Record<string, unknown> | null>(null);
 
@@ -1958,6 +1961,7 @@ export default function App() {
     // preview matches the controls instead of showing the engine's default.
     // switchView:false so a phone user isn't bounced off the Edit tab.
     handleRender({ switchView: false });
+    if (safeZone) iframeRef.current?.contentWindow?.postMessage({ type: 'toggle-safezone', on: true }, '*');
   }
 
   // Live design preview: when the brand kit / aspect / watermark changes,
@@ -1971,6 +1975,13 @@ export default function App() {
     }, 200);
     return () => clearTimeout(id);
   }, [design]);
+
+  // Push the safe-zone guide state to the engine whenever it changes (and
+  // once on mount via engineReady), and remember the preference.
+  useEffect(() => {
+    savePref('safeZone', safeZone ? '1' : '0');
+    iframeRef.current?.contentWindow?.postMessage({ type: 'toggle-safezone', on: safeZone }, '*');
+  }, [safeZone]);
 
   // ⌘/Ctrl+Enter renders from anywhere. renderRef keeps the handler current
   // without re-binding the listener every render.
@@ -2059,6 +2070,7 @@ export default function App() {
       { id: 'export-video', section: 'Export', label: 'Export as video', keywords: 'mp4 reel', run: () => handleExportVideo() },
       { id: 'export-pdf', section: 'Export', label: 'Export as PDF', keywords: 'carousel instagram linkedin', run: () => void handleExportPdf() },
       { id: 'export-images', section: 'Export', label: 'Download slides (.zip)', keywords: 'images jpg photos manual upload zip', run: () => void handleDownloadImages() },
+      { id: 'toggle-safezone', section: 'Actions', label: 'Toggle TikTok safe zone guide', keywords: 'crop margins overlay preview', run: () => setSafeZone((v) => !v) },
       { id: 'send-tiktok', section: 'Export', label: 'Send to TikTok inbox', keywords: 'publish post', run: () => void sendToTikTok() },
       { id: 'go-edit', section: 'Go to', label: 'Edit', run: goto('preview', 'edit') },
       { id: 'go-preview', section: 'Go to', label: 'Preview', run: goto('preview', 'preview') },
@@ -3776,6 +3788,20 @@ export default function App() {
                   </button>
                 );
               })}
+              <button
+                type="button"
+                onClick={() => setSafeZone((v) => !v)}
+                title="Show TikTok safe zone — the top/bottom strips get cropped in-feed. Keep key text inside the dashed box. (Never appears in exports.)"
+                aria-pressed={safeZone}
+                className={
+                  'shrink-0 ml-auto px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-[0.1em] border transition-colors ' +
+                  (safeZone
+                    ? 'bg-[#ff2d2d]/15 text-[#ff9b9b] border-[#ff2d2d]/45'
+                    : 'bg-white/[0.04] text-gray-400 hover:text-gray-200 border-white/10')
+                }
+              >
+                ⛶ Safe zone
+              </button>
             </div>
           )}
           <iframe
