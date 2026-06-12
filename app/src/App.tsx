@@ -2739,6 +2739,18 @@ export default function App() {
           <p className="mt-3 md:mt-4 text-[12px] md:text-[13px] text-gray-500 leading-relaxed">
             Pick a format. Paste content. Render.
           </p>
+          <button
+            type="button"
+            onClick={() => { setMainView('discover'); setMobileView('discover'); }}
+            className={
+              'mt-4 w-full py-2.5 rounded-xl text-[11px] font-bold uppercase tracking-[0.14em] transition-all ' +
+              (mainView === 'discover'
+                ? 'bg-[#00E5FF] text-[#0a0e1a] shadow-[0_4px_20px_rgba(0,229,255,0.35)]'
+                : 'border border-[#00E5FF]/30 bg-[#00E5FF]/[0.08] text-[#00E5FF] hover:bg-[#00E5FF]/[0.18]')
+            }
+          >
+            🔥 Discover viral slideshows
+          </button>
         </header>
 
         <div className="flex-1 overflow-y-auto custom-scrollbar">
