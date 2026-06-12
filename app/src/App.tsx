@@ -15,7 +15,7 @@ import HypeEditor from './HypeEditor';
 import CropAdjust, { DEFAULT_CROP, type CropValue } from './CropAdjust';
 import { GRADIENTS, SOLID_BGS } from './gradients';
 import { coerceDesign, DEFAULT_DESIGN, designPayload, ASPECT_KEYS, ASPECTS, type BrandDesign } from './design';
-import { listDrafts, saveDraft, deleteDraft, duplicateDraft, setDraftSchedule, setDraftPosted, clearPostedDrafts, type Draft } from './drafts';
+import { listDrafts, saveDraft, deleteDraft, duplicateDraft, renameDraft, setDraftSchedule, setDraftPosted, clearPostedDrafts, type Draft } from './drafts';
 import { exportBackup, importBackup, downloadBlob, timestampSlug } from './backup';
 import { suggestHashtags, parseHashtags } from './insights';
 import { findSimilarHooks } from './similarity';
@@ -2240,6 +2240,15 @@ export default function App() {
     setDrafts(deleteDraft(d.id));
   }
 
+  async function handleRenameDraft(d: Draft) {
+    const name = await ui.prompt({ title: 'Rename draft', message: 'New name', defaultValue: d.name, confirmLabel: 'Rename' });
+    const clean = (name || '').trim();
+    if (!clean || clean === d.name) return;
+    setDrafts(renameDraft(d.id, clean));
+    if (activeDraftName === d.name) setActiveDraftName(clean);
+    ui.notify('Draft renamed.', { type: 'success' });
+  }
+
   async function handleSaveToHistory() {
     if (!caption.trim() && !(await ui.confirm({ message: 'Save this post with no caption?', confirmLabel: 'Save' }))) return;
     // Repeat-hook guard: TikTok suppresses content it reads as a near-dupe
@@ -3991,6 +4000,15 @@ export default function App() {
                       aria-label={`Schedule date for ${d.name}`}
                       className="shrink-0 w-[34px] hover:w-auto bg-transparent text-[10px] text-gray-500 cursor-pointer focus:w-auto focus:text-gray-200 [color-scheme:dark]"
                     />
+                    <button
+                      type="button"
+                      onClick={() => void handleRenameDraft(d)}
+                      className="shrink-0 w-7 h-7 rounded-md flex items-center justify-center text-gray-500 hover:text-[#00E5FF] hover:bg-[#00E5FF]/10"
+                      title="Rename draft"
+                      aria-label={`Rename ${d.name}`}
+                    >
+                      ✎
+                    </button>
                     <button
                       type="button"
                       onClick={() => { setDrafts(duplicateDraft(d.id)); ui.notify(`Duplicated “${d.name}”.`, { type: 'success' }); }}
