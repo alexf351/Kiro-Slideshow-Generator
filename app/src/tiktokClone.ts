@@ -298,6 +298,9 @@ const CLONING_INSTRUCTIONS = [
   '- notes — iOS Notes-app screenshot look, one note per slide: yellow "Notes" bar, a date, a ' +
     'bold title, and the body (ONLY for announcement / storytime / confession / list content ' +
     'that suits the "notes app" aesthetic). notes:[{title, body, date}]; body may use <br/>.',
+  '- reddit — "screenshot of a Reddit post" cards, one post per slide: subreddit + user meta ' +
+    'row, title, body, and a votes/comments action row (ONLY for AITA / Reddit-story / forum ' +
+    'content). posts:[{subreddit, user, time, title, body, score, comments}].',
   '- output_vs_hype — one slide per tool/brand, each with a logo and two bars (Output vs Hype) ' +
     'scaled 0–100 (ONLY when the source is a per-item bar-chart comparison, e.g. "X vs Y" rankings).',
   '- curated_list — aesthetic photo + cream heading + a recommendation card per slide ("things I ' +

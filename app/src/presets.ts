@@ -15,6 +15,7 @@ export const PRESET_KEYS = [
   'receipts',
   'tweet',
   'notes',
+  'reddit',
   'handwritten_pack',
   'app_stack',
   'output_vs_hype',
@@ -192,6 +193,26 @@ const TWEET_JSON = `{
     "searchTerm": "Iro AI",
     "instructionBelow": "on the App Store.",
     "slogan": "stop scrolling. start shipping."
+  },
+  "attribution": ""
+}`;
+
+const REDDIT_JSON = `{
+  "preset": "reddit",
+  "hook": {
+    "headline": "the <strong>AITA</strong> that went viral",
+    "subline": "(wait for the update)"
+  },
+  "posts": [
+    { "subreddit": "AmItheAsshole", "user": "throwaway_8821", "time": "5h", "title": "AITA for automating my whole job and not telling anyone?", "body": "I built an AI tool that does 90% of my work in minutes. Now I finish by 10am and just relax. A coworker found out and says I'm cheating.", "score": "14.2k", "comments": "3.1k" },
+    { "subreddit": "antiwork", "user": "tired_dev", "time": "2h", "title": "Update: I told my boss the AI does my job. He promoted me.", "body": "Turns out leadership wanted someone to roll it out to the whole team. Learn the skill before someone else does.", "score": "48.9k", "comments": "5.7k" }
+  ],
+  "cta": {
+    "headline": "be the one who builds it.",
+    "instructionAbove": "search",
+    "searchTerm": "Iro AI",
+    "instructionBelow": "on the App Store.",
+    "slogan": "automate before you're automated."
   },
   "attribution": ""
 }`;
@@ -376,6 +397,13 @@ const CHECKLIST_CAPTION = `save this if any of these is you ⤴️
 iro is for you. search "Iro AI" on the App Store.
 
 #aitok #aichecklist #fyp #learningai #productivity`;
+
+const REDDIT_CAPTION = `i was NOT ready for that update 💀
+
+wait for the last slide — what would you have done?
+search "Iro AI" on the App Store to learn the skill.
+
+#reddit #aita #redditstories #aitok #fyp`;
 
 const NOTES_CAPTION = `had to put it in the notes app to actually say it 🫣
 
@@ -1039,6 +1067,15 @@ export const PRESETS: Record<PresetKey, PresetMeta> = {
     defaultJson: NOTES_JSON,
     defaultCaption: NOTES_CAPTION,
     accent: '#FFD60A', // Notes yellow
+  },
+  reddit: {
+    key: 'reddit',
+    label: 'Reddit',
+    pitch: '“Screenshot of a Reddit post” — one post per slide. Built for AITA / story content.',
+    status: 'ready',
+    defaultJson: REDDIT_JSON,
+    defaultCaption: REDDIT_CAPTION,
+    accent: '#FF4500', // Reddit orange
   },
   handwritten_pack: {
     key: 'handwritten_pack',

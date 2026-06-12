@@ -869,6 +869,86 @@
   }
 
   /* ============================================================
+     PRESET: reddit
+     "Screenshot of a Reddit post" — one post per slide on a dark
+     card. Solid fills + plain glyphs for clean html2canvas capture.
+     ============================================================ */
+  .preset-reddit .frame {
+    padding: 150px 80px 200px 80px;
+    display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;
+  }
+  .preset-reddit .bg-photo-scrim { display: none; }
+  .preset-reddit .bg-solid {
+    background:
+      radial-gradient(ellipse 100% 60% at 50% 28%, rgba(255,69,0,0.10) 0%, transparent 60%),
+      linear-gradient(180deg, #0c0d0e 0%, #060708 100%);
+  }
+  .preset-reddit .rd-hook {
+    font-family: 'Inter', sans-serif; font-size: 140px; font-weight: 900; line-height: 1.0;
+    letter-spacing: -0.025em; color: #fff; max-width: 940px; text-shadow: 0 4px 24px rgba(0,0,0,0.6);
+  }
+  .preset-reddit .rd-hook strong { color: #FF4500; }
+  .preset-reddit .rd-subline {
+    margin-top: 56px; font-family: 'Inter', sans-serif; font-size: 50px; font-weight: 500;
+    font-style: italic; color: rgba(255,255,255,0.78);
+  }
+  .preset-reddit .rd-card {
+    width: 920px; background: #1a1a1b; border: 2px solid rgba(255,255,255,0.10);
+    border-radius: 40px; padding: 64px 64px 52px 64px; text-align: left;
+    box-shadow: 0 30px 80px rgba(0,0,0,0.5);
+  }
+  .preset-reddit .rd-meta { display: flex; align-items: center; gap: 14px; margin-bottom: 40px; }
+  .preset-reddit .rd-dot {
+    width: 56px; height: 56px; border-radius: 50%; background: #FF4500; flex-shrink: 0; margin-right: 6px;
+  }
+  .preset-reddit .rd-sub { font-family: 'Inter', sans-serif; font-size: 44px; font-weight: 800; color: #fff; }
+  .preset-reddit .rd-user, .preset-reddit .rd-time {
+    font-family: 'Inter', sans-serif; font-size: 40px; font-weight: 500; color: rgba(255,255,255,0.45);
+  }
+  .preset-reddit .rd-title {
+    font-family: 'Inter', sans-serif; font-size: 76px; font-weight: 800; line-height: 1.14;
+    letter-spacing: -0.015em; color: #fff; margin-bottom: 40px;
+  }
+  .preset-reddit .rd-body {
+    font-family: 'Inter', sans-serif; font-size: 58px; font-weight: 400; line-height: 1.4;
+    color: rgba(255,255,255,0.82); margin-bottom: 52px;
+  }
+  .preset-reddit .rd-actions {
+    display: flex; align-items: center; gap: 56px;
+    font-family: 'Inter', sans-serif; font-size: 46px; font-weight: 700; color: rgba(255,255,255,0.6);
+  }
+  .preset-reddit .rd-votes { display: flex; align-items: center; gap: 22px; }
+  .preset-reddit .rd-up { color: #FF4500; }
+  .preset-reddit .rd-down { color: rgba(255,255,255,0.4); }
+  .preset-reddit .rd-score { color: #fff; }
+  .preset-reddit .rd-cta-headline {
+    font-family: 'Inter', sans-serif; font-size: 132px; font-weight: 900; line-height: 1.0;
+    letter-spacing: -0.025em; color: #fff; margin-bottom: 64px; max-width: 1000px;
+    text-shadow: 0 4px 24px rgba(0,0,0,0.6);
+  }
+  .preset-reddit .rd-cta-headline strong { color: #FF4500; font-weight: 900; }
+  .preset-reddit .rd-cta-search-row {
+    display: flex; align-items: baseline; justify-content: center; gap: 28px; margin-bottom: 28px;
+  }
+  .preset-reddit .rd-cta-instruction {
+    font-family: 'Inter', sans-serif; font-size: 50px; font-weight: 500; color: rgba(255,255,255,0.85);
+  }
+  .preset-reddit .rd-cta-search {
+    font-family: 'Inter', sans-serif; font-size: 130px; font-weight: 900;
+    letter-spacing: -0.02em; color: #00E5FF; border-bottom: 6px solid #00E5FF; padding-bottom: 6px;
+    text-shadow: 0 0 24px rgba(0,229,255,0.35);
+  }
+  .preset-reddit .rd-cta-slogan {
+    margin-top: 60px; font-family: 'Inter', sans-serif; font-size: 50px; font-weight: 600;
+    font-style: italic; color: rgba(255,255,255,0.85);
+  }
+  .preset-reddit .rd-attribution {
+    position: absolute; bottom: 80px; left: 0; right: 0; text-align: center;
+    font-family: 'Inter', sans-serif; font-size: 32px; font-weight: 700; letter-spacing: 0.20em;
+    color: rgba(255,255,255,0.5);
+  }
+
+  /* ============================================================
      PRESET: tier_list
      "I ranked every X" — one tier per slide, big colored grade
      badge + the items in that tier. Classic S/A/B/C/D/F palette.
@@ -3195,6 +3275,30 @@ const PRESETS = {
       return out;
     },
   },
+  reddit: {
+    label: 'Reddit',
+    slideClass: 'preset-reddit',
+    showCounter: false,
+    fallbackBg: 'photo',
+    buildSlides(S) {
+      const out = [];
+      out.push({
+        html: buildRedditHook(S.hook),
+        bg: (S.hook && S.hook.bg) || S.background,
+      });
+      (S.posts || S.items || []).forEach((p) => {
+        out.push({
+          html: buildRedditItem(p),
+          bg: (p && p.bg) || S.background,
+        });
+      });
+      out.push({
+        html: buildRedditCTA(S.cta, S.attribution),
+        bg: (S.cta && S.cta.bg) || S.background,
+      });
+      return out;
+    },
+  },
   tier_list: {
     label: 'Tier List',
     slideClass: 'preset-tier-list',
@@ -4153,6 +4257,59 @@ function buildNotesCTA(c, attribution) {
   const inner = `${title}<div class="nt-cta-search-wrap">${searchRow}${below}</div>${slogan}`;
   const attr = attribution ? `<div class="nt-attribution">${attribution}</div>` : '';
   return buildNotesChrome(inner) + attr;
+}
+
+// ============================================================
+// PRESET: reddit builders
+// "Screenshot of a Reddit post" cards — one post per slide: subreddit +
+// user meta row, the title, body, and an action row (votes / comments).
+// posts:[{ subreddit, user, time, title, body, score, comments }]. Solid
+// fills + plain glyphs for clean html2canvas capture.
+// ============================================================
+function buildRedditMeta(p) {
+  const sub = p.subreddit ? `<span class="rd-sub">r/${String(p.subreddit).replace(/^r\//, '')}</span>` : '';
+  const user = p.user ? `<span class="rd-user">· u/${String(p.user).replace(/^u\//, '')}</span>` : '';
+  const time = p.time ? `<span class="rd-time">· ${p.time}</span>` : '';
+  return `<div class="rd-meta"><span class="rd-dot"></span>${sub}${user}${time}</div>`;
+}
+
+function buildRedditActions(p) {
+  const score = p.score != null ? p.score : '';
+  const comments = p.comments != null ? p.comments : '';
+  return `<div class="rd-actions">
+    <div class="rd-votes"><span class="rd-up">▲</span><span class="rd-score">${score}</span><span class="rd-down">▼</span></div>
+    <div class="rd-comments">💬 ${comments}</div>
+    <div class="rd-share">↗ Share</div>
+  </div>`;
+}
+
+function buildRedditHook(h) {
+  if (!h) return '';
+  const headline = h.headline ? `<div class="rd-hook">${h.headline}</div>` : '';
+  const subline = h.subline ? `<div class="rd-subline">${h.subline}</div>` : '';
+  return `${headline}${subline}`;
+}
+
+function buildRedditItem(p) {
+  if (!p) return '';
+  const title = p.title ? `<div class="rd-title">${p.title}</div>` : '';
+  const body = p.body ? `<div class="rd-body">${p.body}</div>` : '';
+  return `<div class="rd-card">${buildRedditMeta(p)}${title}${body}${buildRedditActions(p)}</div>`;
+}
+
+function buildRedditCTA(c, attribution) {
+  if (!c) return '';
+  const headline = c.headline ? `<div class="rd-cta-headline">${c.headline}</div>` : '';
+  let searchRow = '';
+  if (c.instructionAbove || c.searchTerm) {
+    const above = c.instructionAbove ? `<span class="rd-cta-instruction">${c.instructionAbove}</span>` : '';
+    const term = c.searchTerm ? `<span class="rd-cta-search">${c.searchTerm}</span>` : '';
+    searchRow = `<div class="rd-cta-search-row">${above}${term}</div>`;
+  }
+  const below = c.instructionBelow ? `<div class="rd-cta-instruction">${c.instructionBelow}</div>` : '';
+  const slogan = c.slogan ? `<div class="rd-cta-slogan">${c.slogan}</div>` : '';
+  const attr = attribution ? `<div class="rd-attribution">${attribution}</div>` : '';
+  return `${headline}${searchRow}${below}${slogan}${attr}`;
 }
 
 // ============================================================
