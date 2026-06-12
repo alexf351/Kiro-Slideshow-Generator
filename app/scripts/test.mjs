@@ -118,6 +118,18 @@ const eq = (n, a, b) => ok(n + ` (got ${JSON.stringify(a)})`, JSON.stringify(a) 
   eq('provider unsplash next', bestStockProvider({ unsplash: 'uk', pixabay: 'xk' }), { provider: 'unsplash', key: 'uk' });
   eq('provider pixabay last', bestStockProvider({ pixabay: 'xk' }), { provider: 'pixabay', key: 'xk' });
   eq('provider blank ignored', bestStockProvider({ pexels: '  ' }), { provider: 'openverse', key: '' });
+  const { formatPhotoCredits } = await load('stockPhotos.ts');
+  eq('credits empty', formatPhotoCredits([]), '');
+  eq('credits formats + dedups', formatPhotoCredits([
+    { provider: 'unsplash', photographer: 'Maya' },
+    { provider: 'unsplash', photographer: 'Maya' },
+    { provider: 'pexels', photographer: 'Jon' },
+  ]), '📸 Photos: Maya (Unsplash), Jon (Pexels)');
+  eq('credits skips upload/unknown', formatPhotoCredits([
+    { provider: 'upload', photographer: 'me' },
+    { provider: 'pexels', photographer: '' },
+    { provider: 'pixabay', photographer: 'Ana' },
+  ]), '📸 Photos: Ana (Pixabay)');
 }
 // ---- zip ----
 {

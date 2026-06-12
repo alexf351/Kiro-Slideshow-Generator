@@ -1225,6 +1225,25 @@ export default function App() {
     ui.notify(`Filled ${done} background${done === 1 ? '' : 's'}${missed ? ` · ${missed} had no match` : ''}.`, { type: done ? 'success' : 'info' });
   }
 
+  // Copy attribution for the deck's stock photos (Unsplash requires it; the
+  // rest appreciate it). Resolves each media background to its stored source.
+  async function handleCopyCredits() {
+    const ids = Object.values(slideBgs)
+      .filter((b): b is { type: 'media'; mediaId: string } => !!b && (b as { type?: string }).type === 'media')
+      .map((b) => b.mediaId);
+    if (!ids.length) { ui.notify('No stock/photo backgrounds to credit.', { type: 'info' }); return; }
+    const sources: { provider?: string; photographer?: string }[] = [];
+    for (const id of Array.from(new Set(ids))) {
+      const item = await getItem(id);
+      if (item?.source) sources.push(item.source);
+    }
+    const { formatPhotoCredits } = await import('./stockPhotos');
+    const credits = formatPhotoCredits(sources);
+    if (!credits) { ui.notify('No attributable photos (uploads/unknowns only).', { type: 'info' }); return; }
+    try { await navigator.clipboard.writeText(credits); ui.notify('Photo credits copied — add to your caption or first comment.', { type: 'success' }); }
+    catch { await ui.prompt({ title: 'Photo credits', message: 'Copy this:', defaultValue: credits, confirmLabel: 'Done' }); }
+  }
+
   // Clear every slide's background in one go — the undo for a bulk apply /
   // auto-fill. Confirmed since it throws away the whole deck's photos.
   async function handleClearAllBgs() {
@@ -3123,14 +3142,23 @@ export default function App() {
               {autoBgBusy ? `🔍 Finding photos… ${autoBgBusy}` : '🔍 Auto-fill stock photos (free)'}
             </button>
             {slideMetas.some((m) => slideBgs[m.key]) && (
-              <button
-                type="button"
-                onClick={() => void handleClearAllBgs()}
-                className="w-full mb-4 -mt-2 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-[0.12em]
-                           text-gray-500 hover:text-red-400 border border-white/[0.08]"
-              >
-                Clear all backgrounds
-              </button>
+              <div className="mb-4 -mt-2 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => void handleCopyCredits()}
+                  title="Copy photo attribution for the deck's stock backgrounds"
+                  className="flex-1 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-[0.12em] text-gray-500 hover:text-[#00E5FF] border border-white/[0.08]"
+                >
+                  📸 Copy credits
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleClearAllBgs()}
+                  className="flex-1 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-[0.12em] text-gray-500 hover:text-red-400 border border-white/[0.08]"
+                >
+                  Clear all
+                </button>
+              </div>
             )}
             {/* Quick gradient background — no photo or API key needed. */}
             <div className="mb-4">

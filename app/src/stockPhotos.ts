@@ -44,6 +44,29 @@ export type StockPhoto = {
   downloadTrackUrl?: string;
 };
 
+// Build a photo-credits line from the stored sources of the deck's stock
+// backgrounds — Unsplash requires attribution and the others appreciate it.
+// Dedupes by photographer+provider and skips uploads / unknowns. Pure +
+// tested; App resolves the slide media to sources and passes them in.
+const PROVIDER_CREDIT: Partial<Record<StockProvider | 'upload', string>> = {
+  openverse: 'Openverse', wikimedia: 'Wikimedia', artic: 'Art Institute',
+  pexels: 'Pexels', unsplash: 'Unsplash', pixabay: 'Pixabay',
+};
+export function formatPhotoCredits(sources: { provider?: string; photographer?: string }[]): string {
+  const seen = new Set<string>();
+  const parts: string[] = [];
+  for (const s of sources || []) {
+    const name = (s?.photographer || '').trim();
+    const prov = PROVIDER_CREDIT[(s?.provider || '') as StockProvider];
+    if (!name || !prov) continue;
+    const key = `${name}|${prov}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    parts.push(`${name} (${prov})`);
+  }
+  return parts.length ? `📸 Photos: ${parts.join(', ')}` : '';
+}
+
 // Pick the best stock provider available to the creator for auto-backgrounds:
 // the curated APIs (Pexels > Unsplash > Pixabay) when a key is set, else the
 // keyless Openverse fallback. Pure + testable; App reads its own key state in.
