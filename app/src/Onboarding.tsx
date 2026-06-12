@@ -15,18 +15,18 @@ export function shouldOnboard(): boolean {
 const STEPS: { n: string; title: string; body: string }[] = [
   {
     n: '1',
-    title: 'Pick a format & write',
-    body: 'Choose a format (Prompt Pack, Pain Story, Meme POV…), then fill in the Quick Edit fields — no JSON needed. Or clone a TikTok / propose from your history.',
+    title: 'Start from an idea',
+    body: 'Type a topic and hit “Full post” — AI picks the best of 24 formats, writes the slides, and drafts a caption. Or pick a format yourself and fill the Quick Edit fields (no JSON), clone a TikTok, or brainstorm + batch a whole week.',
   },
   {
     n: '2',
-    title: 'Design & predict',
-    body: 'Set aspect ratio, brand colors, and a watermark in Design. Hit “Score this draft” to predict how it’ll perform before you post.',
+    title: 'Make it yours',
+    body: 'Backgrounds from stock, built-in gradients, or AI-generated. Drag text & photos onto slides. Improve / rewrite with AI, then AI-write or punch up the caption with hashtags (any language).',
   },
   {
     n: '3',
-    title: 'Render & learn',
-    body: 'Render, download the slides, post them. Then log the numbers in Performance — the engine scores each post and learns what works for you.',
+    title: 'Publish & track',
+    body: 'Export slides, an MP4, or a PDF, send to your phone by QR, or push straight to your TikTok inbox. Schedule drafts on the calendar and log results in Performance — the engine learns what works for you.',
   },
 ];
 
