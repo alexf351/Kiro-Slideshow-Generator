@@ -200,7 +200,7 @@ function stripJsonWrappers(t: string): string {
     .trim();
 }
 
-const CONTENT_KEYS = ['hook', 'prompts', 'beats', 'panels', 'features', 'items', 'apps', 'tools', 'picks'];
+const CONTENT_KEYS = ['hook', 'prompts', 'beats', 'panels', 'features', 'items', 'apps', 'tools', 'picks', 'tiers'];
 
 // If someone pastes a whole clone / propose payload
 // ({ preset, slides: {...}, caption, cloneAnalysis, bgAssignments }) into the
@@ -766,6 +766,7 @@ export default function App() {
       { field: 'apps', prefix: 'app' },
       { field: 'tools', prefix: 'tool' },
       { field: 'picks', prefix: 'pick' },
+      { field: 'tiers', prefix: 'tier' },
     ];
     for (const { field, prefix } of contentArrays) {
       const arr = slides[field];

@@ -58,7 +58,7 @@ function tryParse(t: string): Parsed | null {
 }
 
 // Content arrays, in priority order — the first one present is "the slides".
-const CONTENT_KEYS = ['prompts', 'beats', 'panels', 'features', 'items', 'apps', 'tools', 'picks'] as const;
+const CONTENT_KEYS = ['prompts', 'beats', 'panels', 'features', 'items', 'apps', 'tools', 'picks', 'tiers'] as const;
 // Fields we never surface as text inputs (backgrounds, icons live elsewhere).
 // `layout` is the app_stack arrangement keyword (set by dblclick in the
 // preview), not copy — hide it along with the media fields.
