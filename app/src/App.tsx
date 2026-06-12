@@ -25,6 +25,7 @@ import { scoreHook, HOOK_TIER_COLOR, HOOK_TIER_TEXT } from './hookScore';
 import { lintHashtags, HASHTAG_TIER_COLOR, HASHTAG_TIER_TEXT } from './hashtagLint';
 import { checkEngagement } from './captionSignals';
 import { makeZip, dataUrlToBytes } from './zip';
+import { analyzeDeck } from './deckBalance';
 import { listSets, saveSet, deleteSet, formatTags, type HashtagSet } from './hashtagSets';
 import { encodePost, decodePost } from './postShare';
 import { useUI } from './ui';
@@ -492,6 +493,16 @@ export default function App() {
       { label: '3+ slides (worth swiping)', ok: slideCount >= 3 },
     ];
   }, [jsonText, caption]);
+  // Relative pacing: flag a single lopsided wall-of-text slide so the deck
+  // stays swipeable. Parsed independently of the checklist (different shape).
+  const deckBalance = useMemo(() => {
+    try {
+      const parsed = JSON.parse(stripJsonWrappers(jsonText.trim())) as Record<string, unknown>;
+      const contentArr = CONTENT_KEYS.map((k) => parsed[k]).find((v) => Array.isArray(v)) as unknown[] | undefined;
+      if (!contentArr) return null;
+      return analyzeDeck(contentArr);
+    } catch { return null; }
+  }, [jsonText]);
   // "Fill from topic" — AI populates the current template from a typed topic.
   const [topic, setTopic] = useState('');
   const [topicBusy, setTopicBusy] = useState(false);
@@ -3401,6 +3412,12 @@ export default function App() {
                   </div>
                 ))}
               </div>
+              {deckBalance && !deckBalance.balanced && deckBalance.tip && (
+                <div className="mt-2 flex items-start gap-2 text-[11px] text-amber-300/90 leading-snug">
+                  <span className="shrink-0">⚠</span>
+                  <span>{deckBalance.tip}</span>
+                </div>
+              )}
               <button
                 type="button"
                 onClick={() => void handleCopyScript()}
