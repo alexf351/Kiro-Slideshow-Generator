@@ -11,6 +11,8 @@ export type DraftState = {
   slideBgAdjust: Record<string, unknown>;
   attribution: string;
   attrPresets: Record<string, boolean>;
+  // On-slide text/image overlays, keyed by slide index (optional).
+  overlays?: Record<string, unknown>;
 };
 
 export type Draft = { id: string; name: string; savedAt: number; state: DraftState; scheduledFor?: number; posted?: boolean };
