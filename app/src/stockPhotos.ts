@@ -44,6 +44,18 @@ export type StockPhoto = {
   downloadTrackUrl?: string;
 };
 
+// Pick the best stock provider available to the creator for auto-backgrounds:
+// the curated APIs (Pexels > Unsplash > Pixabay) when a key is set, else the
+// keyless Openverse fallback. Pure + testable; App reads its own key state in.
+export function bestStockProvider(keys: {
+  pexels?: string; unsplash?: string; pixabay?: string;
+}): { provider: StockProvider; key: string } {
+  if (keys.pexels && keys.pexels.trim()) return { provider: 'pexels', key: keys.pexels.trim() };
+  if (keys.unsplash && keys.unsplash.trim()) return { provider: 'unsplash', key: keys.unsplash.trim() };
+  if (keys.pixabay && keys.pixabay.trim()) return { provider: 'pixabay', key: keys.pixabay.trim() };
+  return { provider: 'openverse', key: '' };
+}
+
 // Choose a photo from a result set for use as a 9:16 slide background. Two
 // goals: prefer PORTRAIT shots (they fill a vertical slide without awkward
 // cropping) and VARY the pick so re-running "auto stock photo" on a slide

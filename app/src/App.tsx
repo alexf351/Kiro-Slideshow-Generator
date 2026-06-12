@@ -1153,23 +1153,12 @@ export default function App() {
   // Search keyless Openverse from a slide-meta label and import the first
   // result, returning its media id (or null when nothing matched). Shared by
   // the single-slide action and the whole-deck auto-fill.
-  // Prefer the user's best-curated stock provider (Pexels > Unsplash >
-  // Pixabay) when they've added a key, falling back to keyless Openverse.
-  // Pexels/Unsplash photos are far better stock-background material than the
-  // CC-mixed Openverse pool, so auto-fill looks better the moment a key exists.
-  function bestStockProvider(): { provider: 'pexels' | 'unsplash' | 'pixabay' | 'openverse'; key: string } {
-    if (pexelsKey.trim()) return { provider: 'pexels', key: pexelsKey.trim() };
-    if (unsplashKey.trim()) return { provider: 'unsplash', key: unsplashKey.trim() };
-    if (pixabayKey.trim()) return { provider: 'pixabay', key: pixabayKey.trim() };
-    return { provider: 'openverse', key: '' };
-  }
-
   async function resolveStockBgForLabel(label: string): Promise<{ mediaId: string; query: string } | null> {
     const seed = cleanLabelForQuery(label);
     const query = (extractStockQuery(seed) || seed.slice(0, 30)).trim();
     if (!query) return null;
-    const { searchStock, fetchStockBlob, pickBestStockPhoto } = await import('./stockPhotos');
-    const { provider, key } = bestStockProvider();
+    const { searchStock, fetchStockBlob, pickBestStockPhoto, bestStockProvider } = await import('./stockPhotos');
+    const { provider, key } = bestStockProvider({ pexels: pexelsKey, unsplash: unsplashKey, pixabay: pixabayKey });
     const photos = await searchStock(provider, query, key, 8);
     const photo = pickBestStockPhoto(photos);
     if (!photo) return null;

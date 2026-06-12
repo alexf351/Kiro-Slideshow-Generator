@@ -94,12 +94,17 @@ const eq = (n, a, b) => ok(n + ` (got ${JSON.stringify(a)})`, JSON.stringify(a) 
   ok('kw brand empty', extractStockQuery('search Iro AI on the App Store') === '');
   ok('kw max 3', extractStockQuery('cinematic dramatic ocean waves golden sunset').split(' ').length === 3);
 }
-// ---- stockPhotos.pickBestStockPhoto ----
+// ---- stockPhotos.pickBestStockPhoto + bestStockProvider ----
 {
-  const { pickBestStockPhoto } = await load('stockPhotos.ts');
+  const { pickBestStockPhoto, bestStockProvider } = await load('stockPhotos.ts');
   ok('pick empty null', pickBestStockPhoto([]) === null);
   const land = { id: 'l', width: 1920, height: 1080 }, port = { id: 'p', width: 1080, height: 1920 };
   ok('pick prefers portrait', pickBestStockPhoto([land, port], () => 0).id === 'p');
+  eq('provider none->openverse', bestStockProvider({}), { provider: 'openverse', key: '' });
+  eq('provider pexels first', bestStockProvider({ pexels: 'pk', unsplash: 'uk' }), { provider: 'pexels', key: 'pk' });
+  eq('provider unsplash next', bestStockProvider({ unsplash: 'uk', pixabay: 'xk' }), { provider: 'unsplash', key: 'uk' });
+  eq('provider pixabay last', bestStockProvider({ pixabay: 'xk' }), { provider: 'pixabay', key: 'xk' });
+  eq('provider blank ignored', bestStockProvider({ pexels: '  ' }), { provider: 'openverse', key: '' });
 }
 // ---- zip ----
 {
