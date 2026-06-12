@@ -90,7 +90,7 @@ const DEFAULT_JSON = `{
     "instructionBelow": "on the App Store.",
     "slogan": "stop asking AI questions.<br/><strong>start building with it.</strong>"
   },
-  "attribution": "@tryiro"
+  "attribution": ""
 }`;
 
 const STORAGE_KEY = 'kiro_slideshow_generator_state_v2';
@@ -116,6 +116,9 @@ type Persisted = {
   // TikTok's editor after upload — the algorithm reads native text
   // better than image-baked text per the article.
   nativeTextOverlay: boolean;
+  // Creator handle stamped under each slide (e.g. "@yourname"). Empty =
+  // no handle. Source of truth for the attribution field at render.
+  attribution: string;
 };
 
 const CLAUDE_MODEL_IDS = CLAUDE_MODELS.map((m) => m.id) as readonly ClaudeModelId[];
@@ -146,6 +149,7 @@ function loadPersisted(): Persisted {
         openaiKey: typeof p.openaiKey === 'string' ? p.openaiKey : '',
         design: coerceDesign(p.design),
         nativeTextOverlay: p.nativeTextOverlay === true,
+        attribution: typeof p.attribution === 'string' ? p.attribution : '',
       };
     }
   } catch {}
@@ -165,6 +169,7 @@ function loadPersisted(): Persisted {
     openaiKey: '',
     design: { ...DEFAULT_DESIGN },
     nativeTextOverlay: false,
+    attribution: '',
   };
 }
 
@@ -372,6 +377,7 @@ export default function App() {
   const [openaiKey, setOpenaiKey] = useState<string>(initial.openaiKey);
   const [design, setDesign] = useState<BrandDesign>(initial.design);
   const [nativeTextOverlay, setNativeTextOverlay] = useState<boolean>(initial.nativeTextOverlay);
+  const [attribution, setAttribution] = useState<string>(initial.attribution);
   // Which collapsible sidebar groups are expanded. Everything outside the
   // core Format → Content → Caption spine is collapsed by default so the
   // panel reads as a simple "make a post" funnel instead of a wall of
@@ -495,6 +501,7 @@ export default function App() {
           openaiKey,
           design,
           nativeTextOverlay,
+          attribution,
         }),
       );
     } catch {}
@@ -514,6 +521,7 @@ export default function App() {
     openaiKey,
     design,
     nativeTextOverlay,
+    attribution,
   ]);
 
   useEffect(() => {
@@ -662,6 +670,11 @@ export default function App() {
     // dropdown is the explicit user choice, the JSON field is just a hint
     // about which format the JSON was authored for.
     const slides: Record<string, unknown> = { ...parsed, mascot: mascotKey(mascot, variant), platform, preset };
+
+    // Creator handle: the HUD "Creator handle" field is the single source
+    // of truth, so a blank field reliably removes the handle (overriding
+    // any "@tryiro" left in older saved JSON).
+    slides.attribution = attribution.trim();
 
     // Per-photo crop adjustments, keyed by the resolved URL so the engine
     // can apply pan/zoom to that exact background.
@@ -1914,6 +1927,24 @@ export default function App() {
                   Strip hook + CTA text from the render so you can type them natively in TikTok's editor.
                   Algorithm reads native text better than baked-in image text.
                 </span>
+              </span>
+            </label>
+
+            {/* Creator handle stamped under each slide. Empty = no handle
+               (the old "@tryiro" default is gone). Overrides the
+               attribution field in the JSON when set. */}
+            <label className="flex flex-col gap-1.5 p-3 rounded-xl border border-white/[0.06] bg-white/[0.02]">
+              <span className="text-[12px] font-bold text-gray-200">Creator handle</span>
+              <input
+                type="text"
+                value={attribution}
+                onChange={(e) => setAttribution(e.target.value)}
+                placeholder="@yourhandle (leave blank for none)"
+                className="w-full rounded-lg border border-white/[0.10] bg-[#070b18] px-3 py-2 text-[13px] text-gray-200
+                           placeholder:text-gray-600 focus:border-[#00E5FF]/40 focus:outline-none"
+              />
+              <span className="text-[10px] text-gray-500 leading-relaxed">
+                Stamped at the bottom of every slide. Leave blank to remove it entirely.
               </span>
             </label>
           </Group>

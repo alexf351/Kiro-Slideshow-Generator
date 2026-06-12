@@ -1464,8 +1464,8 @@ const SLIDES = {
     slogan: "stop asking AI questions.<br/><strong>start building with it.</strong>"
   },
 
-  // Attribution shown under each prompt's GPT box
-  attribution: "@tryiro",
+  // Attribution shown under each prompt's GPT box (empty = no handle)
+  attribution: "",
 };
 </script>
 
@@ -1516,7 +1516,7 @@ const SLIDES = {
   "hook": { ... },
   "prompts": [ ... ],
   "cta": { ... },
-  "attribution": "@tryiro"
+  "attribution": ""
 }
 
 — or —
@@ -1942,11 +1942,12 @@ function buildPrompt(p, attribution, platform) {
   else if (promptLen >= 160) promptSize = 48;
 
   const box = platform === 'claude' ? buildClaudeBox(p.prompt, promptSize) : buildGPTBox(p.prompt, promptSize);
+  const attr = attribution ? `<div class="attribution">— ${attribution}</div>` : '';
 
   return `<div class="body">
     <div class="prompt-title" style="font-size: ${titleSize}px;">${p.title}</div>
     ${box}
-    <div class="attribution">— ${attribution}</div>
+    ${attr}
   </div>`;
 }
 
@@ -3355,8 +3356,8 @@ function parseSlidesInput(raw) {
     showStatus('err', 'Missing required field: cta.headline');
     return null;
   }
-  if (!parsed.attribution) {
-    parsed.attribution = '@tryiro'; // default
+  if (parsed.attribution == null) {
+    parsed.attribution = ''; // default: no handle unless one is set
   }
 
   // Platform is REQUIRED — controls whether prompts render in a ChatGPT or Claude chat box
