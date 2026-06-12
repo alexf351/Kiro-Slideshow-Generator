@@ -260,6 +260,18 @@ const eq = (n, a, b) => ok(n + ` (got ${JSON.stringify(a)})`, JSON.stringify(a) 
   // garbage throws a helpful error.
   let threw = false; try { applyPredictManualResponse('no json here at all'); } catch { threw = true; }
   ok('predict garbage throws', threw);
+
+  const { applyVariantsManualResponse, applySelfAnalysisManualResponse } = await load('predict.ts');
+  // Variants: sorted best-first, scores clamped, non-objects skipped.
+  const vs = applyVariantsManualResponse('{"variants":[{"angle":"a","predictedScore":40},"junk",{"angle":"b","predictedScore":250}]}');
+  ok('variants sorted+clamped', vs.length === 2 && vs[0].predictedScore === 100 && vs[1].predictedScore === 40);
+  ok('variants fills missing strings', vs[0].caption === '' && vs[0].hookHeadline === '');
+  let vthrew = false; try { applyVariantsManualResponse('{"variants":[]}'); } catch { vthrew = true; }
+  ok('variants empty throws', vthrew);
+  // Self-analysis: coerces fields, slideTexts -> strings.
+  const sa = applySelfAnalysisManualResponse('```json\n{"slideTexts":["a",2],"hookText":"hi","niche":"ai"}\n```');
+  ok('self slideTexts strings', JSON.stringify(sa.slideTexts) === JSON.stringify(['a', '2']));
+  ok('self fields coerced', sa.hookText === 'hi' && sa.niche === 'ai' && sa.voiceTone === '');
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);
