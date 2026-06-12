@@ -17,6 +17,7 @@ export const PRESET_KEYS = [
   'output_vs_hype',
   'curated_list',
   'tier_list',
+  'myth_fact',
 ] as const;
 
 export type PresetKey = (typeof PRESET_KEYS)[number];
@@ -451,6 +452,44 @@ want to actually get good at this stuff? search "Iro AI" on the App Store.
 
 #aitools #tierlist #aitok #chatgpt #tech`;
 
+const MYTH_FACT_JSON = `{
+  "preset": "myth_fact",
+  "hook": {
+    "headline": "<strong>AI myths</strong> you still believe",
+    "subline": "let's clear these up"
+  },
+  "items": [
+    {
+      "myth": "AI will take all the jobs and there's nothing you can do.",
+      "fact": "The people who learn to *use* AI take the jobs from those who don't."
+    },
+    {
+      "myth": "You need to know how to code to build with AI.",
+      "fact": "You can ship real tools today with plain-English prompts."
+    },
+    {
+      "myth": "ChatGPT just makes things up, so it's useless for real work.",
+      "fact": "Give it context + a clear task and it's a genuine force multiplier."
+    }
+  ],
+  "cta": {
+    "headline": "Want the <strong>real</strong> skills,<br/>not the hype?",
+    "instructionAbove": "search:",
+    "searchTerm": "Iro AI",
+    "instructionBelow": "on the App Store.",
+    "slogan": "5 minutes a day.<br/><strong>start building.</strong>"
+  },
+  "attribution": ""
+}`;
+
+const MYTH_FACT_CAPTION = `3 AI myths that are quietly holding you back 🧠
+
+save this and reread it next time someone says "AI is just hype."
+
+want the real skills? search "Iro AI" on the App Store. 5 min a day.
+
+#ai #aimyths #aitok #learnai #productivity`;
+
 export const PRESETS: Record<PresetKey, PresetMeta> = {
   prompt_pack: {
     key: 'prompt_pack',
@@ -550,5 +589,14 @@ export const PRESETS: Record<PresetKey, PresetMeta> = {
     defaultJson: TIER_LIST_JSON,
     defaultCaption: TIER_LIST_CAPTION,
     accent: '#FF6B6B', // S-tier red
+  },
+  myth_fact: {
+    key: 'myth_fact',
+    label: 'Myth vs Fact',
+    pitch: 'Bust misconceptions. Red ✗ MYTH card over a green ✓ FACT card, one pair per slide.',
+    status: 'ready',
+    defaultJson: MYTH_FACT_JSON,
+    defaultCaption: MYTH_FACT_CAPTION,
+    accent: '#22C55E', // fact green
   },
 };
