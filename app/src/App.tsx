@@ -1628,7 +1628,14 @@ export default function App() {
   async function handleSaveDraft() {
     const name = await ui.prompt({ title: 'Save draft', message: 'Name this project (re-using a name overwrites it).', placeholder: 'e.g. Monday prompt pack', confirmLabel: 'Save', defaultValue: activeDraftName });
     if (!name || !name.trim()) return;
-    setDrafts(saveDraft(name, currentDraftState()));
+    const next = saveDraft(name, currentDraftState());
+    setDrafts(next);
+    // saveDraft re-reads localStorage; if the write was rejected (quota), the
+    // new draft won't be there — surface that instead of a false "saved".
+    if (!next.some((d) => d.name.toLowerCase() === name.trim().toLowerCase())) {
+      ui.notify('Could not save — browser storage may be full. Delete old drafts and try again.', { type: 'error' });
+      return;
+    }
     setActiveDraftName(name.trim());
     ui.notify('Draft saved.', { type: 'success' });
   }
@@ -1636,7 +1643,14 @@ export default function App() {
   // Save back to the currently-loaded draft without re-typing its name.
   function handleUpdateDraft() {
     if (!activeDraftName) return;
-    setDrafts(saveDraft(activeDraftName, currentDraftState()));
+    const before = drafts.find((d) => d.name === activeDraftName)?.savedAt || 0;
+    const next = saveDraft(activeDraftName, currentDraftState());
+    setDrafts(next);
+    const after = next.find((d) => d.name === activeDraftName)?.savedAt || 0;
+    if (after <= before) {
+      ui.notify('Could not update — browser storage may be full.', { type: 'error' });
+      return;
+    }
     ui.notify(`Updated "${activeDraftName}".`, { type: 'success' });
   }
 
