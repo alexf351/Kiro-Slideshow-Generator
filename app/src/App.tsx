@@ -437,6 +437,7 @@ export default function App() {
   // "Fill from topic" — AI populates the current template from a typed topic.
   const [topic, setTopic] = useState('');
   const [topicBusy, setTopicBusy] = useState(false);
+  const [improveBusy, setImproveBusy] = useState<string | null>(null);
   // Batch generate — one draft per topic line.
   const [batchTopics, setBatchTopics] = useState('');
   const [batchBusy, setBatchBusy] = useState<string | null>(null);
@@ -1351,6 +1352,25 @@ export default function App() {
     }
   }
 
+  // Rewrite the current post's content per a quick instruction.
+  async function handleImprovePost(label: string, instruction: string) {
+    if (!anthropicKey) { ui.notify('Add an Anthropic API key in Settings to use this.', { type: 'error' }); return; }
+    const parsedNow = parseJson(true);
+    if (!parsedNow) { ui.notify('Fix the JSON first.', { type: 'error' }); return; }
+    setImproveBusy(label);
+    try {
+      const { improvePost } = await import('./fillFromTopic');
+      const revised = await improvePost({ json: jsonText, instruction, apiKey: anthropicKey, model: claudeModel });
+      setJsonText(revised);
+      setTimeout(() => void handleRender({ switchView: false }), 80);
+      ui.notify(`Rewritten: ${label}.`, { type: 'success' });
+    } catch (e) {
+      ui.notify(`Rewrite failed: ${(e as Error).message}`, { type: 'error' });
+    } finally {
+      setImproveBusy(null);
+    }
+  }
+
   // Batch-generate a draft per topic line — for spinning up a week of content
   // in one go. Reuses fill-from-topic + the drafts store.
   async function handleBatchGenerate() {
@@ -1984,6 +2004,29 @@ export default function App() {
               >
                 {topicBusy ? '…' : 'Generate'}
               </button>
+            </div>
+
+            {/* One-tap AI rewrites of the current content. */}
+            <div className="flex items-center gap-1.5 mb-4 flex-wrap">
+              <span className="text-[10px] uppercase tracking-[0.12em] text-gray-600 mr-0.5">Improve</span>
+              {([
+                ['Punchier', 'Make every line punchier and more scroll-stopping; tighten wordy phrases.'],
+                ['Simpler', 'Simplify the language so a beginner instantly gets it; cut jargon.'],
+                ['Spicier', 'Make it bolder and more opinionated/controversial (still true and on-brand).'],
+                ['Shorter', 'Cut each piece of text to the essential words; keep it skimmable.'],
+              ] as const).map(([label, instruction]) => (
+                <button
+                  key={label}
+                  type="button"
+                  onClick={() => void handleImprovePost(label, instruction)}
+                  disabled={!!improveBusy}
+                  className="px-2.5 py-1 rounded-md text-[11px] font-bold uppercase tracking-[0.1em]
+                             border border-[#A78BFA]/25 bg-[#A78BFA]/[0.06] text-[#C4B5FD]
+                             disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#A78BFA]/[0.14] transition-all"
+                >
+                  {improveBusy === label ? '…' : label}
+                </button>
+              ))}
             </div>
 
             {editMode === 'quick' ? (
