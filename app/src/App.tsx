@@ -18,6 +18,7 @@ import { coerceDesign, DEFAULT_DESIGN, designPayload, ASPECT_KEYS, ASPECTS, type
 import { listDrafts, saveDraft, deleteDraft, setDraftSchedule, setDraftPosted, clearPostedDrafts, type Draft } from './drafts';
 import { exportBackup, importBackup, downloadBlob, timestampSlug } from './backup';
 import { suggestHashtags, parseHashtags } from './insights';
+import { findSimilarHooks } from './similarity';
 import { listSets, saveSet, deleteSet, formatTags, type HashtagSet } from './hashtagSets';
 import { encodePost, decodePost } from './postShare';
 import { useUI } from './ui';
@@ -1856,6 +1857,25 @@ export default function App() {
 
   async function handleSaveToHistory() {
     if (!caption.trim() && !(await ui.confirm({ message: 'Save this post with no caption?', confirmLabel: 'Save' }))) return;
+    // Repeat-hook guard: TikTok suppresses content it reads as a near-dupe
+    // of something the account already posted, so warn before saving a hook
+    // that strongly matches one already in history. Best-effort — a read
+    // failure must never block the save.
+    try {
+      if (caption.trim()) {
+        const matches = findSimilarHooks(caption, await listPosts());
+        if (matches.length > 0) {
+          const top = matches[0];
+          const when = new Date(top.post.postedAt).toLocaleDateString();
+          const ok = await ui.confirm({
+            title: 'You’ve used this hook before',
+            message: `This opening line is ${Math.round(top.similarity * 100)}% the same as a post from ${when} (“${top.hook.slice(0, 80)}”). TikTok tends to bury near-duplicates — tweak the hook for better reach, or save anyway.`,
+            confirmLabel: 'Save anyway',
+          });
+          if (!ok) return;
+        }
+      }
+    } catch { /* history unavailable — don't block saving */ }
     setSaveStatus({ kind: 'saving' });
     try {
       const thumb = await captureThumbnail();
