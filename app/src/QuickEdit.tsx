@@ -139,6 +139,17 @@ export default function QuickEdit({ jsonText, onChange }: Props) {
     });
   }
 
+  // Clone an item's content and insert it right after — a fast starting
+  // point for a similar slide.
+  function duplicateItem(i: number) {
+    if (!contentKey) return;
+    commit((draft) => {
+      const arr = (draft[contentKey] as Record<string, unknown>[]).slice();
+      arr.splice(i + 1, 0, { ...arr[i] });
+      draft[contentKey] = arr;
+    });
+  }
+
   function moveItem(i: number, dir: -1 | 1) {
     if (!contentKey) return;
     const j = i + dir;
@@ -236,6 +247,8 @@ export default function QuickEdit({ jsonText, onChange }: Props) {
                       className="px-1.5 py-0.5 text-[11px] rounded text-gray-400 hover:text-gray-200 disabled:opacity-30">↑</button>
                     <button type="button" onClick={() => moveItem(i, 1)} disabled={i === items.length - 1} aria-label={`Move slide ${i + 1} down`} title="Move down"
                       className="px-1.5 py-0.5 text-[11px] rounded text-gray-400 hover:text-gray-200 disabled:opacity-30">↓</button>
+                    <button type="button" onClick={() => duplicateItem(i)} aria-label={`Duplicate slide ${i + 1}`} title="Duplicate slide"
+                      className="px-1.5 py-0.5 text-[11px] rounded text-gray-400 hover:text-[#00E5FF]">⎘</button>
                     <button type="button" onClick={() => removeItem(i)} aria-label={`Remove slide ${i + 1}`} title="Remove slide"
                       className="px-1.5 py-0.5 text-[11px] rounded text-red-300 hover:text-red-200">✕</button>
                   </span>
