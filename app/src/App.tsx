@@ -460,6 +460,8 @@ export default function App() {
   // ZIP-of-images export (manual upload to TikTok / IG / anywhere).
   const [imagesBusy, setImagesBusy] = useState<string | null>(null);
   const [genDeckBusy, setGenDeckBusy] = useState(false);
+  // Progress label while auto-filling stock backgrounds across the deck.
+  const [autoBgBusy, setAutoBgBusy] = useState<string | null>(null);
   // Named drafts (multiple in-progress projects).
   const [drafts, setDrafts] = useState<Draft[]>(() => listDrafts());
   // The draft currently loaded for editing (enables one-tap "Update").
@@ -1140,30 +1142,63 @@ export default function App() {
   // text and pull the first keyless-Openverse result. Free (no OpenAI key) —
   // complements the AI-image generator. Bytes route through the stock proxy
   // for canvas-safe export, same as the Library stock import.
-  async function handleStockBgForSlide(slideKey: string, label: string) {
+  // Search keyless Openverse from a slide-meta label and import the first
+  // result, returning its media id (or null when nothing matched). Shared by
+  // the single-slide action and the whole-deck auto-fill.
+  async function resolveStockBgForLabel(label: string): Promise<{ mediaId: string; query: string } | null> {
     const seed = cleanLabelForQuery(label);
-    const query = extractStockQuery(seed) || seed.slice(0, 30);
-    if (!query.trim()) { ui.notify('No searchable text on this slide.', { type: 'info' }); return; }
+    const query = (extractStockQuery(seed) || seed.slice(0, 30)).trim();
+    if (!query) return null;
+    const { searchStock, fetchStockBlob } = await import('./stockPhotos');
+    const photos = await searchStock('openverse', query, '', 8);
+    if (!photos.length) return null;
+    const photo = photos[0];
+    const blob = await fetchStockBlob(photo);
+    const item = await addStockItem({
+      blob,
+      mimeType: blob.type || 'image/jpeg',
+      name: `openverse-${query.replace(/\s+/g, '-').slice(0, 40)}`,
+      source: { provider: photo.provider, photographer: photo.photographer, photographerUrl: photo.photographerUrl, photoUrl: photo.photoUrl },
+    });
+    return { mediaId: item.id, query };
+  }
+
+  async function handleStockBgForSlide(slideKey: string, label: string) {
     setOpenBgMenuKey(null);
-    ui.notify(`Finding a photo for “${query}”…`, { type: 'info' });
+    ui.notify('Finding a photo…', { type: 'info' });
     try {
-      const { searchStock, fetchStockBlob } = await import('./stockPhotos');
-      const photos = await searchStock('openverse', query, '', 8);
-      if (!photos.length) { ui.notify(`No stock photo for “${query}”. Try My Library or a URL.`, { type: 'info' }); return; }
-      const photo = photos[0];
-      const blob = await fetchStockBlob(photo);
-      const item = await addStockItem({
-        blob,
-        mimeType: blob.type || 'image/jpeg',
-        name: `openverse-${query.replace(/\s+/g, '-').slice(0, 40)}`,
-        source: { provider: photo.provider, photographer: photo.photographer, photographerUrl: photo.photographerUrl, photoUrl: photo.photoUrl },
-      });
-      setSlideBgs((prev) => ({ ...prev, [slideKey]: { type: 'media', mediaId: item.id } }));
+      const r = await resolveStockBgForLabel(label);
+      if (!r) { ui.notify('No stock match for this slide. Try My Library or a URL.', { type: 'info' }); return; }
+      setSlideBgs((prev) => ({ ...prev, [slideKey]: { type: 'media', mediaId: r.mediaId } }));
       setTimeout(() => void handleRender({ switchView: false }), 60);
-      ui.notify(`Added a photo for “${query}”.`, { type: 'success' });
+      ui.notify(`Added a photo for “${r.query}”.`, { type: 'success' });
     } catch (e) {
       ui.notify(`Stock search failed: ${(e as Error).message}`, { type: 'error' });
     }
+  }
+
+  // Fill a free Openverse background for every slide that doesn't already
+  // have one, in one tap. Leaves slides the creator already set alone, and
+  // skips the icon/logo/card sub-slots. Assigns in one batch at the end.
+  async function handleAutoFillStockBgs() {
+    const slots = slideMetas.filter((m) => !/-(icon|logo|card):/.test(m.key) && !slideBgs[m.key]);
+    if (!slots.length) { ui.notify('Every slide already has a background.', { type: 'info' }); return; }
+    setAutoBgBusy(`0/${slots.length}`);
+    const updates: SlideBgMap = {};
+    let done = 0; let missed = 0;
+    for (let i = 0; i < slots.length; i++) {
+      setAutoBgBusy(`${i + 1}/${slots.length}`);
+      try {
+        const r = await resolveStockBgForLabel(slots[i].label);
+        if (r) { updates[slots[i].key] = { type: 'media', mediaId: r.mediaId }; done++; } else missed++;
+      } catch { missed++; }
+    }
+    if (done > 0) {
+      setSlideBgs((prev) => ({ ...prev, ...updates }));
+      setTimeout(() => void handleRender({ switchView: false }), 80);
+    }
+    setAutoBgBusy(null);
+    ui.notify(`Filled ${done} background${done === 1 ? '' : 's'}${missed ? ` · ${missed} had no match` : ''}.`, { type: done ? 'success' : 'info' });
   }
 
   function handleClearBgForSlide(slideKey: string) {
@@ -2298,6 +2333,7 @@ export default function App() {
       { id: 'export-images', section: 'Export', label: 'Download slides (.zip)', keywords: 'images jpg photos manual upload zip', run: () => void handleDownloadImages() },
       { id: 'toggle-safezone', section: 'Actions', label: 'Toggle TikTok safe zone guide', keywords: 'crop margins overlay preview', run: () => setSafeZone((v) => !v) },
       { id: 'shortcuts', section: 'Actions', label: 'Keyboard shortcuts', keywords: 'help keys hotkeys cheat sheet', run: () => setShortcutsOpen(true) },
+      { id: 'autofill-bg', section: 'Actions', label: 'Auto-fill stock backgrounds', keywords: 'photos openverse images deck free', run: () => void handleAutoFillStockBgs() },
       { id: 'send-tiktok', section: 'Export', label: 'Send to TikTok inbox', keywords: 'publish post', run: () => void sendToTikTok() },
       { id: 'go-edit', section: 'Go to', label: 'Edit', run: goto('preview', 'edit') },
       { id: 'go-preview', section: 'Go to', label: 'Preview', run: goto('preview', 'preview') },
@@ -2948,6 +2984,17 @@ export default function App() {
                 {genDeckBusy ? '✨ Generating…' : '✨ Generate one AI background for the whole deck'}
               </button>
             )}
+            <button
+              type="button"
+              onClick={() => void handleAutoFillStockBgs()}
+              disabled={!!autoBgBusy}
+              title="Search Openverse from each slide's text and fill empty backgrounds — free, no API key"
+              className="w-full mb-4 py-2.5 rounded-lg text-[11px] font-bold uppercase tracking-[0.1em]
+                         border border-white/[0.12] bg-white/[0.03] text-gray-200
+                         disabled:opacity-50 disabled:cursor-not-allowed hover:border-[#00E5FF]/40 hover:text-[#00E5FF] transition-all"
+            >
+              {autoBgBusy ? `🔍 Finding photos… ${autoBgBusy}` : '🔍 Auto-fill stock photos (free)'}
+            </button>
             {/* Quick gradient background — no photo or API key needed. */}
             <div className="mb-4">
               <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-gray-400 mb-2">Gradient background (all slides)</div>
