@@ -467,7 +467,14 @@ export default function App() {
     const firstLine = (caption.split('\n')[0] || '').trim();
     const contentArr = parsed ? CONTENT_KEYS.map((k) => parsed![k]).find((v) => Array.isArray(v)) as unknown[] | undefined : undefined;
     const slideCount = (contentArr ? contentArr.length : 0) + (parsed && parsed.hook ? 1 : 0) + (parsed && parsed.cta ? 1 : 0);
+    // No content item is entirely empty (would render a blank slide).
+    const noEmpty = !contentArr || contentArr.every((it) =>
+      it && typeof it === 'object'
+        ? Object.values(it as Record<string, unknown>).some((v) => typeof v === 'string' && v.replace(/<[^>]+>/g, '').trim().length > 0)
+        : true);
     return [
+      { label: 'Valid JSON', ok: !!parsed },
+      { label: 'No empty slides', ok: !!parsed && noEmpty },
       { label: 'Hook in caption’s first line', ok: firstLine.length > 0 && firstLine.length <= 100 },
       { label: 'Call-to-action slide present', ok: !!(parsed && parsed.cta) },
       { label: 'Hashtags in caption', ok: /#\w/.test(caption) },
