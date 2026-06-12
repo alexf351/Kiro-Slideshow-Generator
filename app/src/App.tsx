@@ -2199,11 +2199,23 @@ export default function App() {
     const decoded = decodePost(code);
     if (!decoded) { ui.notify('That code is not valid.', { type: 'error' }); return; }
     if (!isExampleJson(jsonText) && !(await ui.confirm({ message: 'Importing replaces your current post. Continue?', confirmLabel: 'Import' }))) return;
+    // Resolve the format from the code's preset, falling back to the JSON's
+    // own `preset` field — so a code whose top-level preset is missing/unknown
+    // still renders if the JSON names a format this version has.
+    const known = (p: string) => (PRESET_KEYS as readonly string[]).includes(p);
+    let target = decoded.preset && known(decoded.preset) ? decoded.preset : '';
+    if (!target) {
+      try { const j = JSON.parse(stripJsonWrappers(decoded.json.trim())) as { preset?: unknown }; if (typeof j.preset === 'string' && known(j.preset)) target = j.preset; } catch { /* not parseable — handled below */ }
+    }
     setJsonText(decoded.json);
     setCaption(decoded.caption);
-    if (decoded.preset && (PRESET_KEYS as readonly string[]).includes(decoded.preset)) setPreset(decoded.preset as PresetKey);
-    setTimeout(() => void handleRender({ switchView: false }), 80);
-    ui.notify('Post imported.', { type: 'success' });
+    if (target) {
+      setPreset(target as PresetKey);
+      setTimeout(() => void handleRender({ switchView: false }), 80);
+      ui.notify('Post imported.', { type: 'success' });
+    } else {
+      ui.notify('Imported the content, but its format isn’t available in this version — pick a format to render it.', { type: 'info' });
+    }
   }
 
   // ---- Drafts (named in-progress projects) ----
