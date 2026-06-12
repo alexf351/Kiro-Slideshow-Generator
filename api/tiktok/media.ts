@@ -8,6 +8,26 @@
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
+// Fetch the blob, retrying transient failures (network blips, 5xx). TikTok
+// pulls these URLs to ingest the slides, so a flaky read must not 502.
+async function fetchWithRetry(target: string): Promise<Response> {
+  const maxAttempts = 3;
+  let lastErr: Error | null = null;
+  for (let a = 0; a < maxAttempts; a++) {
+    let res: Response;
+    try {
+      res = await fetch(target);
+    } catch (e) {
+      lastErr = e as Error;
+      if (a < maxAttempts - 1) { await new Promise((r) => setTimeout(r, 500 * (a + 1))); continue; }
+      throw e;
+    }
+    if (res.ok || res.status < 500 || a === maxAttempts - 1) return res;
+    await new Promise((r) => setTimeout(r, 500 * (a + 1)));
+  }
+  throw lastErr || new Error('Blob fetch failed.');
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
   const src = (req.query.src || '').toString();
   let url: URL;
@@ -22,7 +42,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     return;
   }
   try {
-    const upstream = await fetch(url.toString());
+    const upstream = await fetchWithRetry(url.toString());
     if (!upstream.ok) {
       res.status(502).json({ error: `Blob fetch ${upstream.status}` });
       return;
