@@ -19,6 +19,7 @@ import { listDrafts, saveDraft, deleteDraft, type Draft } from './drafts';
 import { exportBackup, importBackup, downloadBlob, timestampSlug } from './backup';
 import { suggestHashtags, parseHashtags } from './insights';
 import { listSets, saveSet, deleteSet, formatTags, type HashtagSet } from './hashtagSets';
+import { encodePost, decodePost } from './postShare';
 import { useUI } from './ui';
 import CommandPalette, { type Command } from './CommandPalette';
 import Onboarding, { shouldOnboard } from './Onboarding';
@@ -1439,6 +1440,29 @@ export default function App() {
     setTimeout(() => void handleRender({ switchView: false }), 60);
   }
 
+  // ---- Share a single post as a portable code ----
+  async function handleSharePost() {
+    const code = encodePost({ preset, json: jsonText, caption });
+    try {
+      await navigator.clipboard.writeText(code);
+      ui.notify('Post code copied — send it to a friend to import.', { type: 'success' });
+    } catch {
+      await ui.prompt({ title: 'Post code', message: 'Copy this and send it:', placeholder: '', confirmLabel: 'Done', defaultValue: code });
+    }
+  }
+  async function handleImportPost() {
+    const code = await ui.prompt({ title: 'Import a post', message: 'Paste a post code (starts with IRO1:).', placeholder: 'IRO1:…', confirmLabel: 'Import' });
+    if (!code || !code.trim()) return;
+    const decoded = decodePost(code);
+    if (!decoded) { ui.notify('That code is not valid.', { type: 'error' }); return; }
+    if (!isExampleJson(jsonText) && !(await ui.confirm({ message: 'Importing replaces your current post. Continue?', confirmLabel: 'Import' }))) return;
+    setJsonText(decoded.json);
+    setCaption(decoded.caption);
+    if (decoded.preset && (PRESET_KEYS as readonly string[]).includes(decoded.preset)) setPreset(decoded.preset as PresetKey);
+    setTimeout(() => void handleRender({ switchView: false }), 80);
+    ui.notify('Post imported.', { type: 'success' });
+  }
+
   // ---- Drafts (named in-progress projects) ----
   async function handleSaveDraft() {
     const name = await ui.prompt({ title: 'Save draft', message: 'Name this project (re-using a name overwrites it).', placeholder: 'e.g. Monday prompt pack', confirmLabel: 'Save' });
@@ -2598,6 +2622,22 @@ export default function App() {
             >
               + Save current as draft
             </button>
+            <div className="flex gap-2 mb-3">
+              <button
+                type="button"
+                onClick={() => void handleSharePost()}
+                className="flex-1 py-2 rounded-lg text-[11px] font-bold uppercase tracking-[0.1em] border border-white/[0.10] bg-white/[0.03] text-gray-300 hover:text-[#00E5FF] hover:border-[#00E5FF]/30 transition-all"
+              >
+                ↗ Share post
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleImportPost()}
+                className="flex-1 py-2 rounded-lg text-[11px] font-bold uppercase tracking-[0.1em] border border-white/[0.10] bg-white/[0.03] text-gray-300 hover:text-[#00E5FF] hover:border-[#00E5FF]/30 transition-all"
+              >
+                ↙ Import code
+              </button>
+            </div>
             {drafts.length === 0 ? (
               <div className="text-[11px] text-gray-600 text-center py-2">No drafts yet.</div>
             ) : (
