@@ -3682,6 +3682,22 @@ window.addEventListener('message', async (e) => {
     return;
   }
 
+  // Render the whole slideshow to a video (Ken-Burns zoom + crossfades) and
+  // post the blob back. Powers the React "Export as video" button for TikTok
+  // video posts. Uses canvas + MediaRecorder — no heavy encoder dependency.
+  if (msg.type === 'capture-video') {
+    try {
+      const blob = await exportSlidesVideo({
+        secondsPerSlide: Number(msg.secondsPerSlide) || 2.5,
+        onProgress: (p) => { try { e.source.postMessage({ type: 'videoProgress', requestId: msg.requestId, progress: p }, '*'); } catch (er) {} },
+      });
+      e.source.postMessage({ type: 'videoBlob', requestId: msg.requestId, blob, mime: blob.type }, '*');
+    } catch (err) {
+      try { e.source.postMessage({ type: 'videoBlob', requestId: msg.requestId, error: String(err && err.message || err) }, '*'); } catch (e2) {}
+    }
+    return;
+  }
+
   // Lightweight design-only update (brand colors / aspect / watermark)
   // without re-resolving slide content — lets the Design panel preview
   // changes live as the user drags a color or flips a ratio.
@@ -3954,6 +3970,107 @@ function applyDesign(d) {
     d.watermark && typeof d.watermark === 'string'
       ? { url: d.watermark, pos: d.watermarkPos || 'br' }
       : null;
+}
+
+// Pick the best MediaRecorder container the browser supports. Safari gives
+// real MP4 (h264); Chrome/Firefox give WebM. TikTok's uploader accepts both.
+function pickVideoMime() {
+  const cands = [
+    'video/mp4;codecs=h264', 'video/mp4',
+    'video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm',
+  ];
+  for (const m of cands) {
+    if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(m)) return m;
+  }
+  return '';
+}
+
+// Render the slideshow to a vertical video. Each slide gets a slow Ken-Burns
+// zoom; consecutive slides crossfade. Recorded in real time off a canvas
+// stream, so a 6-slide × 2.5s deck takes ~15s to produce.
+async function exportSlidesVideo(opts) {
+  opts = opts || {};
+  const perSlide = Math.max(1, Number(opts.secondsPerSlide) || 2.5);
+  const onProgress = typeof opts.onProgress === 'function' ? opts.onProgress : function () {};
+  if (typeof MediaRecorder === 'undefined') throw new Error('This browser can\'t record video (no MediaRecorder).');
+  const mime = pickVideoMime();
+  if (!mime) throw new Error('This browser can\'t encode video.');
+
+  const html2canvas = await loadHtml2Canvas();
+  if (document.fonts && document.fonts.ready) { try { await document.fonts.ready; } catch (e) {} }
+
+  const safeWasOn = document.body.classList.contains('show-safezone');
+  document.body.classList.remove('show-safezone');
+  if (typeof deselectAll === 'function') deselectAll();
+  document.body.classList.add('capturing');
+
+  // Pre-render every slide to a bitmap once (the expensive part).
+  const frames = [];
+  try {
+    const slideEls = document.querySelectorAll('.slide');
+    if (!slideEls.length) throw new Error('No slides to export. Render first.');
+    for (let i = 0; i < slideEls.length; i++) {
+      const c = await html2canvas(slideEls[i], { width: PAGE_W, height: PAGE_H, scale: 1, useCORS: true, backgroundColor: '#000000' });
+      frames.push(c);
+      onProgress(0.15 * (i + 1) / slideEls.length);
+    }
+  } finally {
+    if (safeWasOn) document.body.classList.add('show-safezone');
+    document.body.classList.remove('capturing');
+  }
+
+  // Output canvas + recorder. 0.75 scale keeps encoding smooth on 1080×1920.
+  const SC = 0.75;
+  const out = document.createElement('canvas');
+  out.width = Math.round(PAGE_W * SC); out.height = Math.round(PAGE_H * SC);
+  const ctx = out.getContext('2d');
+  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, out.width, out.height);
+  const stream = out.captureStream(30);
+  const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 10000000 });
+  const chunks = [];
+  rec.ondataavailable = (ev) => { if (ev.data && ev.data.size) chunks.push(ev.data); };
+  const stopped = new Promise((res) => { rec.onstop = res; });
+  rec.start();
+
+  // Draw one frame with a Ken-Burns zoom (z0→z1) cropped to cover the canvas.
+  const drawKB = (img, t, alpha) => {
+    const zoom = 1.0 + 0.06 * t;
+    const iw = img.width, ih = img.height;
+    const cover = Math.max(out.width / iw, out.height / ih) * zoom;
+    const dw = iw * cover, dh = ih * cover;
+    const dx = (out.width - dw) / 2, dy = (out.height - dh) / 2;
+    ctx.globalAlpha = alpha;
+    ctx.drawImage(img, dx, dy, dw, dh);
+    ctx.globalAlpha = 1;
+  };
+
+  const FADE = 0.45; // seconds of crossfade into the next slide
+  const start = performance.now();
+  const total = frames.length * perSlide;
+  await new Promise((resolve) => {
+    function tick() {
+      const elapsed = (performance.now() - start) / 1000;
+      if (elapsed >= total) { resolve(); return; }
+      const idx = Math.min(frames.length - 1, Math.floor(elapsed / perSlide));
+      const local = elapsed - idx * perSlide;       // time within this slide
+      const t = local / perSlide;                    // 0..1 progress for zoom
+      ctx.fillStyle = '#000'; ctx.fillRect(0, 0, out.width, out.height);
+      drawKB(frames[idx], t, 1);
+      // Crossfade the tail of this slide into the head of the next.
+      if (idx < frames.length - 1 && local > perSlide - FADE) {
+        const a = (local - (perSlide - FADE)) / FADE;
+        drawKB(frames[idx + 1], 0, a);
+      }
+      onProgress(0.15 + 0.85 * Math.min(1, elapsed / total));
+      requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  });
+
+  rec.stop();
+  await stopped;
+  onProgress(1);
+  return new Blob(chunks, { type: mime });
 }
 
 async function captureAllSlidesAsFiles(label) {
