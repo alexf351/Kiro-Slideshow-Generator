@@ -419,6 +419,9 @@ export default function App() {
   // "Fill from topic" — AI populates the current template from a typed topic.
   const [topic, setTopic] = useState('');
   const [topicBusy, setTopicBusy] = useState(false);
+  // Batch generate — one draft per topic line.
+  const [batchTopics, setBatchTopics] = useState('');
+  const [batchBusy, setBatchBusy] = useState<string | null>(null);
   // Which collapsible sidebar groups are expanded. Everything outside the
   // core Format → Content → Caption spine is collapsed by default so the
   // panel reads as a simple "make a post" funnel instead of a wall of
@@ -1305,6 +1308,32 @@ export default function App() {
       ui.notify(`Generation failed: ${(e as Error).message}`, { type: 'error' });
     } finally {
       setTopicBusy(false);
+    }
+  }
+
+  // Batch-generate a draft per topic line — for spinning up a week of content
+  // in one go. Reuses fill-from-topic + the drafts store.
+  async function handleBatchGenerate() {
+    const lines = batchTopics.split('\n').map((s) => s.trim()).filter(Boolean);
+    if (!lines.length) return;
+    if (!anthropicKey) { ui.notify('Add an Anthropic API key in Settings to use this.', { type: 'error' }); return; }
+    setBatchBusy(`Generating 0 / ${lines.length}…`);
+    try {
+      const { generateFromTopic } = await import('./fillFromTopic');
+      let made = 0; let failed = 0; let next = drafts;
+      for (let i = 0; i < lines.length; i++) {
+        setBatchBusy(`Generating ${i + 1} / ${lines.length}…`);
+        try {
+          const filled = await generateFromTopic({ topic: lines[i], preset, exampleJson: PRESETS[preset].defaultJson, apiKey: anthropicKey, model: claudeModel });
+          next = saveDraft(lines[i].slice(0, 48), { jsonText: filled, caption: '', preset, slideBgs: {}, slideBgAdjust: {}, attribution, attrPresets });
+          made++;
+        } catch { failed++; }
+      }
+      setDrafts(next);
+      setBatchTopics('');
+      ui.notify(`Saved ${made} draft${made === 1 ? '' : 's'}${failed ? `, ${failed} failed` : ''}. Open them in Drafts.`, { type: failed && !made ? 'error' : 'success' });
+    } finally {
+      setBatchBusy(null);
     }
   }
 
@@ -2300,6 +2329,27 @@ export default function App() {
             <p className="text-xs text-gray-500 leading-relaxed mb-3">
               Keep multiple posts in progress. Saves the JSON, caption, format, backgrounds &amp; handle settings — load any one back instantly.
             </p>
+            {/* Batch generate: one AI-filled draft per topic line. */}
+            <div className="mb-3 p-3 rounded-xl border border-[#A78BFA]/20 bg-[#A78BFA]/[0.06]">
+              <div className="text-[11px] font-bold text-[#C4B5FD] mb-1.5">✨ Batch a week of content</div>
+              <textarea
+                value={batchTopics}
+                onChange={(e) => setBatchTopics(e.target.value)}
+                rows={4}
+                placeholder={`One topic per line — each becomes a ${PRESETS[preset].label} draft:\nAI tools for students\n5 ChatGPT prompts for writers\nmyths about learning to code`}
+                className="w-full bg-[#070b18] border border-white/[0.10] rounded-lg px-3 py-2 text-[12px] leading-relaxed text-gray-200 placeholder:text-gray-600 focus:border-[#A78BFA]/50 focus:outline-none resize-y"
+              />
+              <button
+                type="button"
+                onClick={() => void handleBatchGenerate()}
+                disabled={!!batchBusy || !batchTopics.trim()}
+                className="w-full mt-2 py-2.5 rounded-lg text-[11px] font-bold uppercase tracking-[0.12em]
+                           bg-gradient-to-r from-[#A78BFA] to-[#7C5CFC] text-white
+                           disabled:opacity-50 disabled:cursor-not-allowed hover:brightness-110 transition-all"
+              >
+                {batchBusy || `Generate ${batchTopics.split('\n').map((s) => s.trim()).filter(Boolean).length || ''} drafts`.trim()}
+              </button>
+            </div>
             <button
               type="button"
               onClick={handleSaveDraft}
