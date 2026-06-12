@@ -432,11 +432,15 @@ export default function App() {
       return next;
     });
   }
+  const [formatQuery, setFormatQuery] = useState('');
   const orderedFormatKeys = useMemo(() => {
     const fav = PRESET_KEYS.filter((k) => favFormats.includes(k));
     const rest = PRESET_KEYS.filter((k) => !favFormats.includes(k));
-    return [...fav, ...rest];
-  }, [favFormats]);
+    let keys = [...fav, ...rest];
+    const q = formatQuery.trim().toLowerCase();
+    if (q) keys = keys.filter((k) => (PRESETS[k].label + ' ' + PRESETS[k].pitch).toLowerCase().includes(q));
+    return keys;
+  }, [favFormats, formatQuery]);
   // Pre-publish quality checks, derived from the current JSON + caption.
   const prePublishChecks = useMemo(() => {
     let parsed: Record<string, unknown> | null = null;
@@ -1927,7 +1931,17 @@ export default function App() {
 
           <section className="px-5 md:px-10 py-6 md:py-7 border-b border-white/[0.05]">
             {sectionLabel('Format')}
+            <input
+              type="search"
+              value={formatQuery}
+              onChange={(e) => setFormatQuery(e.target.value)}
+              placeholder={`Filter ${PRESET_KEYS.length} formats… (e.g. "tier", "quote", "story")`}
+              className="w-full mb-2.5 bg-[#070b18] border border-white/[0.08] rounded-lg px-3 py-2 text-[12px] text-gray-200 placeholder:text-gray-600 focus:border-[#00E5FF]/40 focus:outline-none"
+            />
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+              {orderedFormatKeys.length === 0 && (
+                <div className="col-span-2 md:col-span-4 text-[11px] text-gray-500 py-2 text-center">No formats match “{formatQuery}”.</div>
+              )}
               {orderedFormatKeys.map((key) => {
                 const meta = PRESETS[key];
                 const selected = preset === key;
