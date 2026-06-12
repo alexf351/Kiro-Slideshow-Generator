@@ -16,6 +16,7 @@ export const PRESET_KEYS = [
   'app_stack',
   'output_vs_hype',
   'curated_list',
+  'tier_list',
 ] as const;
 
 export type PresetKey = (typeof PRESET_KEYS)[number];
@@ -420,6 +421,36 @@ want to get good at AI? search "Iro AI" on the App Store. 5 min a day, that's it
 
 #aiprompts #chatgpt #savethis #aitok #productivity`;
 
+const TIER_LIST_JSON = `{
+  "preset": "tier_list",
+  "hook": {
+    "headline": "I ranked every <strong>AI tool</strong>",
+    "subline": "S-tier to absolute trash"
+  },
+  "tiers": [
+    { "grade": "S", "label": "God tier", "items": ["Claude", "Cursor"] },
+    { "grade": "A", "label": "Daily driver", "items": ["ChatGPT", "Perplexity"] },
+    { "grade": "B", "label": "Situational", "items": ["Gemini", "Notion AI"] },
+    { "grade": "F", "label": "Skip it", "items": ["Yet another GPT wrapper"] }
+  ],
+  "cta": {
+    "headline": "Want to actually <strong>learn AI</strong><br/>instead of arguing about tools?",
+    "instructionAbove": "search:",
+    "searchTerm": "Iro AI",
+    "instructionBelow": "on the App Store.",
+    "slogan": "stop collecting tools.<br/><strong>start building with them.</strong>"
+  },
+  "attribution": ""
+}`;
+
+const TIER_LIST_CAPTION = `my honest AI tool tier list 🫣 fight me in the comments
+
+S-tier earns its spot. everything in F is just a ChatGPT wrapper with a logo.
+
+want to actually get good at this stuff? search "Iro AI" on the App Store.
+
+#aitools #tierlist #aitok #chatgpt #tech`;
+
 export const PRESETS: Record<PresetKey, PresetMeta> = {
   prompt_pack: {
     key: 'prompt_pack',
@@ -510,5 +541,14 @@ export const PRESETS: Record<PresetKey, PresetMeta> = {
     defaultJson: CURATED_LIST_JSON,
     defaultCaption: CURATED_LIST_CAPTION,
     accent: '#F1DF79', // warm highlighter yellow
+  },
+  tier_list: {
+    key: 'tier_list',
+    label: 'Tier List',
+    pitch: 'S/A/B/C ranking. One colored tier per slide with its items. "I ranked every X".',
+    status: 'ready',
+    defaultJson: TIER_LIST_JSON,
+    defaultCaption: TIER_LIST_CAPTION,
+    accent: '#FF6B6B', // S-tier red
   },
 };
