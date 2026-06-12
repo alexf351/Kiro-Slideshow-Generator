@@ -1593,11 +1593,17 @@ export default function App() {
   // without re-binding the listener every render.
   const renderRef = useRef(handleRender);
   renderRef.current = handleRender;
+  // Bound to the (hoisted) handleSaveDraft so Cmd/Ctrl+S quick-saves a draft.
+  const saveDraftRef = useRef<() => void>(() => {});
+  saveDraftRef.current = handleSaveDraft;
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
         e.preventDefault();
         void renderRef.current();
+      } else if ((e.metaKey || e.ctrlKey) && (e.key === 's' || e.key === 'S')) {
+        e.preventDefault();
+        void saveDraftRef.current();
       } else if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) {
         e.preventDefault();
         setPaletteOpen((o) => !o);
