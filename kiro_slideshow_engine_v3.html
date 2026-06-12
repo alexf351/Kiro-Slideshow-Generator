@@ -3799,8 +3799,16 @@ function render() {
           if (safePos) bgExtra += `background-position:${safePos};`;
         }
       }
+      // Optional per-photo darken (0..1) — a flat black overlay so text /
+      // chyrons stay readable over a busy photo. A full-slide solid overlay
+      // exports reliably under html2canvas.
+      let darkenLayer = '';
+      const dk = adj ? Math.max(0, Math.min(0.85, Number(adj.darken) || 0)) : 0;
+      if (dk > 0) {
+        darkenLayer = `<div class="bg-photo-darken" style="position:absolute;inset:0;background:rgba(0,0,0,${dk.toFixed(2)});pointer-events:none;"></div>`;
+      }
       bgLayer = `<div class="bg-photo" style="background-image: url('${safeBg}');${bgExtra}"></div>
-                 <div class="bg-photo-scrim"></div>`;
+                 <div class="bg-photo-scrim"></div>${darkenLayer}`;
     } else if (preset.fallbackBg === 'mascot') {
       const mascotKey = SLIDES.mascot || 'platinum';
       const mascotUrl = MASCOTS[mascotKey] || MASCOTS.platinum;
