@@ -6,6 +6,33 @@
 
 import { callClaude, extractToolUse, type ClaudeModelId } from './anthropic';
 
+// Pick the best-fitting format for a topic. `formats` is the list of
+// { key, label, pitch } the model can choose from. Returns a key (or '').
+export async function pickFormat(opts: {
+  topic: string;
+  formats: { key: string; label: string; pitch: string }[];
+  apiKey: string;
+  model: ClaudeModelId;
+}): Promise<string> {
+  const list = opts.formats.map((f) => `- ${f.key}: ${f.pitch}`).join('\n');
+  const system = `You pick the single best TikTok slideshow format for a topic. Choose the one whose structure fits the topic most naturally and would perform best. Return only the key via the tool.`;
+  const res = await callClaude({
+    apiKey: opts.apiKey,
+    model: opts.model,
+    maxTokens: 200,
+    system: [{ type: 'text', text: system }],
+    messages: [{ role: 'user', content: `TOPIC: ${opts.topic}\n\nFORMATS:\n${list}\n\nPick the best key.` }],
+    tools: [{
+      name: 'format',
+      description: 'Return the chosen format key.',
+      input_schema: { type: 'object', properties: { key: { type: 'string', enum: opts.formats.map((f) => f.key) } }, required: ['key'] },
+    }],
+    toolChoice: { type: 'tool', name: 'format' },
+  });
+  const out = extractToolUse<{ key: string }>(res, 'format');
+  return (out && out.key) ? out.key : '';
+}
+
 export async function generateFromTopic(opts: {
   topic: string;
   preset: string;
