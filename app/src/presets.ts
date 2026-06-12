@@ -21,6 +21,7 @@ export const PRESET_KEYS = [
   'hot_take',
   'storytime',
   'stat_drop',
+  'this_or_that',
 ] as const;
 
 export type PresetKey = (typeof PRESET_KEYS)[number];
@@ -592,6 +593,35 @@ want to be on the right side? search "Iro AI" on the App Store.
 
 #ai #stats #aitok #futureofwork #productivity`;
 
+const THIS_OR_THAT_JSON = `{
+  "preset": "this_or_that",
+  "hook": {
+    "headline": "pick one. <strong>be honest.</strong>",
+    "subline": "comment your answers 👇"
+  },
+  "items": [
+    { "prompt": "For your first AI project…", "a": "Automate the boring task", "b": "Build a fun side app" },
+    { "prompt": "When AI gives a bad answer…", "a": "Reword the prompt", "b": "Give up and Google it" },
+    { "prompt": "The better learning style?", "a": "5 min a day, forever", "b": "Cram a weekend course" }
+  ],
+  "cta": {
+    "headline": "However you answered —<br/><strong>start actually doing it.</strong>",
+    "instructionAbove": "search:",
+    "searchTerm": "Iro AI",
+    "instructionBelow": "on the App Store.",
+    "slogan": "5 minutes a day. that's it."
+  },
+  "attribution": ""
+}`;
+
+const THIS_OR_THAT_CAPTION = `this or that: AI edition 👀 comment your picks, no skipping
+
+i can guess your whole vibe from #3
+
+want to stop overthinking and start building? search "Iro AI" on the App Store.
+
+#thisorthat #ai #aitok #wouldyourather #tech`;
+
 export const PRESETS: Record<PresetKey, PresetMeta> = {
   prompt_pack: {
     key: 'prompt_pack',
@@ -727,5 +757,14 @@ export const PRESETS: Record<PresetKey, PresetMeta> = {
     defaultJson: STAT_DROP_JSON,
     defaultCaption: STAT_DROP_CAPTION,
     accent: '#00E5FF', // brand cyan
+  },
+  this_or_that: {
+    key: 'this_or_that',
+    label: 'This or That',
+    pitch: 'Binary "comment your pick" polls — two option panels split by a VS badge. Engagement bait.',
+    status: 'ready',
+    defaultJson: THIS_OR_THAT_JSON,
+    defaultCaption: THIS_OR_THAT_CAPTION,
+    accent: '#FF2D9B', // hot pink (option A)
   },
 };
