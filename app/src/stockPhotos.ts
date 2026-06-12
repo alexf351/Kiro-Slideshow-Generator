@@ -42,6 +42,31 @@ export type StockPhoto = {
   downloadTrackUrl?: string;
 };
 
+// Fetch with a couple of retries on transient throttling/overload (429 / 5xx)
+// and network blips — free stock tiers rate-limit easily.
+async function fetchRetry(url: string, init?: RequestInit): Promise<Response> {
+  const maxAttempts = 3;
+  let last: Response | null = null;
+  for (let a = 0; a < maxAttempts; a++) {
+    let res: Response;
+    try {
+      res = await fetch(url, init);
+    } catch (e) {
+      if (a < maxAttempts - 1) { await new Promise((r) => setTimeout(r, 800 * (a + 1))); continue; }
+      throw e;
+    }
+    if (res.ok) return res;
+    if ((res.status === 429 || res.status >= 500) && a < maxAttempts - 1) {
+      last = res;
+      const ra = Number(res.headers.get('retry-after'));
+      await new Promise((r) => setTimeout(r, isFinite(ra) && ra > 0 ? Math.min(ra * 1000, 10000) : 800 * 2 ** a + Math.random() * 200));
+      continue;
+    }
+    return res;
+  }
+  return last as Response;
+}
+
 export class StockApiError extends Error {
   constructor(message: string, public readonly status?: number) {
     super(message);
@@ -74,7 +99,7 @@ export async function searchStock(
   if (provider === 'openverse') {
     // Keyless. aspect_ratio=tall biases toward portrait/9:16-friendly shots.
     const url = `${OPENVERSE_SEARCH}?q=${encodeURIComponent(trimmed)}&page_size=${perPage}&aspect_ratio=tall&mature=false`;
-    const res = await fetch(url, { headers: { Accept: 'application/json' } });
+    const res = await fetchRetry(url, { headers: { Accept: 'application/json' } });
     if (!res.ok) {
       throw new StockApiError(`Openverse search failed (${res.status}). Try again in a moment.`, res.status);
     }
@@ -102,7 +127,7 @@ export async function searchStock(
   if (provider === 'pixabay') {
     const url = `${PIXABAY_SEARCH}?key=${encodeURIComponent(apiKey)}&q=${encodeURIComponent(trimmed)}` +
       `&image_type=photo&orientation=vertical&per_page=${perPage}&safesearch=true`;
-    const res = await fetch(url);
+    const res = await fetchRetry(url);
     if (!res.ok) {
       throw new StockApiError(`Pixabay search failed (${res.status}). Check your API key.`, res.status);
     }
@@ -129,7 +154,7 @@ export async function searchStock(
 
   if (provider === 'pexels') {
     const url = `${PEXELS_SEARCH}?query=${encodeURIComponent(trimmed)}&per_page=${perPage}&orientation=portrait`;
-    const res = await fetch(url, { headers: { Authorization: apiKey } });
+    const res = await fetchRetry(url, { headers: { Authorization: apiKey } });
     if (!res.ok) {
       throw new StockApiError(`Pexels search failed (${res.status}). Check your API key.`, res.status);
     }
@@ -159,7 +184,7 @@ export async function searchStock(
 
   // Unsplash
   const url = `${UNSPLASH_SEARCH}?query=${encodeURIComponent(trimmed)}&per_page=${perPage}&orientation=portrait`;
-  const res = await fetch(url, { headers: { Authorization: `Client-ID ${apiKey}` } });
+  const res = await fetchRetry(url, { headers: { Authorization: `Client-ID ${apiKey}` } });
   if (!res.ok) {
     throw new StockApiError(`Unsplash search failed (${res.status}). Check your API key.`, res.status);
   }
@@ -194,7 +219,7 @@ export async function searchStock(
 export async function fetchStockBlob(photo: StockPhoto): Promise<Blob> {
   const direct = !PROXY_BLOB[photo.provider];
   const target = direct ? photo.fullUrl : `/api/proxy-image?url=${encodeURIComponent(photo.fullUrl)}`;
-  const res = await fetch(target);
+  const res = await fetchRetry(target);
   if (!res.ok) throw new StockApiError(`Image download failed (${res.status})`, res.status);
   return await res.blob();
 }
