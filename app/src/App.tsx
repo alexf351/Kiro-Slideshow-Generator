@@ -1664,8 +1664,9 @@ export default function App() {
   // Brainstorm topic ideas for a niche and drop them into the batch box.
   async function handleGenerateIdeas() {
     if (!anthropicKey) { ui.notify('Add an Anthropic API key in Settings to use this.', { type: 'error' }); return; }
-    const niche = await ui.prompt({ title: 'Post ideas', message: 'What niche / theme should the ideas cover?', placeholder: 'e.g. AI for small business owners', confirmLabel: 'Brainstorm' });
+    const niche = await ui.prompt({ title: 'Post ideas', message: 'What niche / theme should the ideas cover?', placeholder: 'e.g. AI for small business owners', confirmLabel: 'Brainstorm', defaultValue: loadPref('ideaNiche') });
     if (!niche || !niche.trim()) return;
+    savePref('ideaNiche', niche.trim());
     setIdeasBusy(true);
     try {
       const { generateIdeas } = await import('./fillFromTopic');
