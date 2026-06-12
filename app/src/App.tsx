@@ -21,6 +21,7 @@ import { suggestHashtags, parseHashtags } from './insights';
 import { findSimilarHooks } from './similarity';
 import { buildIcs, scheduledCount } from './ics';
 import { postsToCsv } from './csv';
+import { scoreHook, HOOK_TIER_COLOR, HOOK_TIER_TEXT } from './hookScore';
 import { listSets, saveSet, deleteSet, formatTags, type HashtagSet } from './hashtagSets';
 import { encodePost, decodePost } from './postShare';
 import { useUI } from './ui';
@@ -2901,6 +2902,32 @@ export default function App() {
                   <span className={'tabular-nums shrink-0 ' + (over ? 'text-red-400 font-bold' : len > 2000 ? 'text-amber-400' : 'text-gray-600')}>
                     {len}/2200
                   </span>
+                </div>
+              );
+            })()}
+            {/* Live hook-strength meter — scores the first line against the
+               patterns that stop the scroll and surfaces the single most
+               impactful fix. Deterministic, instant, no API. */}
+            {caption.trim() && (() => {
+              const hs = scoreHook(caption.split('\n')[0] || '');
+              const color = HOOK_TIER_COLOR[hs.tier];
+              return (
+                <div className="mt-2 flex items-center gap-2.5">
+                  <span
+                    className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-[0.1em]"
+                    style={{ color, backgroundColor: color + '1f', border: `1px solid ${color}40` }}
+                    title={`Hook strength ${hs.score}/100`}
+                  >
+                    {HOOK_TIER_TEXT[hs.tier]} · {hs.score}
+                  </span>
+                  <div className="h-1 flex-1 rounded-full bg-white/[0.06] overflow-hidden">
+                    <div className="h-full rounded-full transition-all duration-300" style={{ width: `${hs.score}%`, backgroundColor: color }} />
+                  </div>
+                  {hs.tips[0] && (
+                    <span className="shrink-0 max-w-[55%] truncate text-[10px] text-gray-500" title={hs.tips.join('  •  ')}>
+                      Tip: {hs.tips[0]}
+                    </span>
+                  )}
                 </div>
               );
             })()}
