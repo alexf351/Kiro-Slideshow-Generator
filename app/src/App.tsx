@@ -416,6 +416,9 @@ export default function App() {
   const [pdfBusy, setPdfBusy] = useState<string | null>(null);
   // Named drafts (multiple in-progress projects).
   const [drafts, setDrafts] = useState<Draft[]>(() => listDrafts());
+  // "Fill from topic" — AI populates the current template from a typed topic.
+  const [topic, setTopic] = useState('');
+  const [topicBusy, setTopicBusy] = useState(false);
   // Which collapsible sidebar groups are expanded. Everything outside the
   // core Format → Content → Caption spine is collapsed by default so the
   // panel reads as a simple "make a post" funnel instead of a wall of
@@ -1283,6 +1286,28 @@ export default function App() {
     }
   }
 
+  // Fill the current template's JSON from a one-line topic, via Claude.
+  async function handleFillFromTopic() {
+    const t = topic.trim();
+    if (!t) return;
+    if (!anthropicKey) { ui.notify('Add an Anthropic API key in Settings to use this.', { type: 'error' }); return; }
+    if (!isExampleJson(jsonText) && !(await ui.confirm({ message: 'Replace the current content with an AI-filled version?', confirmLabel: 'Generate' }))) return;
+    setTopicBusy(true);
+    try {
+      const { generateFromTopic } = await import('./fillFromTopic');
+      const filled = await generateFromTopic({
+        topic: t, preset, exampleJson: PRESETS[preset].defaultJson, apiKey: anthropicKey, model: claudeModel,
+      });
+      setJsonText(filled);
+      setTimeout(() => void handleRender({ switchView: false }), 80);
+      ui.notify('Content generated.', { type: 'success' });
+    } catch (e) {
+      ui.notify(`Generation failed: ${(e as Error).message}`, { type: 'error' });
+    } finally {
+      setTopicBusy(false);
+    }
+  }
+
   // ---- Drafts (named in-progress projects) ----
   async function handleSaveDraft() {
     const name = await ui.prompt({ title: 'Save draft', message: 'Name this project (re-using a name overwrites it).', placeholder: 'e.g. Monday prompt pack', confirmLabel: 'Save' });
@@ -1849,6 +1874,30 @@ export default function App() {
                 ))}
               </div>,
             )}
+
+            {/* AI "fill from topic": populate the current format's content
+               from a one-line idea. */}
+            <div className="flex gap-2 mb-4">
+              <input
+                type="text"
+                value={topic}
+                onChange={(e) => setTopic(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') void handleFillFromTopic(); }}
+                placeholder={`✨ Fill this ${PRESETS[preset].label} from a topic…`}
+                className="flex-1 min-w-0 bg-[#070b18] border border-white/[0.10] rounded-lg px-3 py-2.5 text-[13px] text-gray-200 placeholder:text-gray-600 focus:border-[#A78BFA]/50 focus:outline-none"
+              />
+              <button
+                type="button"
+                onClick={() => void handleFillFromTopic()}
+                disabled={topicBusy || !topic.trim()}
+                className="shrink-0 px-4 py-2.5 rounded-lg text-[12px] font-bold uppercase tracking-[0.1em]
+                           bg-gradient-to-r from-[#A78BFA] to-[#7C5CFC] text-white
+                           disabled:opacity-50 disabled:cursor-not-allowed hover:brightness-110 transition-all"
+              >
+                {topicBusy ? '…' : 'Generate'}
+              </button>
+            </div>
+
             {editMode === 'quick' ? (
               preset === 'output_vs_hype' ? (
                 <HypeEditor
