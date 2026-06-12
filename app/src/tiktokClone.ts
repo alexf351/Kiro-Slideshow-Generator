@@ -304,6 +304,9 @@ const CLONING_INSTRUCTIONS = [
   '- news — "breaking news" broadcast lower-third over a photo: a red label box, a headline ' +
     'bar, and a ticker (ONLY for news-parody / "breaking" / satirical-announcement content). ' +
     'stories:[{label, headline, ticker}].',
+  '- search — "Google search bar" with an autocomplete dropdown, one query per slide (ONLY for ' +
+    '"what your search history says" / "things everyone googles" relatable-reveal content). ' +
+    'searches:[{query, suggestions:[...]}].',
   '- output_vs_hype — one slide per tool/brand, each with a logo and two bars (Output vs Hype) ' +
     'scaled 0–100 (ONLY when the source is a per-item bar-chart comparison, e.g. "X vs Y" rankings).',
   '- curated_list — aesthetic photo + cream heading + a recommendation card per slide ("things I ' +

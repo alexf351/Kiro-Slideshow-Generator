@@ -17,6 +17,7 @@ export const PRESET_KEYS = [
   'notes',
   'reddit',
   'news',
+  'search',
   'handwritten_pack',
   'app_stack',
   'output_vs_hype',
@@ -52,7 +53,7 @@ export const FORMAT_CATEGORY: Record<PresetKey, FormatCategory> = {
   pain_story: 'Story', aspirational: 'Story', notes: 'Story', storytime: 'Story',
   receipts: 'Social', tweet: 'Social', reddit: 'Social',
   output_vs_hype: 'Facts', myth_fact: 'Facts', stat_drop: 'Facts', definition: 'Facts', qa: 'Facts', timeline: 'Facts',
-  meme_pov: 'Takes', hot_take: 'Takes', this_or_that: 'Takes', quote_card: 'Takes', before_after: 'Takes', news: 'Takes',
+  meme_pov: 'Takes', hot_take: 'Takes', this_or_that: 'Takes', quote_card: 'Takes', before_after: 'Takes', news: 'Takes', search: 'Takes',
 };
 
 export type PresetMeta = {
@@ -210,6 +211,26 @@ const TWEET_JSON = `{
     "searchTerm": "Iro AI",
     "instructionBelow": "on the App Store.",
     "slogan": "stop scrolling. start shipping."
+  },
+  "attribution": ""
+}`;
+
+const SEARCH_JSON = `{
+  "preset": "search",
+  "hook": {
+    "headline": "what your <strong>search history</strong> says about you",
+    "subline": "(swipe — it's all of us)"
+  },
+  "searches": [
+    { "query": "how to learn ai", "suggestions": ["how to learn ai for free", "how to learn ai with no coding", "how to learn ai in 2026", "how to learn ai fast"] },
+    { "query": "is it too late to", "suggestions": ["is it too late to learn ai", "is it too late to switch careers", "is it too late to start over at 30"] },
+    { "query": "best app to actually", "suggestions": ["best app to actually learn ai", "best app to actually stay consistent", "best app to actually get good"] }
+  ],
+  "cta": {
+    "headline": "stop googling. start building.",
+    "instructionAbove": "search",
+    "searchTerm": "Iro AI",
+    "instructionBelow": "on the App Store."
   },
   "attribution": ""
 }`;
@@ -436,6 +457,13 @@ const CHECKLIST_CAPTION = `save this if any of these is you ⤴️
 iro is for you. search "Iro AI" on the App Store.
 
 #aitok #aichecklist #fyp #learningai #productivity`;
+
+const SEARCH_CAPTION = `the search history doesn't lie 🔍😭
+
+which one was you? be honest in the comments ⤵️
+search "Iro AI" on the App Store and stop googling.
+
+#aitok #relatable #fyp #learningai #pov`;
 
 const NEWS_CAPTION = `we interrupt your scroll for this important update 📰
 
@@ -1131,6 +1159,15 @@ export const PRESETS: Record<PresetKey, PresetMeta> = {
     defaultJson: NEWS_JSON,
     defaultCaption: NEWS_CAPTION,
     accent: '#E1132C', // news red
+  },
+  search: {
+    key: 'search',
+    label: 'Search Bar',
+    pitch: 'Google search bar + autocomplete — the “what your search history says” reveal.',
+    status: 'ready',
+    defaultJson: SEARCH_JSON,
+    defaultCaption: SEARCH_CAPTION,
+    accent: '#4285F4', // Google blue
   },
   handwritten_pack: {
     key: 'handwritten_pack',

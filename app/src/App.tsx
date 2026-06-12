@@ -224,7 +224,7 @@ function stripJsonWrappers(t: string): string {
     .trim();
 }
 
-const CONTENT_KEYS = ['hook', 'prompts', 'beats', 'panels', 'features', 'items', 'apps', 'tools', 'picks', 'tiers', 'reviews', 'tweets', 'notes', 'posts', 'stories'];
+const CONTENT_KEYS = ['hook', 'prompts', 'beats', 'panels', 'features', 'items', 'apps', 'tools', 'picks', 'tiers', 'reviews', 'tweets', 'notes', 'posts', 'stories', 'searches'];
 
 // Formats whose copy sits directly over the photo (no solid card/box behind
 // it). When auto-assigning a stock background to these, we drop in a default
@@ -338,6 +338,7 @@ function extractSlideMeta(parsed: unknown): SlideMeta[] {
     { field: 'notes', prefix: 'note', text: (x) => String(x.title || x.body || '') },
     { field: 'posts', prefix: 'post', text: (x) => String(x.title || x.subreddit || '') },
     { field: 'stories', prefix: 'story', text: (x) => String(x.headline || x.label || '') },
+    { field: 'searches', prefix: 'search', text: (x) => String(x.query || '') },
   ];
   for (const { field, prefix, text } of social) {
     const arr = p2[field];
@@ -1011,6 +1012,7 @@ export default function App() {
       { field: 'notes', prefix: 'note' },
       { field: 'posts', prefix: 'post' },
       { field: 'stories', prefix: 'story' },
+      { field: 'searches', prefix: 'search' },
     ];
     for (const { field, prefix } of contentArrays) {
       const arr = slides[field];
