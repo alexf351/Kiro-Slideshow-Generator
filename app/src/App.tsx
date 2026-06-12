@@ -479,6 +479,7 @@ export default function App() {
   const [hashtagSets, setHashtagSets] = useState<HashtagSet[]>(() => listSets());
   // Batch generate — one draft per topic line.
   const [batchTopics, setBatchTopics] = useState('');
+  const [batchSmart, setBatchSmart] = useState(false);
   const [batchBusy, setBatchBusy] = useState<string | null>(null);
   const [ideasBusy, setIdeasBusy] = useState(false);
   // Which collapsible sidebar groups are expanded. Everything outside the
@@ -1611,13 +1612,26 @@ export default function App() {
     if (!anthropicKey) { ui.notify('Add an Anthropic API key in Settings to use this.', { type: 'error' }); return; }
     setBatchBusy(`Generating 0 / ${lines.length}…`);
     try {
-      const { generateFromTopic } = await import('./fillFromTopic');
+      const { generateFromTopic, pickFormat } = await import('./fillFromTopic');
+      const caps = batchSmart ? await import('./captionAI') : null;
+      const formats = PRESET_KEYS.map((k) => ({ key: k, label: PRESETS[k].label, pitch: PRESETS[k].pitch }));
       let made = 0; let failed = 0; let next = drafts;
       for (let i = 0; i < lines.length; i++) {
         setBatchBusy(`Generating ${i + 1} / ${lines.length}…`);
         try {
-          const filled = await generateFromTopic({ topic: lines[i], preset, exampleJson: PRESETS[preset].defaultJson, apiKey: anthropicKey, model: claudeModel });
-          next = saveDraft(lines[i].slice(0, 48), { jsonText: filled, caption: '', preset, slideBgs: {}, slideBgAdjust: {}, attribution, attrPresets });
+          // Smart mode: auto-pick a fitting format + write a caption per topic
+          // (a varied, complete week). Otherwise the current format, no caption.
+          let target = preset;
+          if (batchSmart) {
+            const picked = await pickFormat({ topic: lines[i], formats, apiKey: anthropicKey, model: claudeModel });
+            if ((PRESET_KEYS as readonly string[]).includes(picked)) target = picked as PresetKey;
+          }
+          const filled = await generateFromTopic({ topic: lines[i], preset: target, exampleJson: PRESETS[target].defaultJson, apiKey: anthropicKey, model: claudeModel });
+          let cap = '';
+          if (batchSmart && caps) {
+            try { const r = await caps.generateCaption({ json: filled, preset: target, apiKey: anthropicKey, model: claudeModel }); cap = caps.composeCaption(r.caption, r.hashtags); } catch {}
+          }
+          next = saveDraft(lines[i].slice(0, 48), { jsonText: filled, caption: cap, preset: target, slideBgs: {}, slideBgAdjust: {}, attribution, attrPresets });
           made++;
         } catch { failed++; }
       }
@@ -2999,6 +3013,10 @@ export default function App() {
                 placeholder={`One topic per line — each becomes a ${PRESETS[preset].label} draft:\nAI tools for students\n5 ChatGPT prompts for writers\nmyths about learning to code`}
                 className="w-full bg-[#070b18] border border-white/[0.10] rounded-lg px-3 py-2 text-[12px] leading-relaxed text-gray-200 placeholder:text-gray-600 focus:border-[#A78BFA]/50 focus:outline-none resize-y"
               />
+              <label className="flex items-center gap-2 mt-2 cursor-pointer">
+                <input type="checkbox" checked={batchSmart} onChange={(e) => setBatchSmart(e.target.checked)} className="w-4 h-4 accent-[#A78BFA] cursor-pointer" />
+                <span className="text-[11px] text-gray-300 leading-snug">Auto-pick a format &amp; write a caption for each <span className="text-gray-500">(varied posts; slower)</span></span>
+              </label>
               <button
                 type="button"
                 onClick={() => void handleBatchGenerate()}
