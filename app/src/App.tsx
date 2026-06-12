@@ -28,6 +28,7 @@ import { computeReadiness, READINESS_COLOR, READINESS_TEXT } from './postReadine
 import { makeZip, dataUrlToBytes } from './zip';
 import { analyzeDeck } from './deckBalance';
 import { deckLengthVerdict } from './deckPacing';
+import { sampleFormulas } from './hookFormulas';
 import { listSets, saveSet, deleteSet, formatTags, type HashtagSet } from './hashtagSets';
 import { encodePost, decodePost } from './postShare';
 import { useUI } from './ui';
@@ -1257,6 +1258,14 @@ export default function App() {
   // hook meter; tapping one swaps it into the caption's first line.
   const [hookVarsBusy, setHookVarsBusy] = useState(false);
   const [hookVars, setHookVars] = useState<string[] | null>(null);
+  // Free, offline hook-formula suggestions (no API). Null = hidden.
+  const [hookIdeas, setHookIdeas] = useState<string[] | null>(null);
+  async function applyHookFormula(formula: string) {
+    const { replaceFirstLine } = await import('./captionAI');
+    setCaption((c) => replaceFirstLine(c, formula));
+    setHookIdeas(null);
+    ui.notify('Hook template added — fill in the {blanks}.', { type: 'success' });
+  }
   async function handleHookVariations() {
     if (!anthropicKey) { ui.notify('Add an Anthropic API key in Settings to use this.', { type: 'error' }); return; }
     setHookVarsBusy(true);
@@ -3166,6 +3175,14 @@ export default function App() {
                   )}
                   <button
                     type="button"
+                    onClick={() => setHookIdeas(sampleFormulas(6))}
+                    title="Free proven hook templates (no API needed)"
+                    className="shrink-0 text-[10px] font-bold uppercase tracking-[0.1em] text-gray-400 hover:text-[#00E5FF]"
+                  >
+                    💡 Ideas
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => void handleHookVariations()}
                     disabled={hookVarsBusy}
                     title="AI: generate alternative hooks to A/B test"
@@ -3176,6 +3193,28 @@ export default function App() {
                 </div>
               );
             })()}
+            {/* Free hook-formula templates (no API). Tap to drop into line 1. */}
+            {hookIdeas && hookIdeas.length > 0 && (
+              <div className="mt-2 flex flex-col gap-1.5 p-2.5 rounded-lg border border-white/[0.10] bg-white/[0.02]">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-gray-400">Proven hook templates · fill the {'{blanks}'}</span>
+                  <span className="flex items-center gap-2">
+                    <button type="button" onClick={() => setHookIdeas(sampleFormulas(6))} className="text-[10px] text-gray-500 hover:text-[#00E5FF]" title="Shuffle">⟳ More</button>
+                    <button type="button" onClick={() => setHookIdeas(null)} className="text-[10px] text-gray-500 hover:text-gray-300" aria-label="Dismiss hook ideas">✕</button>
+                  </span>
+                </div>
+                {hookIdeas.map((f, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => void applyHookFormula(f)}
+                    className="text-left text-[12px] text-gray-200 rounded-md px-2 py-1.5 bg-white/[0.03] hover:bg-white/[0.07] border border-white/[0.06] leading-snug"
+                  >
+                    {f}
+                  </button>
+                ))}
+              </div>
+            )}
             {/* AI hook variations — tap one to swap it into the first line. */}
             {hookVars && hookVars.length > 0 && (
               <div className="mt-2 flex flex-col gap-1.5 p-2.5 rounded-lg border border-[#A78BFA]/25 bg-[#A78BFA]/[0.06]">
