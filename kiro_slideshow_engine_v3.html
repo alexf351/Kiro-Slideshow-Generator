@@ -56,6 +56,19 @@
   .watermark.wm-bl { right: auto; left: 56px; }
   .watermark.wm-tr { bottom: auto; top: 56px; }
   .watermark.wm-tl { bottom: auto; top: 56px; right: auto; left: 56px; }
+  /* Opt-in "swipe →" completion cue. Sits ~14% from the bottom — inside the
+     TikTok safe zone, in the slide's bottom padding band on most presets. */
+  .swipe-hint {
+    position: absolute; z-index: 6; left: 50%; bottom: 14%;
+    transform: translateX(-50%);
+    display: flex; align-items: center; gap: 14px;
+    padding: 18px 38px; border-radius: 999px;
+    background: rgba(0,0,0,0.42); border: 2px solid rgba(255,255,255,0.6);
+    color: #fff; font-family: 'Inter', sans-serif; font-size: 40px; font-weight: 800;
+    letter-spacing: 0.08em; text-transform: lowercase; pointer-events: none;
+    box-shadow: 0 6px 24px rgba(0,0,0,0.4);
+  }
+  .swipe-hint svg { width: 44px; height: 44px; }
 
   /* ============================================================
      PRESET: pain_story
@@ -2895,11 +2908,17 @@ function render() {
     const wmHtml = currentWatermark
       ? `<img class="watermark wm-${currentWatermark.pos}" src="${String(currentWatermark.url).replace(/"/g, '&quot;')}" alt="" crossorigin="anonymous" />`
       : '';
+    // Opt-in "swipe →" cue on every slide except the last — a known
+    // completion-rate booster on TikTok carousels. Part of the exported PNG.
+    const swipeHtml = (SLIDES.swipeHint && !isCTA)
+      ? '<div class="swipe-hint"><span>swipe</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg></div>'
+      : '';
     slide.innerHTML = `
       ${bgLayer}
       ${counterHtml}
       ${wmHtml}
       <div class="frame">${slideHTML}</div>
+      ${swipeHtml}
     `;
     stage.appendChild(slide);
   });
