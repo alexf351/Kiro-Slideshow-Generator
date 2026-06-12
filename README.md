@@ -1,5 +1,7 @@
 # Iro Slideshow Generator
 
+[![CI](https://github.com/alexf351/Kiro-Slideshow-Generator/actions/workflows/ci.yml/badge.svg)](https://github.com/alexf351/Kiro-Slideshow-Generator/actions/workflows/ci.yml)
+
 A browser-based studio for making TikTok / Reels / Shorts **photo-slideshow** posts
 for Iro AI — pick a format, fill in the content (by hand or with AI), and export
 the slides, a video, or push them straight to TikTok.
@@ -21,7 +23,7 @@ inside an iframe via `postMessage`.
 4. **Export** — download the slides, render an MP4, make a PDF (IG/LinkedIn
    carousel), send to your phone via QR, or push to your **TikTok inbox**.
 
-## Formats (20)
+## Formats (30)
 
 | Format | What it is |
 | --- | --- |
@@ -45,6 +47,16 @@ inside an iframe via `postMessage`.
 | Before / After | Muted BEFORE card → arrow → glowing AFTER card. |
 | Countdown | Ranked listicle counting down to a gold #1. |
 | Definition | Dictionary-style term cards on cream ("AI word of the day"). |
+| Q&A | Sticker-style question + answer per slide ("you asked, I answered"). |
+| Flags | Green-flag / red-flag cards per slide. |
+| Steps | Numbered how-to steps with a progress indicator. |
+| Timeline | Dated milestones down a vertical line ("how it started → now"). |
+| Receipts | Social-proof testimonials — one gold-star review per slide. |
+| Tweet | "Screenshot of a tweet" cards — avatar, verified check, engagement row. |
+| Notes App | iOS Notes-app screenshot look — one note per slide (announcements/lists). |
+| Reddit | "Screenshot of a Reddit post" — subreddit, votes, comments (AITA/stories). |
+| Breaking News | Broadcast "BREAKING" lower-third over a photo (news parody). |
+| Search Bar | Google search bar + autocomplete ("what your search history says"). |
 
 ## Features
 
