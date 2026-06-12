@@ -804,6 +804,71 @@
   }
 
   /* ============================================================
+     PRESET: notes
+     iOS-Notes-screenshot aesthetic (dark mode). One note per slide,
+     yellow chrome, solid fills + plain glyphs for clean capture.
+     ============================================================ */
+  .preset-notes .frame {
+    padding: 120px 80px 160px 80px;
+    display: flex; flex-direction: column; justify-content: center; align-items: center;
+  }
+  .preset-notes .bg-photo-scrim { display: none; }
+  .preset-notes .bg-solid {
+    background: linear-gradient(180deg, #0c0c0d 0%, #060607 100%);
+  }
+  .preset-notes .nt-phone {
+    width: 920px;
+    background: #1c1c1e;
+    border-radius: 56px;
+    border: 2px solid rgba(255,255,255,0.08);
+    overflow: hidden;
+    box-shadow: 0 40px 100px rgba(0,0,0,0.6);
+  }
+  .preset-notes .nt-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 40px 56px 28px 56px;
+    border-bottom: 2px solid rgba(255,255,255,0.06);
+  }
+  .preset-notes .nt-back {
+    font-family: 'Inter', sans-serif; font-size: 48px; font-weight: 500; color: #FFD60A;
+  }
+  .preset-notes .nt-done {
+    font-family: 'Inter', sans-serif; font-size: 48px; font-weight: 700; color: #FFD60A;
+  }
+  .preset-notes .nt-page { padding: 60px 64px 80px 64px; text-align: left; }
+  .preset-notes .nt-date {
+    font-family: 'Inter', sans-serif; font-size: 38px; font-weight: 500;
+    color: rgba(255,255,255,0.4); text-align: center; margin-bottom: 44px;
+  }
+  .preset-notes .nt-title {
+    font-family: 'Inter', sans-serif; font-size: 88px; font-weight: 800;
+    line-height: 1.1; letter-spacing: -0.02em; color: #fff; margin-bottom: 44px;
+  }
+  .preset-notes .nt-title strong { color: #FFD60A; }
+  .preset-notes .nt-body {
+    font-family: 'Inter', sans-serif; font-size: 64px; font-weight: 400;
+    line-height: 1.4; color: rgba(255,255,255,0.85);
+  }
+  .preset-notes .nt-body strong { font-weight: 700; color: #fff; }
+  .preset-notes .nt-cta-search-wrap { margin-top: 12px; }
+  .preset-notes .nt-cta-search-row { display: flex; align-items: baseline; gap: 20px; }
+  .preset-notes .nt-cta-instruction {
+    font-family: 'Inter', sans-serif; font-size: 56px; font-weight: 500; color: rgba(255,255,255,0.85);
+  }
+  .preset-notes .nt-cta-search {
+    font-family: 'Inter', sans-serif; font-size: 88px; font-weight: 900;
+    letter-spacing: -0.02em; color: #FFD60A;
+  }
+  .preset-notes .nt-cta-slogan { margin-top: 36px; font-style: italic; color: rgba(255,255,255,0.7); }
+  .preset-notes .nt-attribution {
+    position: absolute;
+    bottom: 70px; left: 0; right: 0; text-align: center;
+    font-family: 'Inter', sans-serif;
+    font-size: 32px; font-weight: 700; letter-spacing: 0.20em;
+    color: rgba(255,255,255,0.45);
+  }
+
+  /* ============================================================
      PRESET: tier_list
      "I ranked every X" — one tier per slide, big colored grade
      badge + the items in that tier. Classic S/A/B/C/D/F palette.
@@ -3106,6 +3171,30 @@ const PRESETS = {
       return out;
     },
   },
+  notes: {
+    label: 'Notes App',
+    slideClass: 'preset-notes',
+    showCounter: false,
+    fallbackBg: 'photo',
+    buildSlides(S) {
+      const out = [];
+      out.push({
+        html: buildNotesHook(S.hook),
+        bg: (S.hook && S.hook.bg) || S.background,
+      });
+      (S.notes || S.items || []).forEach((n) => {
+        out.push({
+          html: buildNotesItem(n),
+          bg: (n && n.bg) || S.background,
+        });
+      });
+      out.push({
+        html: buildNotesCTA(S.cta, S.attribution),
+        bg: (S.cta && S.cta.bg) || S.background,
+      });
+      return out;
+    },
+  },
   tier_list: {
     label: 'Tier List',
     slideClass: 'preset-tier-list',
@@ -4016,6 +4105,54 @@ function buildTweetCTA(c, attribution) {
   const slogan = c.slogan ? `<div class="tw-cta-slogan">${c.slogan}</div>` : '';
   const attr = attribution ? `<div class="tw-attribution">${attribution}</div>` : '';
   return `${headline}${searchRow}${below}${slogan}${attr}`;
+}
+
+// ============================================================
+// PRESET: notes builders
+// iOS-Notes-screenshot aesthetic (dark mode) — one note per slide: a
+// yellow "‹ Notes" bar, a small date, a bold title, and the body.
+// notes:[{ title, body, date }]. Solid fills + plain glyphs for clean
+// html2canvas capture.
+// ============================================================
+function buildNotesChrome(inner) {
+  // Shared phone-note frame: the top "‹ Notes" bar + a card body. `inner`
+  // is the note's own title/date/body markup.
+  return `<div class="nt-phone">
+    <div class="nt-bar"><span class="nt-back">‹ Notes</span><span class="nt-done">Done</span></div>
+    <div class="nt-page">${inner}</div>
+  </div>`;
+}
+
+function buildNotesHook(h) {
+  if (!h) return '';
+  const headline = h.headline ? `<div class="nt-title">${h.headline}</div>` : '';
+  const date = h.date ? `<div class="nt-date">${h.date}</div>` : '';
+  const body = h.subline ? `<div class="nt-body">${h.subline}</div>` : '';
+  return buildNotesChrome(`${date}${headline}${body}`);
+}
+
+function buildNotesItem(n) {
+  if (!n) return '';
+  const date = n.date ? `<div class="nt-date">${n.date}</div>` : '';
+  const title = n.title ? `<div class="nt-title">${n.title}</div>` : '';
+  const body = n.body ? `<div class="nt-body">${n.body}</div>` : '';
+  return buildNotesChrome(`${date}${title}${body}`);
+}
+
+function buildNotesCTA(c, attribution) {
+  if (!c) return '';
+  const title = c.headline ? `<div class="nt-title">${c.headline}</div>` : '';
+  let searchRow = '';
+  if (c.instructionAbove || c.searchTerm) {
+    const above = c.instructionAbove ? `<span class="nt-cta-instruction">${c.instructionAbove}</span>` : '';
+    const term = c.searchTerm ? `<span class="nt-cta-search">${c.searchTerm}</span>` : '';
+    searchRow = `<div class="nt-cta-search-row">${above}${term}</div>`;
+  }
+  const below = c.instructionBelow ? `<span class="nt-cta-instruction">${c.instructionBelow}</span>` : '';
+  const slogan = c.slogan ? `<div class="nt-body nt-cta-slogan">${c.slogan}</div>` : '';
+  const inner = `${title}<div class="nt-cta-search-wrap">${searchRow}${below}</div>${slogan}`;
+  const attr = attribution ? `<div class="nt-attribution">${attribution}</div>` : '';
+  return buildNotesChrome(inner) + attr;
 }
 
 // ============================================================

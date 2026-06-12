@@ -14,6 +14,7 @@ export const PRESET_KEYS = [
   'checklist',
   'receipts',
   'tweet',
+  'notes',
   'handwritten_pack',
   'app_stack',
   'output_vs_hype',
@@ -195,6 +196,27 @@ const TWEET_JSON = `{
   "attribution": ""
 }`;
 
+const NOTES_JSON = `{
+  "preset": "notes",
+  "hook": {
+    "date": "Today at 9:41 AM",
+    "headline": "an <strong>announcement</strong>",
+    "subline": "(read to the end)"
+  },
+  "notes": [
+    { "date": "Today at 9:41 AM", "title": "why i finally learned AI", "body": "i kept saying i'd start <strong>someday</strong>.<br/><br/>then someday became 2 years.<br/><br/>here's what actually changed it." },
+    { "date": "Today at 9:42 AM", "title": "the 3 things that worked", "body": "1. building, not just watching<br/>2. five minutes a day<br/>3. one real project, start to finish" }
+  ],
+  "cta": {
+    "headline": "your turn.",
+    "instructionAbove": "search",
+    "searchTerm": "Iro AI",
+    "instructionBelow": "on the App Store.",
+    "slogan": "start today, not someday."
+  },
+  "attribution": ""
+}`;
+
 const HANDWRITTEN_PACK_JSON = `{
   "preset": "handwritten_pack",
   "hook": {
@@ -354,6 +376,13 @@ const CHECKLIST_CAPTION = `save this if any of these is you ⤴️
 iro is for you. search "Iro AI" on the App Store.
 
 #aitok #aichecklist #fyp #learningai #productivity`;
+
+const NOTES_CAPTION = `had to put it in the notes app to actually say it 🫣
+
+read to the last slide — which part hit?
+search "Iro AI" on the App Store to start today.
+
+#aitok #notesapp #storytime #learningai #fyp`;
 
 const TWEET_CAPTION = `saving these for the next time someone says AI is just hype 📌
 
@@ -1001,6 +1030,15 @@ export const PRESETS: Record<PresetKey, PresetMeta> = {
     defaultJson: TWEET_JSON,
     defaultCaption: TWEET_CAPTION,
     accent: '#1D9BF0', // X blue
+  },
+  notes: {
+    key: 'notes',
+    label: 'Notes App',
+    pitch: 'iOS-Notes screenshot look — one note per slide. Great for announcements & lists.',
+    status: 'ready',
+    defaultJson: NOTES_JSON,
+    defaultCaption: NOTES_CAPTION,
+    accent: '#FFD60A', // Notes yellow
   },
   handwritten_pack: {
     key: 'handwritten_pack',

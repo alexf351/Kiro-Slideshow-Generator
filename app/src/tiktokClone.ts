@@ -295,6 +295,9 @@ const CLONING_INSTRUCTIONS = [
     'verified check, @handle, the tweet text, faux engagement counts (ONLY when the source is ' +
     'tweets / X posts / quote-tweet style content). tweets:[{name, handle, text, verified, ' +
     'replies, retweets, likes}].',
+  '- notes — iOS Notes-app screenshot look, one note per slide: yellow "Notes" bar, a date, a ' +
+    'bold title, and the body (ONLY for announcement / storytime / confession / list content ' +
+    'that suits the "notes app" aesthetic). notes:[{title, body, date}]; body may use <br/>.',
   '- output_vs_hype — one slide per tool/brand, each with a logo and two bars (Output vs Hype) ' +
     'scaled 0–100 (ONLY when the source is a per-item bar-chart comparison, e.g. "X vs Y" rankings).',
   '- curated_list — aesthetic photo + cream heading + a recommendation card per slide ("things I ' +
