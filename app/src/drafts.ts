@@ -13,7 +13,7 @@ export type DraftState = {
   attrPresets: Record<string, boolean>;
 };
 
-export type Draft = { id: string; name: string; savedAt: number; state: DraftState; scheduledFor?: number };
+export type Draft = { id: string; name: string; savedAt: number; state: DraftState; scheduledFor?: number; posted?: boolean };
 
 const KEY = 'kiro_drafts';
 const MAX = 60;
@@ -24,9 +24,10 @@ export function listDrafts(): Draft[] {
     if (!raw) return [];
     const arr = JSON.parse(raw) as Draft[];
     if (!Array.isArray(arr)) return [];
-    // Scheduled drafts first (soonest date ascending), then the rest by most
-    // recently saved — so the list reads like a posting plan.
+    // Posted drafts sink to the bottom. Otherwise scheduled first (soonest
+    // date ascending), then the rest by most recently saved — a posting plan.
     return arr.sort((a, b) => {
+      if (!!a.posted !== !!b.posted) return a.posted ? 1 : -1;
       if (a.scheduledFor && b.scheduledFor) return a.scheduledFor - b.scheduledFor;
       if (a.scheduledFor) return -1;
       if (b.scheduledFor) return 1;
@@ -42,6 +43,14 @@ function write(drafts: Draft[]): void {
 }
 
 // Set (or clear, with null) a draft's planned post date.
+// Mark a draft posted (or not) — checks it off the posting plan.
+export function setDraftPosted(id: string, posted: boolean): Draft[] {
+  const drafts = listDrafts();
+  const d = drafts.find((x) => x.id === id);
+  if (d) { if (posted) d.posted = true; else delete d.posted; write(drafts); }
+  return listDrafts();
+}
+
 export function setDraftSchedule(id: string, ts: number | null): Draft[] {
   const drafts = listDrafts();
   const d = drafts.find((x) => x.id === id);
