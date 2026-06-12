@@ -958,6 +958,32 @@ export default function App() {
     setCaption((prev) => (prev.trim() ? prev.trimEnd() + '\n\n' + add : add));
   }
 
+  // Write a fresh caption + hashtags with Claude from the current slide
+  // content. Learns the user's voice from their recent saved captions.
+  const [captionAiBusy, setCaptionAiBusy] = useState(false);
+  async function handleAiCaption() {
+    if (!anthropicKey) {
+      ui.notify('Add an Anthropic API key in Settings to use AI captions.', { type: 'error' });
+      return;
+    }
+    if (caption.trim() && !(await ui.confirm({ message: 'Replace the current caption with an AI-written one?', confirmLabel: 'Write it' }))) return;
+    setCaptionAiBusy(true);
+    try {
+      const { generateCaption, composeCaption } = await import('./captionAI');
+      const posts = await listPosts();
+      const examples = posts.map((p) => p.caption).filter((c) => c && c.trim().length > 10).slice(0, 4);
+      const { caption: body, hashtags } = await generateCaption({
+        json: jsonText, preset, apiKey: anthropicKey, model: claudeModel, examples,
+      });
+      setCaption(composeCaption(body, hashtags));
+      ui.notify('Caption written.', { type: 'success' });
+    } catch (e) {
+      ui.notify(`AI caption failed: ${(e as Error).message}`, { type: 'error' });
+    } finally {
+      setCaptionAiBusy(false);
+    }
+  }
+
   // Apply an A/B variation from the Predict panel: swap the caption and
   // patch the hook headline into the slides JSON, then return to Edit.
   function handleApplyVariant({ hookHeadline, caption: cap }: { hookHeadline: string; caption: string }) {
@@ -1983,6 +2009,14 @@ export default function App() {
                 className="text-[11px] font-bold uppercase tracking-[0.14em] text-gray-500 hover:text-[#00E5FF]"
               >
                 ＃ Suggest hashtags
+              </button>
+              <button
+                type="button"
+                onClick={handleAiCaption}
+                disabled={captionAiBusy}
+                className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#A78BFA] hover:text-[#C4B5FD] disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {captionAiBusy ? '✨ Writing…' : '✨ AI caption'}
               </button>
               <EmojiPicker onPick={insertEmoji} />
             </div>
