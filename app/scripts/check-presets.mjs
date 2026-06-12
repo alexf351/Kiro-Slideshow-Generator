@@ -56,8 +56,18 @@ for (const key of PRESET_KEYS) {
 const keySet = new Set(PRESET_KEYS);
 for (const k of Object.keys(FORMAT_CATEGORY)) if (!keySet.has(k)) fail(k, 'FORMAT_CATEGORY key is not a PRESET_KEY');
 
+// React <-> engine sync: a key wired in presets.ts but missing from the
+// engine's `const PRESETS = { … }` registry silently renders as prompt_pack.
+// Each registry entry is a 2-space-indented `key: {`.
+const engine = readFileSync(new URL('../../kiro_slideshow_engine_v3.html', import.meta.url), 'utf8');
+for (const key of PRESET_KEYS) {
+  if (!new RegExp(`\\n  ${key}: \\{`).test(engine)) {
+    fail(key, 'no matching entry in the engine PRESETS registry (would fall back to prompt_pack)');
+  }
+}
+
 if (failures > 0) {
   console.log(`\n${failures} problem(s) across ${PRESET_KEYS.length} formats.`);
   process.exit(1);
 }
-console.log(`✓ all ${PRESET_KEYS.length} formats valid (JSON parses + preset matches, caption + hashtags, category mapped).`);
+console.log(`✓ all ${PRESET_KEYS.length} formats valid (JSON parses + preset matches, caption + hashtags, category mapped, engine registry in sync).`);
