@@ -4329,9 +4329,18 @@ export default function App() {
               {saveStatus.kind === 'saving' ? 'Saving…' : saveStatus.kind === 'ok' ? '✓ Saved' : 'Save'}
             </button>
           </div>
-          <p className="mt-1.5 text-center text-[10px] text-gray-600 tracking-wide">
-            tip: press <kbd className="px-1 py-0.5 rounded bg-white/[0.06] text-gray-400 font-mono">⌘/Ctrl + Enter</kbd> to render
-          </p>
+          <div className="mt-1.5 flex items-center justify-center gap-2 text-[10px] text-gray-600 tracking-wide">
+            {caption.trim() && (
+              <span
+                className="px-1.5 py-0.5 rounded-full font-bold uppercase tracking-[0.1em]"
+                style={{ color: READINESS_COLOR[readiness.tier], backgroundColor: READINESS_COLOR[readiness.tier] + '1f', border: `1px solid ${READINESS_COLOR[readiness.tier]}40` }}
+                title={readiness.topFix ? `Next: ${readiness.topFix}` : 'Looks good to post'}
+              >
+                {READINESS_TEXT[readiness.tier]} · {readiness.score}
+              </span>
+            )}
+            <span>tip: <kbd className="px-1 py-0.5 rounded bg-white/[0.06] text-gray-400 font-mono">⌘/Ctrl + Enter</kbd> to render</span>
+          </div>
         </div>
       </aside>
 
