@@ -1771,6 +1771,7 @@ export default function App() {
     setAttribution(s.attribution || '');
     if (s.attrPresets) setAttrPresets(s.attrPresets);
     setActiveDraftName(d.name);
+    iframeRef.current?.contentWindow?.postMessage({ type: 'clearOverlays' }, '*');
     setTimeout(() => void handleRender({ switchView: false }), 80);
     ui.notify(`Loaded "${d.name}".`, { type: 'success' });
   }
@@ -1884,6 +1885,7 @@ export default function App() {
     setJsonText(PRESETS[key].defaultJson);
     setCaption(PRESETS[key].defaultCaption);
     setActiveDraftName(''); // a fresh example is no longer "the loaded draft"
+    iframeRef.current?.contentWindow?.postMessage({ type: 'clearOverlays' }, '*');
   }
 
   // Command palette entries, rebuilt when the bits they reference change.

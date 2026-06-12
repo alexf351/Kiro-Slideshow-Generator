@@ -4988,6 +4988,21 @@ window.addEventListener('message', async (e) => {
     return;
   }
 
+  // Clear all text/image overlays. Overlays are keyed by slide index, so the
+  // React shell sends this when switching to a different post (load draft /
+  // change format) to stop the previous post's overlays leaking onto the new
+  // one.
+  if (msg.type === 'clearOverlays') {
+    try {
+      if (typeof TEXT_OVERLAYS === 'object' && TEXT_OVERLAYS) {
+        Object.keys(TEXT_OVERLAYS).forEach(function (k) { delete TEXT_OVERLAYS[k]; });
+        if (typeof saveOverlays === 'function') saveOverlays();
+        if (typeof applyOverlays === 'function') applyOverlays();
+      }
+    } catch (err) {}
+    return;
+  }
+
   // Captures slide 0 (the hook) at low resolution and posts the PNG blob
   // back to the parent. Used by the React shell when the user taps
   // "Save to history" so each post in the analytics list has a thumbnail.
