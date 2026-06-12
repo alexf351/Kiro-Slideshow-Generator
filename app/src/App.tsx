@@ -19,6 +19,7 @@ import { listDrafts, saveDraft, deleteDraft, setDraftSchedule, setDraftPosted, c
 import { exportBackup, importBackup, downloadBlob, timestampSlug } from './backup';
 import { suggestHashtags, parseHashtags } from './insights';
 import { findSimilarHooks } from './similarity';
+import { buildIcs, scheduledCount } from './ics';
 import { listSets, saveSet, deleteSet, formatTags, type HashtagSet } from './hashtagSets';
 import { encodePost, decodePost } from './postShare';
 import { useUI } from './ui';
@@ -3214,6 +3215,21 @@ export default function App() {
                 className="w-full mb-2 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-[0.12em] text-gray-500 hover:text-red-400 border border-white/[0.08]"
               >
                 Clear {drafts.filter((d) => d.posted).length} posted
+              </button>
+            )}
+            {scheduledCount(drafts) > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  const ics = buildIcs(drafts);
+                  if (!ics) { ui.notify('Schedule a draft first, then export the plan.', { type: 'info' }); return; }
+                  downloadBlob(new Blob([ics], { type: 'text/calendar' }), `iro-posting-plan-${timestampSlug()}.ics`);
+                  ui.notify(`Exported ${scheduledCount(drafts)} scheduled post${scheduledCount(drafts) === 1 ? '' : 's'} to your calendar.`, { type: 'success' });
+                }}
+                className="w-full mb-2 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-[0.12em] text-gray-400 hover:text-[#34D399] border border-white/[0.08] hover:border-[#34D399]/30"
+                title="Download your scheduled posts as a calendar (.ics) file for Google / Apple / Outlook Calendar"
+              >
+                📅 Add plan to calendar (.ics)
               </button>
             )}
             {drafts.length === 0 ? (
