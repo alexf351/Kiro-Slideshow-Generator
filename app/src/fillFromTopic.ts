@@ -176,33 +176,6 @@ export async function rewriteItem(opts: {
   return prettyModelJson((out && out.json) ? out.json.trim() : '');
 }
 
-// Rewrite the current post's content per an instruction (e.g. "make it
-// punchier"), keeping the exact JSON structure. Distinct from
-// generateFromTopic, which fills a blank format from a topic.
-export async function improvePost(opts: {
-  json: string;
-  instruction: string;
-  apiKey: string;
-  model: ClaudeModelId;
-}): Promise<string> {
-  const system = `You revise content for "Iro AI" TikTok slideshows. You receive a slideshow JSON and an INSTRUCTION. Return a NEW JSON that:
-- keeps the EXACT same structure, field names, nesting, and (unless the instruction says otherwise) the same number of items
-- applies the instruction to the wording/content only
-- keeps inline <strong> tags where present, keeps the cta pointing to searchTerm "Iro AI", leaves "attribution" empty
-Return ONLY the JSON via the tool.`;
-  const res = await callClaude({
-    apiKey: opts.apiKey,
-    model: opts.model,
-    maxTokens: 2000,
-    system: [{ type: 'text', text: system }],
-    messages: [{ role: 'user', content: `INSTRUCTION: ${opts.instruction}\n\nCURRENT JSON:\n${opts.json}\n\nReturn the revised JSON.` }],
-    tools: [{
-      name: 'slides',
-      description: 'Return the revised slideshow JSON as a string.',
-      input_schema: { type: 'object', properties: { json: { type: 'string' } }, required: ['json'] },
-    }],
-    toolChoice: { type: 'tool', name: 'slides' },
-  });
-  const out = extractToolUse<{ json: string }>(res, 'slides');
-  return prettyModelJson((out && out.json) ? out.json.trim() : '');
-}
+// (improvePost was replaced by deckTranslate.rewriteDeck, which rewrites the
+// flat list of on-screen strings instead of regenerating the whole JSON, so
+// the structure can never be broken by the model.)

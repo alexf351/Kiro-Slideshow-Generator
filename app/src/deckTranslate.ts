@@ -67,49 +67,76 @@ function unwrap(json: string): string {
   return json.trim().replace(/^\s*(?:const\s+SLIDES\s*=\s*)?/, '').replace(/;\s*$/, '');
 }
 
-// Translate the on-screen text of a whole deck into `language`, returning a
-// new pretty-printed JSON string with identical structure. Throws if the
-// model returns the wrong number of strings (so we never apply a misaligned
-// translation).
-export async function translateDeck(opts: {
-  json: string;
-  language: string;
-  apiKey: string;
-  model: ClaudeModelId;
-}): Promise<string> {
-  const parsed = JSON.parse(unwrap(opts.json)) as unknown;
+// Shared engine for every structure-preserving deck transform: send the flat
+// string list to the model with a task-specific `system` prompt, get back a
+// same-length list (forced tool-use, length-checked), and reinsert. The whole
+// point is the LLM only ever touches a string array — never the JSON shape.
+async function transformDeckStrings(
+  json: string,
+  system: string,
+  apiKey: string,
+  model: ClaudeModelId,
+): Promise<string> {
+  const parsed = JSON.parse(unwrap(json)) as unknown;
   const strings = collectStrings(parsed);
-  if (strings.length === 0) return opts.json;
-
-  const system = `You localize the on-screen text of a TikTok slideshow into ${opts.language}. ` +
-    `You are given a JSON array of strings in order. Return an array of the SAME length, each entry the ${opts.language} version of the matching input, ` +
-    `written the way a native creator on that side of TikTok would phrase it (casual, punchy — not a stiff literal translation). ` +
-    `Rules: keep any HTML tags (like <strong>, <br/>) exactly where they are; keep #hashtags, @handles, URLs, emoji and brand names (e.g. "Iro AI") unchanged; ` +
-    `do not add, drop, reorder or merge entries — a one-to-one mapping.`;
+  if (strings.length === 0) return json;
 
   const res = await callClaude({
-    apiKey: opts.apiKey,
-    model: opts.model,
+    apiKey,
+    model,
     maxTokens: 2000,
     system: [{ type: 'text', text: system }],
     messages: [{ role: 'user', content: JSON.stringify(strings) }],
     tools: [{
-      name: 'translation',
-      description: 'Return the translated strings, same length and order as the input.',
+      name: 'lines',
+      description: 'Return the rewritten strings, same length and order as the input.',
       input_schema: {
         type: 'object',
         properties: { strings: { type: 'array', items: { type: 'string' } } },
         required: ['strings'],
       },
     }],
-    toolChoice: { type: 'tool', name: 'translation' },
+    toolChoice: { type: 'tool', name: 'lines' },
   });
 
-  const out = extractToolUse<{ strings: string[] }>(res, 'translation');
-  if (!out || !Array.isArray(out.strings)) throw new Error('Translation did not return strings.');
+  const out = extractToolUse<{ strings: string[] }>(res, 'lines');
+  if (!out || !Array.isArray(out.strings)) throw new Error('The model did not return strings.');
   if (out.strings.length !== strings.length) {
-    throw new Error(`Translation length mismatch (${out.strings.length} vs ${strings.length}). Try again.`);
+    throw new Error(`Length mismatch (${out.strings.length} vs ${strings.length}). Try again.`);
   }
-  const translated = applyStrings(parsed, out.strings);
-  return JSON.stringify(translated, null, 2);
+  return JSON.stringify(applyStrings(parsed, out.strings), null, 2);
+}
+
+// Translate the on-screen text of a whole deck into `language`, returning a
+// new pretty-printed JSON string with identical structure.
+export async function translateDeck(opts: {
+  json: string;
+  language: string;
+  apiKey: string;
+  model: ClaudeModelId;
+}): Promise<string> {
+  const system = `You localize the on-screen text of a TikTok slideshow into ${opts.language}. ` +
+    `You are given a JSON array of strings in order. Return an array of the SAME length, each entry the ${opts.language} version of the matching input, ` +
+    `written the way a native creator on that side of TikTok would phrase it (casual, punchy — not a stiff literal translation). ` +
+    `Rules: keep any HTML tags (like <strong>, <br/>) exactly where they are; keep #hashtags, @handles, URLs, emoji and brand names (e.g. "Iro AI") unchanged; ` +
+    `do not add, drop, reorder or merge entries — a one-to-one mapping.`;
+  return transformDeckStrings(opts.json, system, opts.apiKey, opts.model);
+}
+
+// Rewrite the on-screen text of a whole deck per an instruction (punchier,
+// simpler, etc.) WITHOUT touching structure — unlike a whole-JSON rewrite,
+// this can't drop fields, rename keys, change the slide count, or corrupt the
+// bg/colors. Only the prose changes.
+export async function rewriteDeck(opts: {
+  json: string;
+  instruction: string;
+  apiKey: string;
+  model: ClaudeModelId;
+}): Promise<string> {
+  const system = `You revise the on-screen text of an "Iro AI" TikTok slideshow. You are given a JSON array of strings in order. ` +
+    `Apply this instruction to EACH string: "${opts.instruction}". Return an array of the SAME length, one-to-one. ` +
+    `Keep each line in roughly its role (a short title stays short, a body can breathe). ` +
+    `Keep HTML tags (like <strong>, <br/>), #hashtags, @handles, emoji and brand names (e.g. "Iro AI") intact; ` +
+    `do not add, drop, reorder or merge entries.`;
+  return transformDeckStrings(opts.json, system, opts.apiKey, opts.model);
 }

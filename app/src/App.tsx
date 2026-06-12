@@ -1788,8 +1788,12 @@ export default function App() {
     snapshotForAi();
     setImproveBusy(label);
     try {
-      const { improvePost } = await import('./fillFromTopic');
-      const revised = await improvePost({ json: jsonText, instruction, apiKey: anthropicKey, model: claudeModel });
+      // Structure-preserving rewrite: the model only ever rewrites the flat
+      // list of on-screen strings, so it can't drop fields, rename keys,
+      // change the slide count, or corrupt bg/colors (unlike a whole-JSON
+      // rewrite). Only the prose changes.
+      const { rewriteDeck } = await import('./deckTranslate');
+      const revised = await rewriteDeck({ json: jsonText, instruction, apiKey: anthropicKey, model: claudeModel });
       setJsonText(revised);
       setTimeout(() => void handleRender({ switchView: false }), 80);
       ui.notify(`Rewritten: ${label}.`, { type: 'success' });
