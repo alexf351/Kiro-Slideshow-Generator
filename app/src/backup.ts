@@ -14,6 +14,10 @@ import { scorePost, hasStats, type ScoreBreakdown } from './scoring';
 const SETTINGS_KEY = 'kiro_slideshow_generator_state_v2';
 const API_KEY_FIELDS = ['anthropicKey', 'openaiKey', 'pexelsKey', 'unsplashKey'];
 const BACKUP_VERSION = 1;
+// Other browser-local data worth backing up (irreplaceable, not in settings).
+const DRAFTS_KEY = 'kiro_drafts';
+const HASHTAG_SETS_KEY = 'kiro_hashtag_sets';
+const FAV_FORMATS_KEY = 'kiro_fav_formats';
 
 type BackupFile = {
   app: 'iro-slideshow-generator';
@@ -21,7 +25,31 @@ type BackupFile = {
   exportedAt: number;
   settings: Record<string, unknown> | null;
   posts: SerializedPost[];
+  // Drafts, hashtag sets, favorite formats (added in a later backup version).
+  local?: { drafts?: unknown[]; hashtagSets?: unknown[]; favFormats?: unknown[] };
 };
+
+function readLocalArray(key: string): unknown[] {
+  try { const v = JSON.parse(localStorage.getItem(key) || '[]'); return Array.isArray(v) ? v : []; } catch { return []; }
+}
+
+// Merge backed-up items into a localStorage array, deduping by `id` (current
+// entries win on conflict). For plain-value arrays (no id), unions values.
+function mergeLocalArray(key: string, incoming: unknown[]): void {
+  if (!Array.isArray(incoming) || !incoming.length) return;
+  try {
+    const current = readLocalArray(key);
+    const hasIds = incoming.every((x) => x && typeof x === 'object' && 'id' in (x as object));
+    let merged: unknown[];
+    if (hasIds) {
+      const seen = new Set(current.map((x) => (x as { id: string }).id));
+      merged = [...current, ...incoming.filter((x) => !seen.has((x as { id: string }).id))];
+    } else {
+      merged = Array.from(new Set([...current, ...incoming].map((x) => String(x)))) as unknown[];
+    }
+    localStorage.setItem(key, JSON.stringify(merged));
+  } catch { /* best-effort */ }
+}
 
 // Post with its thumbnail Blob swapped for a data URL so it survives JSON.
 type SerializedPost = Omit<Post, 'thumbnailBlob'> & { thumbnailDataUrl: string | null };
@@ -68,6 +96,11 @@ export async function exportBackup(): Promise<Blob> {
     exportedAt: Date.now(),
     settings: loadSettings(),
     posts: serialized,
+    local: {
+      drafts: readLocalArray(DRAFTS_KEY),
+      hashtagSets: readLocalArray(HASHTAG_SETS_KEY),
+      favFormats: readLocalArray(FAV_FORMATS_KEY),
+    },
   };
   return new Blob([JSON.stringify(file)], { type: 'application/json' });
 }
@@ -122,6 +155,13 @@ export async function importBackup(text: string): Promise<ImportResult> {
       // settings restore is best-effort; posts already landed.
     }
   }
+  // Restore drafts / hashtag sets / favorites (merged, never destructive).
+  if (parsed.local && typeof parsed.local === 'object') {
+    if (Array.isArray(parsed.local.drafts)) mergeLocalArray(DRAFTS_KEY, parsed.local.drafts);
+    if (Array.isArray(parsed.local.hashtagSets)) mergeLocalArray(HASHTAG_SETS_KEY, parsed.local.hashtagSets);
+    if (Array.isArray(parsed.local.favFormats)) mergeLocalArray(FAV_FORMATS_KEY, parsed.local.favFormats);
+  }
+
   return { posts: written, settingsRestored };
 }
 
