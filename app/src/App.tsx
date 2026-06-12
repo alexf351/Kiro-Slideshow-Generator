@@ -1519,6 +1519,39 @@ export default function App() {
   }
 
   // ---- Share a single post as a portable code ----
+  // Pull the on-slide text, in order, as a plain script — handy for a
+  // voiceover, typing native TikTok overlays, or repurposing elsewhere.
+  function buildScript(): string {
+    const parsed = parseJson(true);
+    if (!parsed) return '';
+    const strip = (s: unknown) => String(s ?? '').replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+    const SKIP = new Set(['bg', 'background', 'preset', 'platform', 'mascot', 'attribution', 'from', 'grade', 'rank', 'pron', 'contact', 'layout', 'status', 'searchTerm', 'instructionAbove', 'instructionBelow']);
+    const textOf = (o: unknown) => (o && typeof o === 'object')
+      ? Object.entries(o as Record<string, unknown>).filter(([k, v]) => typeof v === 'string' && !SKIP.has(k)).map(([, v]) => strip(v)).filter(Boolean).join(' — ')
+      : '';
+    const lines: string[] = [];
+    const p = parsed as Record<string, unknown>;
+    if (p.hook) { const t = textOf(p.hook); if (t) lines.push('HOOK: ' + t); }
+    const key = CONTENT_KEYS.find((k) => k !== 'hook' && Array.isArray(p[k]));
+    if (key) (p[key] as unknown[]).forEach((it, i) => { const t = textOf(it); if (t) lines.push(`${i + 1}. ${t}`); });
+    if (p.cta && typeof p.cta === 'object') {
+      const c = p.cta as Record<string, unknown>;
+      const t = [c.headline, c.slogan].map(strip).filter(Boolean).join(' — ');
+      if (t) lines.push('CTA: ' + t);
+    }
+    return lines.join('\n');
+  }
+  async function handleCopyScript() {
+    const script = buildScript();
+    if (!script) { ui.notify('Nothing to copy — render a post first.', { type: 'info' }); return; }
+    try {
+      await navigator.clipboard.writeText(script);
+      ui.notify('Slide script copied.', { type: 'success' });
+    } catch {
+      await ui.prompt({ title: 'Slide script', message: 'Copy this:', placeholder: '', confirmLabel: 'Done', defaultValue: script });
+    }
+  }
+
   async function handleSharePost() {
     const code = encodePost({ preset, json: jsonText, caption });
     try {
@@ -2868,6 +2901,13 @@ export default function App() {
                   </div>
                 ))}
               </div>
+              <button
+                type="button"
+                onClick={() => void handleCopyScript()}
+                className="w-full mt-2.5 py-2 rounded-lg text-[11px] font-bold uppercase tracking-[0.1em] border border-white/[0.10] bg-white/[0.03] text-gray-300 hover:text-[#00E5FF] hover:border-[#00E5FF]/30 transition-all"
+              >
+                📝 Copy slide script
+              </button>
             </div>
             <p className="text-xs text-gray-500 leading-relaxed mb-3">
               Push the current slideshow straight to your TikTok <strong className="text-gray-300">inbox</strong> as a photo draft — then open the app to finish posting. Uses your caption below.
