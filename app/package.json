@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "check:presets": "node scripts/check-presets.mjs",
+    "test": "node scripts/test.mjs",
+    "build": "node scripts/check-presets.mjs && node scripts/test.mjs && tsc -b && vite build",
     "preview": "vite preview"
   },
   "dependencies": {

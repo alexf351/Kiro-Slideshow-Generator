@@ -3,10 +3,13 @@ import engineHtml from '../../kiro_slideshow_engine_v3.html?raw';
 import Library from './Library';
 import Analytics from './Analytics';
 import Patterns from './Patterns';
+import Discover from './Discover';
+import Trends from './Trends';
+import type { ViralPattern } from './viralLibrary';
 import Propose from './Propose';
 import { addStockItem, blobToDataUrl, getItem } from './mediaBank';
 import { addPost, listPosts, type CloneAnalysisSnapshot, type PostPrediction } from './posts';
-import { PRESETS, PRESET_KEYS, type PresetKey } from './presets';
+import { PRESETS, PRESET_KEYS, FORMAT_CATEGORIES, FORMAT_CATEGORY, type PresetKey, type FormatCategory } from './presets';
 import CloneFromTikTok from './CloneFromTikTok';
 import PredictPanel from './PredictPanel';
 import DesignPanel from './DesignPanel';
@@ -15,9 +18,22 @@ import HypeEditor from './HypeEditor';
 import CropAdjust, { DEFAULT_CROP, type CropValue } from './CropAdjust';
 import { GRADIENTS, SOLID_BGS } from './gradients';
 import { coerceDesign, DEFAULT_DESIGN, designPayload, ASPECT_KEYS, ASPECTS, type BrandDesign } from './design';
-import { listDrafts, saveDraft, deleteDraft, setDraftSchedule, setDraftPosted, clearPostedDrafts, type Draft } from './drafts';
+import { listDrafts, saveDraft, deleteDraft, duplicateDraft, renameDraft, setDraftSchedule, setDraftPosted, clearPostedDrafts, type Draft } from './drafts';
 import { exportBackup, importBackup, downloadBlob, timestampSlug } from './backup';
 import { suggestHashtags, parseHashtags } from './insights';
+import { findSimilarHooks } from './similarity';
+import { wouldFatigueStreak } from './recentFormats';
+import { buildIcs, scheduledCount } from './ics';
+import { postsToCsv } from './csv';
+import { scoreHook, HOOK_TIER_COLOR, HOOK_TIER_TEXT } from './hookScore';
+import { lintHashtags, HASHTAG_TIER_COLOR, HASHTAG_TIER_TEXT } from './hashtagLint';
+import { checkEngagement, captionFold } from './captionSignals';
+import { computeReadiness, READINESS_COLOR, READINESS_TEXT } from './postReadiness';
+import { makeZip, dataUrlToBytes } from './zip';
+import { analyzeDeck } from './deckBalance';
+import { deckLengthVerdict } from './deckPacing';
+import { sampleFormulas } from './hookFormulas';
+import { extractStockQuery, cleanLabelForQuery } from './stockKeywords';
 import { listSets, saveSet, deleteSet, formatTags, type HashtagSet } from './hashtagSets';
 import { encodePost, decodePost } from './postShare';
 import { useUI } from './ui';
@@ -30,8 +46,8 @@ import { buildIroEditPrompt, editImage, OpenAIImageError, type OpenAIImageQualit
 type Mascot = 'bronze' | 'silver' | 'gold' | 'platinum' | 'diamond' | 'iridescent';
 type Platform = 'claude' | 'chatgpt';
 type Status = { kind: 'idle' } | { kind: 'rendering' } | { kind: 'ok'; at: number } | { kind: 'err'; msg: string };
-type MobileView = 'edit' | 'library' | 'patterns' | 'analytics' | 'preview';
-type MainView = 'preview' | 'library' | 'patterns' | 'analytics';
+type MobileView = 'edit' | 'library' | 'patterns' | 'analytics' | 'discover' | 'trends' | 'preview';
+type MainView = 'preview' | 'library' | 'patterns' | 'analytics' | 'discover' | 'trends';
 
 // Per-slide background. Either a media-bank item id (resolved to a data URL at
 // render time) or a pasted URL we hand straight through to the engine.
@@ -212,7 +228,12 @@ function stripJsonWrappers(t: string): string {
     .trim();
 }
 
-const CONTENT_KEYS = ['hook', 'prompts', 'beats', 'panels', 'features', 'items', 'apps', 'tools', 'picks', 'tiers'];
+const CONTENT_KEYS = ['hook', 'prompts', 'beats', 'panels', 'features', 'items', 'apps', 'tools', 'picks', 'tiers', 'reviews', 'tweets', 'notes', 'posts', 'stories', 'searches'];
+
+// Formats whose copy sits directly over the photo (no solid card/box behind
+// it). When auto-assigning a stock background to these, we drop in a default
+// darken so the text stays readable without the creator touching the slider.
+const PHOTO_TEXT_PRESETS = new Set(['aspirational', 'pain_story', 'meme_pov', 'hot_take', 'before_after', 'quote_card', 'news']);
 
 // If someone pastes a whole clone / propose payload
 // ({ preset, slides: {...}, caption, cloneAnalysis, bgAssignments }) into the
@@ -310,6 +331,25 @@ function extractSlideMeta(parsed: unknown): SlideMeta[] {
     (p as { items: { text?: string }[] }).items.forEach((it, i) => {
       const t = clean(it?.text || `Item ${i + 1}`);
       out.push({ key: `item:${i}`, label: truncate(`${i + 1}. ${t}`, 40) });
+    });
+  }
+  // New social / broadcast formats — one background per card so the photo
+  // sits behind the tweet / review / note / Reddit post / news chyron.
+  const p2 = p as Record<string, unknown>;
+  const social: { field: string; prefix: string; text: (x: Record<string, unknown>) => string }[] = [
+    { field: 'reviews', prefix: 'review', text: (x) => String(x.text || x.name || '') },
+    { field: 'tweets', prefix: 'tweet', text: (x) => String(x.text || x.name || '') },
+    { field: 'notes', prefix: 'note', text: (x) => String(x.title || x.body || '') },
+    { field: 'posts', prefix: 'post', text: (x) => String(x.title || x.subreddit || '') },
+    { field: 'stories', prefix: 'story', text: (x) => String(x.headline || x.label || '') },
+    { field: 'searches', prefix: 'search', text: (x) => String(x.query || '') },
+  ];
+  for (const { field, prefix, text } of social) {
+    const arr = p2[field];
+    if (!Array.isArray(arr)) continue;
+    (arr as Record<string, unknown>[]).forEach((x, i) => {
+      const t = clean(text(x) || `${prefix} ${i + 1}`);
+      out.push({ key: `${prefix}:${i}`, label: truncate(`${i + 1}. ${t}`, 40) });
     });
   }
   if (p.cta) out.push({ key: 'cta', label: 'CTA' });
@@ -427,9 +467,14 @@ export default function App() {
   const [videoPace, setVideoPace] = useState<number>(() => { const v = Number(loadPref('videoPace')); return v >= 1 && v <= 6 ? v : 2.5; });
   // PDF export (repurpose the deck as an IG / LinkedIn carousel).
   const [pdfBusy, setPdfBusy] = useState<string | null>(null);
+  // ZIP-of-images export (manual upload to TikTok / IG / anywhere).
+  const [imagesBusy, setImagesBusy] = useState<string | null>(null);
   const [genDeckBusy, setGenDeckBusy] = useState(false);
+  // Progress label while auto-filling stock backgrounds across the deck.
+  const [autoBgBusy, setAutoBgBusy] = useState<string | null>(null);
   // Named drafts (multiple in-progress projects).
   const [drafts, setDrafts] = useState<Draft[]>(() => listDrafts());
+  const [draftQuery, setDraftQuery] = useState('');
   // The draft currently loaded for editing (enables one-tap "Update").
   const [activeDraftName, setActiveDraftName] = useState('');
   // Opt-in "swipe →" cue on non-final slides (completion-rate booster).
@@ -452,14 +497,30 @@ export default function App() {
     });
   }
   const [formatQuery, setFormatQuery] = useState('');
+  // Per-format historical performance (avg score + count) from this account's
+  // scored posts, so the picker can surface which formats actually win here.
+  // Loaded from IndexedDB on mount and refreshed after each save.
+  const [formatPerf, setFormatPerf] = useState<Record<string, { avgScore: number; count: number }>>({});
+  async function loadFormatPerf() {
+    try {
+      const { summarizeWhatWorks } = await import('./scoring');
+      const sum = summarizeWhatWorks(await listPosts());
+      const map: Record<string, { avgScore: number; count: number }> = {};
+      for (const b of sum.byPreset) if (b.key) map[b.key] = { avgScore: b.avgScore, count: b.count };
+      setFormatPerf(map);
+    } catch { /* no history / IDB unavailable — picker just shows no badges */ }
+  }
+  useEffect(() => { void loadFormatPerf(); }, []);
+  const [formatCategory, setFormatCategory] = useState<FormatCategory | 'All'>('All');
   const orderedFormatKeys = useMemo(() => {
     const fav = PRESET_KEYS.filter((k) => favFormats.includes(k));
     const rest = PRESET_KEYS.filter((k) => !favFormats.includes(k));
     let keys = [...fav, ...rest];
+    if (formatCategory !== 'All') keys = keys.filter((k) => FORMAT_CATEGORY[k] === formatCategory);
     const q = formatQuery.trim().toLowerCase();
     if (q) keys = keys.filter((k) => (PRESETS[k].label + ' ' + PRESETS[k].pitch).toLowerCase().includes(q));
     return keys;
-  }, [favFormats, formatQuery]);
+  }, [favFormats, formatQuery, formatCategory]);
   // Pre-publish quality checks, derived from the current JSON + caption.
   const prePublishChecks = useMemo(() => {
     let parsed: Record<string, unknown> | null = null;
@@ -477,11 +538,56 @@ export default function App() {
       { label: 'No empty slides', ok: !!parsed && noEmpty },
       { label: 'Hook in caption’s first line', ok: firstLine.length > 0 && firstLine.length <= 100 },
       { label: 'Call-to-action slide present', ok: !!(parsed && parsed.cta) },
+      { label: 'Caption invites a comment (boosts reach)', ok: checkEngagement(caption).invites },
       { label: 'Hashtags in caption', ok: /#\w/.test(caption) },
       { label: 'Caption within 2,200 chars', ok: caption.length > 0 && caption.length <= 2200 },
       { label: '3+ slides (worth swiping)', ok: slideCount >= 3 },
     ];
   }, [jsonText, caption]);
+  // Relative pacing: flag a single lopsided wall-of-text slide so the deck
+  // stays swipeable. Parsed independently of the checklist (different shape).
+  const deckBalance = useMemo(() => {
+    try {
+      const parsed = JSON.parse(stripJsonWrappers(jsonText.trim())) as Record<string, unknown>;
+      const contentArr = CONTENT_KEYS.map((k) => parsed[k]).find((v) => Array.isArray(v)) as unknown[] | undefined;
+      if (!contentArr) return null;
+      return analyzeDeck(contentArr);
+    } catch { return null; }
+  }, [jsonText]);
+  // Total deck-length pacing (completion-rate nudge), separate axis from the
+  // per-slide density check above.
+  const deckLength = useMemo(() => {
+    try {
+      const parsed = JSON.parse(stripJsonWrappers(jsonText.trim())) as Record<string, unknown>;
+      const contentArr = CONTENT_KEYS.map((k) => parsed[k]).find((v) => Array.isArray(v)) as unknown[] | undefined;
+      const count = (contentArr ? contentArr.length : 0) + (parsed.hook ? 1 : 0) + (parsed.cta ? 1 : 0);
+      return deckLengthVerdict(count);
+    } catch { return null; }
+  }, [jsonText]);
+  // Composite post-readiness verdict synthesizing the quality signals + the
+  // single highest-impact fix. Consumes the same helpers the widgets use.
+  const readiness = useMemo(() => {
+    let parsed: Record<string, unknown> | null = null;
+    try { parsed = JSON.parse(stripJsonWrappers(jsonText.trim())) as Record<string, unknown>; } catch { /* invalid */ }
+    const contentArr = parsed ? CONTENT_KEYS.map((k) => parsed![k]).find((v) => Array.isArray(v)) as unknown[] | undefined : undefined;
+    const slideCount = (contentArr ? contentArr.length : 0) + (parsed && parsed.hook ? 1 : 0) + (parsed && parsed.cta ? 1 : 0);
+    const hs = scoreHook(caption.split('\n')[0] || '');
+    const hl = lintHashtags(caption);
+    return computeReadiness({
+      hookScore: hs.score,
+      hookTips: hs.tips,
+      hashtagTier: hl.tier,
+      hashtagCount: hl.count,
+      hashtagTips: hl.tips,
+      invitesComment: checkEngagement(caption).invites,
+      deckBalanced: deckBalance ? deckBalance.balanced : true,
+      deckTip: deckBalance ? deckBalance.tip : null,
+      validJson: !!parsed,
+      hasCta: !!(parsed && parsed.cta),
+      slideCount,
+      captionLen: caption.length,
+    });
+  }, [jsonText, caption, deckBalance]);
   // "Fill from topic" — AI populates the current template from a typed topic.
   const [topic, setTopic] = useState('');
   const [topicBusy, setTopicBusy] = useState(false);
@@ -575,9 +681,15 @@ export default function App() {
     });
   }
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  // Modifier-key label for the shortcuts sheet — ⌘ on Apple, Ctrl elsewhere.
+  const mod = useMemo(() => (typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘' : 'Ctrl'), []);
   const [showOnboarding, setShowOnboarding] = useState(shouldOnboard);
   // Number of slides the engine actually rendered — drives the navigator.
   const [slideCount, setSlideCount] = useState(0);
+  // TikTok safe-zone guide overlay on the preview (off by default). The
+  // engine strips it automatically during any capture, so it never exports.
+  const [safeZone, setSafeZone] = useState(() => loadPref('safeZone') === '1');
   // When loading a draft with overlays, they're applied on the next 'rendered'.
   const pendingOverlaysRef = useRef<Record<string, unknown> | null>(null);
 
@@ -601,6 +713,7 @@ export default function App() {
   }
 
   function jumpToSlide(index: number) {
+    previewIndexRef.current = index;
     iframeRef.current?.contentWindow?.postMessage({ type: 'scrollToSlide', index }, '*');
   }
 
@@ -685,7 +798,7 @@ export default function App() {
       if (!msg || typeof msg !== 'object') return;
       if (msg.type === 'rendered') {
         setStatus({ kind: 'ok', at: Date.now() });
-        if (typeof msg.slideCount === 'number') setSlideCount(msg.slideCount);
+        if (typeof msg.slideCount === 'number') { setSlideCount(msg.slideCount); previewIndexRef.current = 0; }
         // A draft is being loaded with its own overlays — re-apply them now
         // that the new slides exist (consumed once).
         if (pendingOverlaysRef.current !== null) {
@@ -841,12 +954,13 @@ export default function App() {
 
     // Per-photo crop adjustments, keyed by the resolved URL so the engine
     // can apply pan/zoom to that exact background.
-    const bgAdjust: Record<string, { pos: string; zoom: number; ar?: number }> = {};
+    const bgAdjust: Record<string, { pos: string; zoom: number; ar?: number; darken?: number }> = {};
     const recordAdjust = (key: string, url: string | null) => {
       if (!url) return;
       const a = slideBgAdjust[key];
-      if (a && (a.x !== 50 || a.y !== 50 || a.zoom !== 1)) {
-        bgAdjust[url] = { pos: `${a.x}% ${a.y}%`, zoom: a.zoom, ar: a.ar };
+      // Record when the crop OR the darken differs from the default.
+      if (a && (a.x !== 50 || a.y !== 50 || a.zoom !== 1 || (a.darken || 0) > 0)) {
+        bgAdjust[url] = { pos: `${a.x}% ${a.y}%`, zoom: a.zoom, ar: a.ar, darken: a.darken };
       }
     };
 
@@ -898,6 +1012,13 @@ export default function App() {
       { field: 'tools', prefix: 'tool' },
       { field: 'picks', prefix: 'pick' },
       { field: 'tiers', prefix: 'tier' },
+      // New social / broadcast formats — photo sits behind the card / chyron.
+      { field: 'reviews', prefix: 'review' },
+      { field: 'tweets', prefix: 'tweet' },
+      { field: 'notes', prefix: 'note' },
+      { field: 'posts', prefix: 'post' },
+      { field: 'stories', prefix: 'story' },
+      { field: 'searches', prefix: 'search' },
     ];
     for (const { field, prefix } of contentArrays) {
       const arr = slides[field];
@@ -1015,6 +1136,135 @@ export default function App() {
     }
   }
 
+  // Copy one slide's background onto every slide for a unified look. Skips
+  // the icon/logo/card sub-slots (those aren't full-slide backgrounds).
+  function handleApplyBgToAll(sourceKey: string) {
+    const src = slideBgs[sourceKey];
+    if (!src) { ui.notify('Set a background on this slide first.', { type: 'info' }); return; }
+    const targets = slideMetas.map((m) => m.key).filter((k) => !/-(icon|logo|card):/.test(k));
+    setSlideBgs((prev) => {
+      const next = { ...prev };
+      for (const k of targets) next[k] = src;
+      return next;
+    });
+    setOpenBgMenuKey(null);
+    setTimeout(() => void handleRender({ switchView: false }), 60);
+    ui.notify(`Applied to ${targets.length} slide${targets.length === 1 ? '' : 's'}.`, { type: 'success' });
+  }
+
+  // One-tap relevant background: derive a search term from the slide's own
+  // text and pull the first keyless-Openverse result. Free (no OpenAI key) —
+  // complements the AI-image generator. Bytes route through the stock proxy
+  // for canvas-safe export, same as the Library stock import.
+  // Search keyless Openverse from a slide-meta label and import the first
+  // result, returning its media id (or null when nothing matched). Shared by
+  // the single-slide action and the whole-deck auto-fill.
+  async function resolveStockBgForLabel(label: string): Promise<{ mediaId: string; query: string } | null> {
+    const seed = cleanLabelForQuery(label);
+    const query = (extractStockQuery(seed) || seed.slice(0, 30)).trim();
+    if (!query) return null;
+    const { searchStock, fetchStockBlob, pickBestStockPhoto, bestStockProvider } = await import('./stockPhotos');
+    const { provider, key } = bestStockProvider({ pexels: pexelsKey, unsplash: unsplashKey, pixabay: pixabayKey });
+    const photos = await searchStock(provider, query, key, 8);
+    const photo = pickBestStockPhoto(photos);
+    if (!photo) return null;
+    const blob = await fetchStockBlob(photo);
+    const item = await addStockItem({
+      blob,
+      mimeType: blob.type || 'image/jpeg',
+      name: `${photo.provider}-${query.replace(/\s+/g, '-').slice(0, 40)}`,
+      source: { provider: photo.provider, photographer: photo.photographer, photographerUrl: photo.photographerUrl, photoUrl: photo.photoUrl },
+    });
+    return { mediaId: item.id, query };
+  }
+
+  async function handleStockBgForSlide(slideKey: string, label: string) {
+    setOpenBgMenuKey(null);
+    ui.notify('Finding a photo…', { type: 'info' });
+    try {
+      const r = await resolveStockBgForLabel(label);
+      if (!r) { ui.notify('No stock match for this slide. Try My Library or a URL.', { type: 'info' }); return; }
+      setSlideBgs((prev) => ({ ...prev, [slideKey]: { type: 'media', mediaId: r.mediaId } }));
+      if (PHOTO_TEXT_PRESETS.has(preset)) {
+        setSlideBgAdjust((prev) => prev[slideKey]?.darken ? prev : { ...prev, [slideKey]: { ...(prev[slideKey] || DEFAULT_CROP), darken: 0.4 } });
+      }
+      setTimeout(() => void handleRender({ switchView: false }), 60);
+      ui.notify(`Added a photo for “${r.query}”.`, { type: 'success' });
+    } catch (e) {
+      ui.notify(`Stock search failed: ${(e as Error).message}`, { type: 'error' });
+    }
+  }
+
+  // Fill a free Openverse background for every slide that doesn't already
+  // have one, in one tap. Leaves slides the creator already set alone, and
+  // skips the icon/logo/card sub-slots. Assigns in one batch at the end.
+  async function handleAutoFillStockBgs() {
+    const slots = slideMetas.filter((m) => !/-(icon|logo|card):/.test(m.key) && !slideBgs[m.key]);
+    if (!slots.length) { ui.notify('Every slide already has a background.', { type: 'info' }); return; }
+    setAutoBgBusy(`0/${slots.length}`);
+    const updates: SlideBgMap = {};
+    let done = 0; let missed = 0;
+    for (let i = 0; i < slots.length; i++) {
+      setAutoBgBusy(`${i + 1}/${slots.length}`);
+      try {
+        const r = await resolveStockBgForLabel(slots[i].label);
+        if (r) { updates[slots[i].key] = { type: 'media', mediaId: r.mediaId }; done++; } else missed++;
+      } catch { missed++; }
+    }
+    if (done > 0) {
+      setSlideBgs((prev) => ({ ...prev, ...updates }));
+      if (PHOTO_TEXT_PRESETS.has(preset)) {
+        setSlideBgAdjust((prev) => {
+          const next = { ...prev };
+          for (const k of Object.keys(updates)) {
+            if (!next[k]?.darken) next[k] = { ...(next[k] || DEFAULT_CROP), darken: 0.4 };
+          }
+          return next;
+        });
+      }
+      setTimeout(() => void handleRender({ switchView: false }), 80);
+    }
+    setAutoBgBusy(null);
+    ui.notify(`Filled ${done} background${done === 1 ? '' : 's'}${missed ? ` · ${missed} had no match` : ''}.`, { type: done ? 'success' : 'info' });
+  }
+
+  // Resolve the deck's media backgrounds to a photo-credits line (or '').
+  // Shared by the copy-credits button and the post-pack builders.
+  async function gatherPhotoCredits(): Promise<string> {
+    const ids = Object.values(slideBgs)
+      .filter((b): b is { type: 'media'; mediaId: string } => !!b && (b as { type?: string }).type === 'media')
+      .map((b) => b.mediaId);
+    if (!ids.length) return '';
+    const sources: { provider?: string; photographer?: string }[] = [];
+    for (const id of Array.from(new Set(ids))) {
+      const item = await getItem(id);
+      if (item?.source) sources.push(item.source);
+    }
+    const { formatPhotoCredits } = await import('./stockPhotos');
+    return formatPhotoCredits(sources);
+  }
+
+  // Copy attribution for the deck's stock photos (Unsplash requires it; the
+  // rest appreciate it).
+  async function handleCopyCredits() {
+    const credits = await gatherPhotoCredits();
+    if (!credits) { ui.notify('No attributable photos (uploads/unknowns only).', { type: 'info' }); return; }
+    try { await navigator.clipboard.writeText(credits); ui.notify('Photo credits copied — add to your caption or first comment.', { type: 'success' }); }
+    catch { await ui.prompt({ title: 'Photo credits', message: 'Copy this:', defaultValue: credits, confirmLabel: 'Done' }); }
+  }
+
+  // Clear every slide's background in one go — the undo for a bulk apply /
+  // auto-fill. Confirmed since it throws away the whole deck's photos.
+  async function handleClearAllBgs() {
+    const keys = slideMetas.map((m) => m.key).filter((k) => slideBgs[k]);
+    if (!keys.length) { ui.notify('No backgrounds to clear.', { type: 'info' }); return; }
+    if (!(await ui.confirm({ message: `Clear ${keys.length} background${keys.length === 1 ? '' : 's'} from this deck?`, confirmLabel: 'Clear all' }))) return;
+    setSlideBgs((prev) => { const next = { ...prev }; for (const k of keys) delete next[k]; return next; });
+    setSlideBgAdjust((prev) => { const next = { ...prev }; for (const k of keys) delete next[k]; return next; });
+    setTimeout(() => void handleRender({ switchView: false }), 60);
+    ui.notify(`Cleared ${keys.length} background${keys.length === 1 ? '' : 's'}.`, { type: 'success' });
+  }
+
   function handleClearBgForSlide(slideKey: string) {
     setSlideBgs((prev) => {
       const next = { ...prev };
@@ -1070,6 +1320,7 @@ export default function App() {
   function handleCloneAgain(sourceUrl: string) {
     setMainView('preview');
     setMobileView('edit');
+    setOpenGroups((p) => ({ ...p, ai: true })); // reveal the Clone panel
     setPrefillCloneUrl(sourceUrl);
   }
 
@@ -1087,6 +1338,32 @@ export default function App() {
     }
     const add = tags.map((t) => '#' + t).join(' ');
     setCaption((prev) => (prev.trim() ? prev.trimEnd() + '\n\n' + add : add));
+  }
+
+  // One-tap caption cleanup: dedup hashtags, drop stray blank lines/spaces.
+  async function handleTidyCaption() {
+    if (!caption.trim()) return;
+    const { tidyCaption } = await import('./captionAI');
+    const cleaned = tidyCaption(caption);
+    if (cleaned === caption) { ui.notify('Caption is already tidy.', { type: 'info' }); return; }
+    setCaption(cleaned);
+    ui.notify('Tidied — removed duplicate tags & extra spacing.', { type: 'success' });
+  }
+
+  // Move the trailing hashtag block out of the caption and onto the clipboard
+  // so it can be pasted as the first comment — a common reach tactic (the
+  // algorithm favors captions that aren't a wall of tags).
+  async function handleHashtagsToComment() {
+    const { splitForFirstComment } = await import('./captionAI');
+    const { body, hashtags } = splitForFirstComment(caption);
+    if (!hashtags) { ui.notify('No trailing hashtags to move.', { type: 'info' }); return; }
+    setCaption(body);
+    try {
+      await navigator.clipboard?.writeText(hashtags);
+      ui.notify('Hashtags copied — paste them as your first comment. Caption is now clean.', { type: 'success' });
+    } catch {
+      ui.notify('Caption cleaned. Copy the hashtags from your notes to post as the first comment.', { type: 'info' });
+    }
   }
 
   const [aiTagsBusy, setAiTagsBusy] = useState(false);
@@ -1135,6 +1412,13 @@ export default function App() {
   // content. Learns the user's voice from their recent saved captions.
   const [captionAiBusy, setCaptionAiBusy] = useState(false);
   const [captionTone, setCaptionTone] = useState(() => loadPref('captionTone') || 'Auto');
+  // Reminder of the trending sound to add at post time. Persisted (survives
+  // reload) and saved with each draft.
+  const [audioNote, setAudioNote] = useState(() => loadPref('audioNote'));
+  useEffect(() => { savePref('audioNote', audioNote); }, [audioNote]);
+  // Posting hour (0-23) used by the "spread across the week" auto-scheduler.
+  const [scheduleHour, setScheduleHour] = useState<number>(() => { const v = Number(loadPref('scheduleHour')); return v >= 0 && v <= 23 ? v : 18; });
+  useEffect(() => { savePref('scheduleHour', String(scheduleHour)); }, [scheduleHour]);
   const [translateLang, setTranslateLang] = useState('Spanish');
   const [translateBusy, setTranslateBusy] = useState(false);
 
@@ -1157,6 +1441,41 @@ export default function App() {
     }
   }
 
+  // AI hook variations — generate alternative opening lines to A/B test the
+  // single highest-leverage line. Results show as clickable chips below the
+  // hook meter; tapping one swaps it into the caption's first line.
+  const [hookVarsBusy, setHookVarsBusy] = useState(false);
+  const [hookVars, setHookVars] = useState<string[] | null>(null);
+  // Free, offline hook-formula suggestions (no API). Null = hidden.
+  const [hookIdeas, setHookIdeas] = useState<string[] | null>(null);
+  async function applyHookFormula(formula: string) {
+    const { replaceFirstLine } = await import('./captionAI');
+    setCaption((c) => replaceFirstLine(c, formula));
+    setHookIdeas(null);
+    ui.notify('Hook template added — fill in the {blanks}.', { type: 'success' });
+  }
+  async function handleHookVariations() {
+    if (!anthropicKey) { ui.notify('Add an Anthropic API key in Settings to use this.', { type: 'error' }); return; }
+    setHookVarsBusy(true);
+    setHookVars(null);
+    try {
+      const { generateHookVariations } = await import('./captionAI');
+      const currentHook = (caption.split('\n').find((l) => l.trim()) || '').trim();
+      const hooks = await generateHookVariations({ json: jsonText, currentHook, preset, apiKey: anthropicKey, model: claudeModel });
+      setHookVars(hooks);
+    } catch (e) {
+      ui.notify(`Failed: ${(e as Error).message}`, { type: 'error' });
+    } finally {
+      setHookVarsBusy(false);
+    }
+  }
+  async function applyHookVariation(hook: string) {
+    const { replaceFirstLine } = await import('./captionAI');
+    setCaption((c) => replaceFirstLine(c, hook));
+    setHookVars(null);
+    ui.notify('Hook swapped in.', { type: 'success' });
+  }
+
   async function handleTranslateCaption() {
     if (!caption.trim()) { ui.notify('Write a caption first.', { type: 'info' }); return; }
     if (!anthropicKey) { ui.notify('Add an Anthropic API key in Settings to translate.', { type: 'error' }); return; }
@@ -1169,6 +1488,35 @@ export default function App() {
       ui.notify(`Translated to ${translateLang}.`, { type: 'success' });
     } catch (e) {
       ui.notify(`Translation failed: ${(e as Error).message}`, { type: 'error' });
+    } finally {
+      setTranslateBusy(false);
+    }
+  }
+
+  // Translate the whole DECK (slide content + caption) into another language
+  // so the same post can be reposted to a different-language audience — a
+  // reach multiplier. Structure is preserved deterministically; only prose
+  // is translated. Destructive in place, so we confirm + suggest a draft.
+  async function handleTranslateDeck() {
+    if (!anthropicKey) { ui.notify('Add an Anthropic API key in Settings to translate.', { type: 'error' }); return; }
+    if (!(await ui.confirm({ message: `Translate the whole deck (slides + caption) to ${translateLang}? Save a draft first to keep the original.`, confirmLabel: 'Translate deck' }))) return;
+    setTranslateBusy(true);
+    snapshotForAi();
+    try {
+      const { translateDeck } = await import('./deckTranslate');
+      const newJson = await translateDeck({ json: jsonText, language: translateLang, apiKey: anthropicKey, model: claudeModel });
+      setJsonText(newJson);
+      if (caption.trim()) {
+        try {
+          const { translateCaption } = await import('./captionAI');
+          setCaption(await translateCaption({ caption, language: translateLang, apiKey: anthropicKey, model: claudeModel }));
+        } catch { /* caption translation is best-effort */ }
+      }
+      setActiveDraftName('');
+      setTimeout(() => void handleRender({ switchView: false }), 80);
+      ui.notify(`Deck translated to ${translateLang}.`, { type: 'success' });
+    } catch (e) {
+      ui.notify(`Deck translation failed: ${(e as Error).message}`, { type: 'error' });
     } finally {
       setTranslateBusy(false);
     }
@@ -1412,6 +1760,27 @@ export default function App() {
   }
 
   // Capture → upload each slide → push to the account's TikTok inbox.
+  // Upload one captured slide to /api/tiktok/upload, retrying transient
+  // failures so a single network blip doesn't sink a multi-slide send.
+  async function uploadSlide(dataUrl: string): Promise<{ mediaUrl?: string; blobUrl?: string }> {
+    const { isTransientStatus, backoffMs } = await import('./netRetry');
+    const max = 3;
+    for (let a = 0; a < max; a++) {
+      let res: Response;
+      try {
+        res = await fetch('/api/tiktok/upload', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dataUrl }) });
+      } catch (e) {
+        if (a < max - 1) { await new Promise((r) => setTimeout(r, backoffMs(a))); continue; }
+        throw e;
+      }
+      if (res.ok) return await res.json();
+      if (isTransientStatus(res.status) && a < max - 1) { await new Promise((r) => setTimeout(r, backoffMs(a))); continue; }
+      const d = await res.json().catch(() => ({}));
+      throw new Error((d as { error?: string }).error || `Slide upload failed (${res.status}).`);
+    }
+    throw new Error('Slide upload failed after several retries.');
+  }
+
   async function sendToTikTok() {
     let token = ttToken;
     if (!token) { const ok = await connectTikTok(); if (!ok) return; token = (localStorage.getItem('kiro_tiktok_token') || ''); if (!token) return; }
@@ -1422,9 +1791,8 @@ export default function App() {
       const mediaUrls: string[] = [];
       for (let i = 0; i < slides.length; i++) {
         setTtStatus({ kind: 'sending', msg: `Uploading slide ${i + 1} / ${slides.length}…` });
-        const up = await fetch('/api/tiktok/upload', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dataUrl: slides[i] }) });
-        const ud = await up.json();
-        if (!up.ok) throw new Error(ud.error || 'Slide upload failed.');
+        const ud = await uploadSlide(slides[i]);
+        if (!ud.mediaUrl) throw new Error('Slide upload returned no media URL.');
         mediaUrls.push(ud.mediaUrl);
       }
       setTtStatus({ kind: 'sending', msg: 'Sending to your TikTok inbox…' });
@@ -1451,9 +1819,8 @@ export default function App() {
       const blobUrls: string[] = [];
       for (let i = 0; i < slides.length; i++) {
         setPhoneBusy(`Uploading slide ${i + 1} / ${slides.length}…`);
-        const up = await fetch('/api/tiktok/upload', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dataUrl: slides[i] }) });
-        const ud = await up.json();
-        if (!up.ok) throw new Error(ud.error || 'Slide upload failed.');
+        const ud = await uploadSlide(slides[i]);
+        if (!ud.blobUrl) throw new Error('Slide upload returned no URL.');
         blobUrls.push(ud.blobUrl);
       }
       setPhoneBusy('Building your phone page…');
@@ -1531,6 +1898,35 @@ export default function App() {
     }
   }
 
+  // Download every slide as an image, bundled into a single ZIP — for
+  // manually uploading the photos to TikTok / Instagram / wherever. The
+  // caption rides along as caption.txt so it's one tap to grab everything.
+  async function handleDownloadImages() {
+    setImagesBusy('Capturing slides…');
+    try {
+      const slides = await captureTikTokSlides();
+      if (!slides.length) throw new Error('No slides captured. Hit Render first.');
+      setImagesBusy('Zipping…');
+      const pad = (n: number) => String(n).padStart(2, '0');
+      const entries = slides.map((dataUrl, i) => ({
+        name: `slide-${pad(i + 1)}.jpg`,
+        data: dataUrlToBytes(dataUrl),
+      }));
+      // A one-stop posting cheat sheet: caption to paste, hashtags split out
+      // for the first comment, and a checklist.
+      const { buildPostingNotes } = await import('./captionAI');
+      const credits = await gatherPhotoCredits();
+      entries.push({ name: 'posting.txt', data: new TextEncoder().encode(buildPostingNotes(caption, PRESETS[preset].label, slides.length, audioNote, credits)) });
+      const blob = makeZip(entries);
+      downloadBlob(blob, `iro_${preset}_${timestampSlug()}.zip`);
+      ui.notify(`Downloaded ${slides.length} slide image${slides.length === 1 ? '' : 's'}.`, { type: 'success' });
+    } catch (e) {
+      ui.notify(`Image export failed: ${(e as Error).message}`, { type: 'error' });
+    } finally {
+      setImagesBusy(null);
+    }
+  }
+
   // Fill the current template's JSON from a one-line topic, via Claude.
   // Topic → complete ready-to-post post: AI picks the best format, fills it,
   // and writes a caption — all in one tap.
@@ -1541,11 +1937,11 @@ export default function App() {
     if (!isExampleJson(jsonText) && !(await ui.confirm({ message: 'Generate a full post? This replaces your current content and caption.', confirmLabel: 'Generate' }))) return;
     snapshotForAi();
     try {
-      const { pickFormat, generateFromTopic } = await import('./fillFromTopic');
+      const { pickFormat, generateFromTopic, buildPreferList } = await import('./fillFromTopic');
       const { generateCaption, composeCaption } = await import('./captionAI');
       setFullPostBusy('Picking format…');
       const formats = PRESET_KEYS.map((k) => ({ key: k, label: PRESETS[k].label, pitch: PRESETS[k].pitch }));
-      const picked = await pickFormat({ topic: t, formats, apiKey: anthropicKey, model: claudeModel, prefer: favFormats });
+      const picked = await pickFormat({ topic: t, formats, apiKey: anthropicKey, model: claudeModel, prefer: buildPreferList(favFormats, formatPerf) });
       const target = (PRESET_KEYS as readonly string[]).includes(picked) ? (picked as PresetKey) : preset;
       setPreset(target);
       setFullPostBusy(`Writing the ${PRESETS[target].label}…`);
@@ -1623,8 +2019,12 @@ export default function App() {
     snapshotForAi();
     setImproveBusy(label);
     try {
-      const { improvePost } = await import('./fillFromTopic');
-      const revised = await improvePost({ json: jsonText, instruction, apiKey: anthropicKey, model: claudeModel });
+      // Structure-preserving rewrite: the model only ever rewrites the flat
+      // list of on-screen strings, so it can't drop fields, rename keys,
+      // change the slide count, or corrupt bg/colors (unlike a whole-JSON
+      // rewrite). Only the prose changes.
+      const { rewriteDeck } = await import('./deckTranslate');
+      const revised = await rewriteDeck({ json: jsonText, instruction, apiKey: anthropicKey, model: claudeModel });
       setJsonText(revised);
       setTimeout(() => void handleRender({ switchView: false }), 80);
       ui.notify(`Rewritten: ${label}.`, { type: 'success' });
@@ -1689,8 +2089,9 @@ export default function App() {
     if (!anthropicKey) { ui.notify('Add an Anthropic API key in Settings to use this.', { type: 'error' }); return; }
     setBatchBusy(`Generating 0 / ${lines.length}…`);
     try {
-      const { generateFromTopic, pickFormat } = await import('./fillFromTopic');
+      const { generateFromTopic, pickFormat, buildPreferList } = await import('./fillFromTopic');
       const caps = batchSmart ? await import('./captionAI') : null;
+      const preferList = buildPreferList(favFormats, formatPerf);
       const formats = PRESET_KEYS.map((k) => ({ key: k, label: PRESETS[k].label, pitch: PRESETS[k].pitch }));
       let made = 0; let failed = 0; let next = drafts;
       for (let i = 0; i < lines.length; i++) {
@@ -1700,7 +2101,7 @@ export default function App() {
           // (a varied, complete week). Otherwise the current format, no caption.
           let target = preset;
           if (batchSmart) {
-            const picked = await pickFormat({ topic: lines[i], formats, apiKey: anthropicKey, model: claudeModel, prefer: favFormats });
+            const picked = await pickFormat({ topic: lines[i], formats, apiKey: anthropicKey, model: claudeModel, prefer: preferList });
             if ((PRESET_KEYS as readonly string[]).includes(picked)) target = picked as PresetKey;
           }
           const filled = await generateFromTopic({ topic: lines[i], preset: target, exampleJson: PRESETS[target].defaultJson, apiKey: anthropicKey, model: claudeModel });
@@ -1773,6 +2174,20 @@ export default function App() {
     }
   }
 
+  // Copy the full posting cheat-sheet (caption + first-comment hashtags +
+  // sound + checklist) to the clipboard — the same thing the slide ZIP's
+  // posting.txt contains, for when you just want the text.
+  async function handleCopyPostPack() {
+    const { buildPostingNotes } = await import('./captionAI');
+    const text = buildPostingNotes(caption, PRESETS[preset].label, slideCount || 0, audioNote, await gatherPhotoCredits());
+    try {
+      await navigator.clipboard.writeText(text);
+      ui.notify('Post pack copied — caption, first comment, sound + checklist.', { type: 'success' });
+    } catch {
+      await ui.prompt({ title: 'Post pack', message: 'Copy this:', placeholder: '', confirmLabel: 'Done', defaultValue: text });
+    }
+  }
+
   async function handleSharePost() {
     const code = encodePost({ preset, json: jsonText, caption });
     try {
@@ -1788,16 +2203,28 @@ export default function App() {
     const decoded = decodePost(code);
     if (!decoded) { ui.notify('That code is not valid.', { type: 'error' }); return; }
     if (!isExampleJson(jsonText) && !(await ui.confirm({ message: 'Importing replaces your current post. Continue?', confirmLabel: 'Import' }))) return;
+    // Resolve the format from the code's preset, falling back to the JSON's
+    // own `preset` field — so a code whose top-level preset is missing/unknown
+    // still renders if the JSON names a format this version has.
+    const known = (p: string) => (PRESET_KEYS as readonly string[]).includes(p);
+    let target = decoded.preset && known(decoded.preset) ? decoded.preset : '';
+    if (!target) {
+      try { const j = JSON.parse(stripJsonWrappers(decoded.json.trim())) as { preset?: unknown }; if (typeof j.preset === 'string' && known(j.preset)) target = j.preset; } catch { /* not parseable — handled below */ }
+    }
     setJsonText(decoded.json);
     setCaption(decoded.caption);
-    if (decoded.preset && (PRESET_KEYS as readonly string[]).includes(decoded.preset)) setPreset(decoded.preset as PresetKey);
-    setTimeout(() => void handleRender({ switchView: false }), 80);
-    ui.notify('Post imported.', { type: 'success' });
+    if (target) {
+      setPreset(target as PresetKey);
+      setTimeout(() => void handleRender({ switchView: false }), 80);
+      ui.notify('Post imported.', { type: 'success' });
+    } else {
+      ui.notify('Imported the content, but its format isn’t available in this version — pick a format to render it.', { type: 'info' });
+    }
   }
 
   // ---- Drafts (named in-progress projects) ----
   function currentDraftState() {
-    return { jsonText, caption, preset, slideBgs, slideBgAdjust, attribution, attrPresets };
+    return { jsonText, caption, preset, slideBgs, slideBgAdjust, attribution, attrPresets, audioNote };
   }
 
   async function handleSaveDraft() {
@@ -1841,6 +2268,7 @@ export default function App() {
     setSlideBgAdjust((s.slideBgAdjust || {}) as Record<string, CropValue>);
     setAttribution(s.attribution || '');
     if (s.attrPresets) setAttrPresets(s.attrPresets);
+    setAudioNote(s.audioNote || '');
     setActiveDraftName(d.name);
     iframeRef.current?.contentWindow?.postMessage({ type: 'clearOverlays' }, '*');
     // Restore this draft's overlays once the new slides have rendered.
@@ -1854,8 +2282,38 @@ export default function App() {
     setDrafts(deleteDraft(d.id));
   }
 
+  async function handleRenameDraft(d: Draft) {
+    const name = await ui.prompt({ title: 'Rename draft', message: 'New name', defaultValue: d.name, confirmLabel: 'Rename' });
+    const clean = (name || '').trim();
+    if (!clean || clean === d.name) return;
+    setDrafts(renameDraft(d.id, clean));
+    if (activeDraftName === d.name) setActiveDraftName(clean);
+    ui.notify('Draft renamed.', { type: 'success' });
+  }
+
   async function handleSaveToHistory() {
     if (!caption.trim() && !(await ui.confirm({ message: 'Save this post with no caption?', confirmLabel: 'Save' }))) return;
+    // Repeat-hook guard: TikTok suppresses content it reads as a near-dupe
+    // of something the account already posted, so warn before saving a hook
+    // that strongly matches one already in history. Best-effort — a read
+    // failure must never block the save.
+    let history: Awaited<ReturnType<typeof listPosts>> = [];
+    try { history = await listPosts(); } catch { /* history unavailable */ }
+    try {
+      if (caption.trim()) {
+        const matches = findSimilarHooks(caption, history);
+        if (matches.length > 0) {
+          const top = matches[0];
+          const when = new Date(top.post.postedAt).toLocaleDateString();
+          const ok = await ui.confirm({
+            title: 'You’ve used this hook before',
+            message: `This opening line is ${Math.round(top.similarity * 100)}% the same as a post from ${when} (“${top.hook.slice(0, 80)}”). TikTok tends to bury near-duplicates — tweak the hook for better reach, or save anyway.`,
+            confirmLabel: 'Save anyway',
+          });
+          if (!ok) return;
+        }
+      }
+    } catch { /* best-effort — never block saving */ }
     setSaveStatus({ kind: 'saving' });
     try {
       const thumb = await captureThumbnail();
@@ -1880,6 +2338,11 @@ export default function App() {
       });
       setSaveStatus({ kind: 'ok' });
       setPendingPrediction(null);
+      void loadFormatPerf();
+      // Gentle variety nudge — this makes 3+ of the same format in a row.
+      if (wouldFatigueStreak(history, preset)) {
+        ui.notify(`Saved — but that’s 3+ ${PRESETS[preset].label}s in a row. Mixing formats keeps your feed (and the algorithm) fresh.`, { type: 'info' });
+      }
       setTimeout(() => setSaveStatus({ kind: 'idle' }), 2500);
     } catch (e) {
       setSaveStatus({ kind: 'err', msg: (e as Error).message || 'save failed' });
@@ -1891,6 +2354,7 @@ export default function App() {
     // preview matches the controls instead of showing the engine's default.
     // switchView:false so a phone user isn't bounced off the Edit tab.
     handleRender({ switchView: false });
+    if (safeZone) iframeRef.current?.contentWindow?.postMessage({ type: 'toggle-safezone', on: true }, '*');
   }
 
   // Live design preview: when the brand kit / aspect / watermark changes,
@@ -1905,6 +2369,13 @@ export default function App() {
     return () => clearTimeout(id);
   }, [design]);
 
+  // Push the safe-zone guide state to the engine whenever it changes (and
+  // once on mount via engineReady), and remember the preference.
+  useEffect(() => {
+    savePref('safeZone', safeZone ? '1' : '0');
+    iframeRef.current?.contentWindow?.postMessage({ type: 'toggle-safezone', on: safeZone }, '*');
+  }, [safeZone]);
+
   // ⌘/Ctrl+Enter renders from anywhere. renderRef keeps the handler current
   // without re-binding the listener every render.
   const renderRef = useRef(handleRender);
@@ -1912,6 +2383,11 @@ export default function App() {
   // Bound to the (hoisted) handleSaveDraft so Cmd/Ctrl+S quick-saves a draft.
   const saveDraftRef = useRef<() => void>(() => {});
   saveDraftRef.current = handleSaveDraft;
+  // Current previewed slide + count, as refs so the (once-bound) key handler
+  // reads fresh values without re-binding. jumpToSlide keeps the index in sync.
+  const previewIndexRef = useRef(0);
+  const slideCountRef = useRef(slideCount);
+  slideCountRef.current = slideCount;
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
@@ -1923,6 +2399,28 @@ export default function App() {
       } else if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) {
         e.preventDefault();
         setPaletteOpen((o) => !o);
+      } else if (e.key === '?' && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        // Open the shortcuts cheat-sheet — but not while the user is typing
+        // (a '?' in the caption / JSON must reach the field).
+        const el = e.target as HTMLElement | null;
+        const tag = el?.tagName;
+        const typing = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el?.isContentEditable;
+        if (!typing) { e.preventDefault(); setShortcutsOpen((o) => !o); }
+      } else if ((e.key === 'ArrowRight' || e.key === 'ArrowLeft') && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        // Step through slides in the preview — but not while typing (arrows
+        // must move the caret in a field).
+        const el = e.target as HTMLElement | null;
+        const tag = el?.tagName;
+        const typing = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el?.isContentEditable;
+        const n = slideCountRef.current;
+        if (!typing && n > 1) {
+          e.preventDefault();
+          const delta = e.key === 'ArrowRight' ? 1 : -1;
+          const next = Math.max(0, Math.min(n - 1, previewIndexRef.current + delta));
+          if (next !== previewIndexRef.current) jumpToSlide(next);
+        }
+      } else if (e.key === 'Escape') {
+        setShortcutsOpen(false);
       }
     };
     window.addEventListener('keydown', onKey);
@@ -1961,6 +2459,24 @@ export default function App() {
     iframeRef.current?.contentWindow?.postMessage({ type: 'clearOverlays' }, '*');
   }
 
+  // "Adapt" a viral pattern from Discover: switch to its format, load that
+  // format's example as a structure to riff on, and seed the topic field so
+  // one tap of "Full post" spins up the creator's own version in this shape.
+  async function handleAdaptPattern(p: ViralPattern) {
+    const dirty = !isExampleJson(jsonText) || !isExampleCaption(caption);
+    if (dirty && !(await ui.confirm({ message: `Adapt "${p.title}"? This loads the ${PRESETS[p.preset].label} structure and replaces your current content.`, confirmLabel: 'Adapt' }))) return;
+    setPreset(p.preset);
+    setJsonText(PRESETS[p.preset].defaultJson);
+    setCaption(PRESETS[p.preset].defaultCaption);
+    setTopic(p.adapt);
+    setActiveDraftName('');
+    iframeRef.current?.contentWindow?.postMessage({ type: 'clearOverlays' }, '*');
+    setMainView('preview');
+    setMobileView('edit');
+    setTimeout(() => void handleRender({ switchView: false }), 80);
+    ui.notify(`Loaded the ${PRESETS[p.preset].label} shape. Tweak the topic and hit “Full post” to generate your version.`, { type: 'success' });
+  }
+
   // Command palette entries, rebuilt when the bits they reference change.
   const commands = useMemo<Command[]>(() => {
     const goto = (main: MainView, mobile: MobileView): (() => void) => () => {
@@ -1972,6 +2488,8 @@ export default function App() {
       { id: 'save', section: 'Actions', label: 'Save to history', keywords: 'post track', run: () => void handleSaveToHistory() },
       { id: 'hashtags', section: 'Actions', label: 'Suggest hashtags', keywords: 'tags caption', run: () => void handleSuggestHashtags() },
       { id: 'copycap', section: 'Actions', label: 'Copy caption', run: () => { if (caption) void navigator.clipboard?.writeText(caption); } },
+      { id: 'tidycap', section: 'Actions', label: 'Tidy caption', keywords: 'clean dedupe hashtags whitespace', run: () => void handleTidyCaption() },
+      { id: 'tags-to-comment', section: 'Actions', label: 'Move hashtags to first comment', keywords: 'hashtags comment reach clean caption', run: () => void handleHashtagsToComment() },
       { id: 'loaddefault', section: 'Actions', label: `Load ${PRESETS[preset].label} example post`, keywords: 'reset template default', run: () => { setJsonText(PRESETS[preset].defaultJson); setCaption(PRESETS[preset].defaultCaption); } },
       { id: 'toggle-edit', section: 'Actions', label: `Switch editor to ${editMode === 'quick' ? 'JSON' : 'Quick edit'}`, run: () => setEditMode((m) => (m === 'quick' ? 'json' : 'quick')) },
       { id: 'export-backup', section: 'Actions', label: 'Export backup', keywords: 'download save data', run: () => void handleExportBackup() },
@@ -1983,20 +2501,32 @@ export default function App() {
       { id: 'ai-improve-simpler', section: 'AI', label: 'Improve: make it simpler', keywords: 'rewrite beginner', run: () => void handleImprovePost('Simpler', 'Simplify the language so a beginner instantly gets it; cut jargon.') },
       { id: 'ai-improve-spicier', section: 'AI', label: 'Improve: make it spicier', keywords: 'rewrite bold controversial', run: () => void handleImprovePost('Spicier', 'Make it bolder and more opinionated/controversial (still true and on-brand).') },
       { id: 'ai-improve-shorter', section: 'AI', label: 'Improve: make it shorter', keywords: 'rewrite trim', run: () => void handleImprovePost('Shorter', 'Cut each piece of text to the essential words; keep it skimmable.') },
+      { id: 'ai-improve-funnier', section: 'AI', label: 'Improve: make it funnier', keywords: 'rewrite humor witty', run: () => void handleImprovePost('Funnier', 'Add wit and personality — a joke, a bit, or a self-aware aside where it fits; keep it natural, not corny.') },
+      { id: 'ai-improve-lowercase', section: 'AI', label: 'Improve: lowercase aesthetic voice', keywords: 'rewrite lowercase aesthetic vibe', run: () => void handleImprovePost('Lowercase', 'Rewrite in the soft, all-lowercase aesthetic-creator voice; keep meaning and any emphasis tags.') },
       { id: 'ai-punch', section: 'AI', label: 'Punch up the caption', keywords: 'sharpen rewrite caption', run: () => void handlePunchUpCaption() },
+      { id: 'ai-hooks', section: 'AI', label: 'Generate hook variations', keywords: 'hook first line ab test alternatives', run: () => void handleHookVariations() },
+      { id: 'ai-translate-deck', section: 'AI', label: 'Translate whole deck', keywords: 'language localize international reach slides', run: () => void handleTranslateDeck() },
       { id: 'ai-ideas', section: 'AI', label: 'Brainstorm post ideas', keywords: 'topics batch niche', run: () => void handleGenerateIdeas() },
       ...(aiUndo ? [{ id: 'ai-undo', section: 'AI', label: 'Undo last AI change', keywords: 'revert', run: handleUndoAi }] : []),
       { id: 'save-draft', section: 'Actions', label: 'Save as draft', hint: '⌘S', keywords: 'project', run: () => void handleSaveDraft() },
       { id: 'copy-script', section: 'Actions', label: 'Copy slide script', keywords: 'voiceover text', run: () => void handleCopyScript() },
+      { id: 'copy-postpack', section: 'Actions', label: 'Copy post pack', keywords: 'caption first comment checklist sound posting', run: () => void handleCopyPostPack() },
       { id: 'send-phone', section: 'Export', label: 'Send to phone (QR)', keywords: 'mobile transfer', run: () => void handlePhoneHandoff() },
       { id: 'export-video', section: 'Export', label: 'Export as video', keywords: 'mp4 reel', run: () => handleExportVideo() },
       { id: 'export-pdf', section: 'Export', label: 'Export as PDF', keywords: 'carousel instagram linkedin', run: () => void handleExportPdf() },
+      { id: 'export-images', section: 'Export', label: 'Download slides (.zip)', keywords: 'images jpg photos manual upload zip', run: () => void handleDownloadImages() },
+      { id: 'toggle-safezone', section: 'Actions', label: 'Toggle TikTok safe zone guide', keywords: 'crop margins overlay preview', run: () => setSafeZone((v) => !v) },
+      { id: 'shortcuts', section: 'Actions', label: 'Keyboard shortcuts', keywords: 'help keys hotkeys cheat sheet', run: () => setShortcutsOpen(true) },
+      { id: 'autofill-bg', section: 'Actions', label: 'Auto-fill stock backgrounds', keywords: 'photos openverse images deck free', run: () => void handleAutoFillStockBgs() },
+      { id: 'clear-bgs', section: 'Actions', label: 'Clear all backgrounds', keywords: 'remove photos reset deck', run: () => void handleClearAllBgs() },
       { id: 'send-tiktok', section: 'Export', label: 'Send to TikTok inbox', keywords: 'publish post', run: () => void sendToTikTok() },
       { id: 'go-edit', section: 'Go to', label: 'Edit', run: goto('preview', 'edit') },
       { id: 'go-preview', section: 'Go to', label: 'Preview', run: goto('preview', 'preview') },
+      { id: 'go-discover', section: 'Go to', label: 'Discover viral slideshows', keywords: 'inspiration viral patterns adapt ideas trending', run: goto('discover', 'discover') },
       { id: 'go-lib', section: 'Go to', label: 'Media Bank', keywords: 'library photos', run: goto('library', 'library') },
       { id: 'go-patterns', section: 'Go to', label: 'Patterns', run: goto('patterns', 'patterns') },
       { id: 'go-stats', section: 'Go to', label: 'Performance', keywords: 'analytics stats scores', run: goto('analytics', 'analytics') },
+      { id: 'go-trends', section: 'Go to', label: 'Account Trends', keywords: 'analytics growth views over time tiktok overview chart', run: goto('trends', 'trends') },
     ];
     for (const k of PRESET_KEYS) {
       list.push({ id: `fmt-${k}`, section: 'Format', label: `Format: ${PRESETS[k].label}`, keywords: 'preset template example', run: () => void selectFormat(k) });
@@ -2173,6 +2703,7 @@ export default function App() {
       {/* Mobile-only tab bar; hidden on md+ where the sidebar is always visible. */}
       <nav className="md:hidden flex shrink-0 bg-gradient-to-b from-[#0a0e1a] to-[#080b16] border-b border-white/[0.05]">
         {mobileTabBtn('edit', 'Edit')}
+        {mobileTabBtn('discover', 'Discover')}
         {mobileTabBtn('library', 'Lib')}
         {mobileTabBtn('patterns', 'Patterns')}
         {mobileTabBtn('analytics', 'Stats')}
@@ -2210,6 +2741,18 @@ export default function App() {
           <p className="mt-3 md:mt-4 text-[12px] md:text-[13px] text-gray-500 leading-relaxed">
             Pick a format. Paste content. Render.
           </p>
+          <button
+            type="button"
+            onClick={() => { setMainView('discover'); setMobileView('discover'); }}
+            className={
+              'mt-4 w-full py-2.5 rounded-xl text-[11px] font-bold uppercase tracking-[0.14em] transition-all ' +
+              (mainView === 'discover'
+                ? 'bg-[#00E5FF] text-[#0a0e1a] shadow-[0_4px_20px_rgba(0,229,255,0.35)]'
+                : 'border border-[#00E5FF]/30 bg-[#00E5FF]/[0.08] text-[#00E5FF] hover:bg-[#00E5FF]/[0.18]')
+            }
+          >
+            🔥 Discover viral slideshows
+          </button>
         </header>
 
         <div className="flex-1 overflow-y-auto custom-scrollbar">
@@ -2256,8 +2799,26 @@ export default function App() {
               value={formatQuery}
               onChange={(e) => setFormatQuery(e.target.value)}
               placeholder={`Filter ${PRESET_KEYS.length} formats… (e.g. "tier", "quote", "story")`}
-              className="w-full mb-2.5 bg-[#070b18] border border-white/[0.08] rounded-lg px-3 py-2 text-[12px] text-gray-200 placeholder:text-gray-600 focus:border-[#00E5FF]/40 focus:outline-none"
+              className="w-full mb-2 bg-[#070b18] border border-white/[0.08] rounded-lg px-3 py-2 text-[12px] text-gray-200 placeholder:text-gray-600 focus:border-[#00E5FF]/40 focus:outline-none"
             />
+            <div className="mb-2.5 flex items-center gap-1.5 flex-wrap">
+              {(['All', ...FORMAT_CATEGORIES] as const).map((cat) => {
+                const active = formatCategory === cat;
+                return (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => setFormatCategory(cat)}
+                    className={
+                      'px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-[0.1em] transition-colors ' +
+                      (active ? 'bg-[#00E5FF] text-[#0a0e1a]' : 'bg-white/[0.04] text-gray-400 hover:bg-white/[0.08] hover:text-gray-200')
+                    }
+                  >
+                    {cat}
+                  </button>
+                );
+              })}
+            </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
               {orderedFormatKeys.length === 0 && (
                 <div className="col-span-2 md:col-span-4 text-[11px] text-gray-500 py-2 text-center">No formats match “{formatQuery}”.</div>
@@ -2314,6 +2875,20 @@ export default function App() {
                         Coming soon
                       </span>
                     )}
+                    {!planned && formatPerf[key] && (() => {
+                      const p = formatPerf[key];
+                      // Green when this format out-earns 60+, amber mid, gray low.
+                      const color = p.avgScore >= 64 ? '#22C55E' : p.avgScore >= 44 ? '#FFC857' : '#9aa4b2';
+                      return (
+                        <span
+                          className="mt-1.5 inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-[0.1em]"
+                          style={{ color }}
+                          title={`Your average performance with this format across ${p.count} scored post${p.count === 1 ? '' : 's'}`}
+                        >
+                          ★ avg {p.avgScore} · {p.count}
+                        </span>
+                      );
+                    })()}
                   </button>
                 );
               })}
@@ -2490,6 +3065,8 @@ export default function App() {
                 ['Simpler', 'Simplify the language so a beginner instantly gets it; cut jargon.'],
                 ['Spicier', 'Make it bolder and more opinionated/controversial (still true and on-brand).'],
                 ['Shorter', 'Cut each piece of text to the essential words; keep it skimmable.'],
+                ['Funnier', 'Add wit and personality — a joke, a bit, or a self-aware aside where it fits; keep it natural, not corny.'],
+                ['Lowercase', 'Rewrite in the soft, all-lowercase aesthetic-creator voice; keep meaning and any emphasis tags.'],
               ] as const).map(([label, instruction]) => (
                 <button
                   key={label}
@@ -2608,6 +3185,36 @@ export default function App() {
               >
                 {genDeckBusy ? '✨ Generating…' : '✨ Generate one AI background for the whole deck'}
               </button>
+            )}
+            <button
+              type="button"
+              onClick={() => void handleAutoFillStockBgs()}
+              disabled={!!autoBgBusy}
+              title="Search your best stock provider (Pexels/Unsplash if keyed, else free Openverse) from each slide's text and fill empty backgrounds"
+              className="w-full mb-4 py-2.5 rounded-lg text-[11px] font-bold uppercase tracking-[0.1em]
+                         border border-white/[0.12] bg-white/[0.03] text-gray-200
+                         disabled:opacity-50 disabled:cursor-not-allowed hover:border-[#00E5FF]/40 hover:text-[#00E5FF] transition-all"
+            >
+              {autoBgBusy ? `🔍 Finding photos… ${autoBgBusy}` : '🔍 Auto-fill stock photos (free)'}
+            </button>
+            {slideMetas.some((m) => slideBgs[m.key]) && (
+              <div className="mb-4 -mt-2 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => void handleCopyCredits()}
+                  title="Copy photo attribution for the deck's stock backgrounds"
+                  className="flex-1 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-[0.12em] text-gray-500 hover:text-[#00E5FF] border border-white/[0.08]"
+                >
+                  📸 Copy credits
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleClearAllBgs()}
+                  className="flex-1 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-[0.12em] text-gray-500 hover:text-red-400 border border-white/[0.08]"
+                >
+                  Clear all
+                </button>
+              </div>
             )}
             {/* Quick gradient background — no photo or API key needed. */}
             <div className="mb-4">
@@ -2810,6 +3417,9 @@ export default function App() {
                             {menuItem('Paste image URL', () => handlePasteUrlForSlide(key), {
                               sub: 'Direct link to a publicly reachable image.',
                             })}
+                            {menuItem('🔍 Auto stock photo', () => void handleStockBgForSlide(key, label), {
+                              sub: 'Searches your best stock provider (Pexels/Unsplash if keyed, else free Openverse), prefers portrait. Tap again for a new one.',
+                            })}
                             {openaiKey && menuItem(
                               editing ? 'Generating…' : '✨ Generate with AI',
                               () => void handleGenerateBgForSlide(key, label),
@@ -2831,6 +3441,9 @@ export default function App() {
                               () => ui.notify('Add an OpenAI API key under Settings to enable AI-edit.', { type: 'info' }),
                               { sub: 'Pay-per-image. Optional.', disabled: false },
                             )}
+                            {set && menuItem('Apply to all slides', () => handleApplyBgToAll(key), {
+                              sub: 'Use this background behind every slide (one unified look).',
+                            })}
                             {set && menuItem('Clear (use mascot default)', () => handleClearBgForSlide(key), {
                               danger: true,
                             })}
@@ -2882,6 +3495,138 @@ export default function App() {
                 </div>
               );
             })()}
+            {/* In-feed fold preview — what shows before TikTok's "…more". */}
+            {caption.trim() && (() => {
+              const f = captionFold(caption);
+              return (
+                <div className="mt-2 rounded-lg border border-white/[0.07] bg-white/[0.02] px-2.5 py-1.5">
+                  <div className="text-[9px] font-bold uppercase tracking-[0.14em] text-gray-600 mb-0.5">In-feed preview</div>
+                  <div className="text-[12px] text-gray-300 leading-snug">
+                    {f.visible}
+                    {f.folded && <span className="text-gray-500"> …more</span>}
+                  </div>
+                </div>
+              );
+            })()}
+            <input
+              type="text"
+              value={audioNote}
+              onChange={(e) => setAudioNote(e.target.value)}
+              placeholder="🎵 Trending sound to add at post time (saved with the draft + post pack)"
+              className="mt-2 w-full bg-[#070b18] border border-white/[0.08] rounded-lg px-3 py-2 text-[12px] text-gray-200 placeholder:text-gray-600 focus:border-[#00E5FF]/40 focus:outline-none"
+            />
+            {/* Live hook-strength meter — scores the first line against the
+               patterns that stop the scroll and surfaces the single most
+               impactful fix. Deterministic, instant, no API. */}
+            {caption.trim() && (() => {
+              const hs = scoreHook(caption.split('\n')[0] || '');
+              const color = HOOK_TIER_COLOR[hs.tier];
+              return (
+                <div className="mt-2 flex items-center gap-2.5">
+                  <span
+                    className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-[0.1em]"
+                    style={{ color, backgroundColor: color + '1f', border: `1px solid ${color}40` }}
+                    title={`Hook strength ${hs.score}/100`}
+                  >
+                    {HOOK_TIER_TEXT[hs.tier]} · {hs.score}
+                  </span>
+                  <div className="h-1 flex-1 rounded-full bg-white/[0.06] overflow-hidden">
+                    <div className="h-full rounded-full transition-all duration-300" style={{ width: `${hs.score}%`, backgroundColor: color }} />
+                  </div>
+                  {hs.tips[0] && (
+                    <span className="shrink-0 max-w-[55%] truncate text-[10px] text-gray-500" title={hs.tips.join('  •  ')}>
+                      Tip: {hs.tips[0]}
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setHookIdeas(sampleFormulas(6))}
+                    title="Free proven hook templates (no API needed)"
+                    className="shrink-0 text-[10px] font-bold uppercase tracking-[0.1em] text-gray-400 hover:text-[#00E5FF]"
+                  >
+                    💡 Ideas
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void handleHookVariations()}
+                    disabled={hookVarsBusy}
+                    title="AI: generate alternative hooks to A/B test"
+                    className="shrink-0 text-[10px] font-bold uppercase tracking-[0.1em] text-[#A78BFA] hover:text-[#C4B5FD] disabled:opacity-50"
+                  >
+                    {hookVarsBusy ? '✨ …' : '✨ Variations'}
+                  </button>
+                </div>
+              );
+            })()}
+            {/* Free hook-formula templates (no API). Tap to drop into line 1. */}
+            {hookIdeas && hookIdeas.length > 0 && (
+              <div className="mt-2 flex flex-col gap-1.5 p-2.5 rounded-lg border border-white/[0.10] bg-white/[0.02]">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-gray-400">Proven hook templates · fill the {'{blanks}'}</span>
+                  <span className="flex items-center gap-2">
+                    <button type="button" onClick={() => setHookIdeas(sampleFormulas(6))} className="text-[10px] text-gray-500 hover:text-[#00E5FF]" title="Shuffle">⟳ More</button>
+                    <button type="button" onClick={() => setHookIdeas(null)} className="text-[10px] text-gray-500 hover:text-gray-300" aria-label="Dismiss hook ideas">✕</button>
+                  </span>
+                </div>
+                {hookIdeas.map((f, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => void applyHookFormula(f)}
+                    className="text-left text-[12px] text-gray-200 rounded-md px-2 py-1.5 bg-white/[0.03] hover:bg-white/[0.07] border border-white/[0.06] leading-snug"
+                  >
+                    {f}
+                  </button>
+                ))}
+              </div>
+            )}
+            {/* AI hook variations — tap one to swap it into the first line. */}
+            {hookVars && hookVars.length > 0 && (
+              <div className="mt-2 flex flex-col gap-1.5 p-2.5 rounded-lg border border-[#A78BFA]/25 bg-[#A78BFA]/[0.06]">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#C4B5FD]">Tap a hook to use it</span>
+                  <button type="button" onClick={() => setHookVars(null)} className="text-[10px] text-gray-500 hover:text-gray-300" aria-label="Dismiss hook variations">✕</button>
+                </div>
+                {hookVars.map((h, i) => {
+                  const vs = scoreHook(h);
+                  return (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => void applyHookVariation(h)}
+                      className="flex items-center gap-2 text-left text-[12px] text-gray-200 rounded-md px-2 py-1.5 bg-white/[0.03] hover:bg-white/[0.07] border border-white/[0.06]"
+                    >
+                      <span className="shrink-0 w-7 text-center text-[10px] font-bold tabular-nums" style={{ color: HOOK_TIER_COLOR[vs.tier] }}>{vs.score}</span>
+                      <span className="leading-snug">{h}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            {/* Hashtag-mix linter — grades count + broad/niche balance, the
+               strategy "Suggest hashtags" can't see. Only shown once the
+               caption has any tags. */}
+            {caption.trim() && (() => {
+              const hl = lintHashtags(caption);
+              if (hl.count === 0) return null;
+              const color = HASHTAG_TIER_COLOR[hl.tier];
+              return (
+                <div className="mt-1.5 flex items-center gap-2.5">
+                  <span
+                    className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-[0.1em]"
+                    style={{ color, backgroundColor: color + '1f', border: `1px solid ${color}40` }}
+                    title={`${hl.nicheCount} niche · ${hl.genericCount} broad`}
+                  >
+                    {HASHTAG_TIER_TEXT[hl.tier]} · {hl.count}
+                  </span>
+                  {hl.tips[0] && (
+                    <span className="shrink-0 max-w-[70%] truncate text-[10px] text-gray-500" title={hl.tips.join('  •  ')}>
+                      Tip: {hl.tips[0]}
+                    </span>
+                  )}
+                </div>
+              );
+            })()}
             <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
               <button
                 type="button"
@@ -2906,10 +3651,27 @@ export default function App() {
               </button>
               <button
                 type="button"
+                disabled={!caption.trim()}
+                onClick={() => void handleTidyCaption()}
+                title="Remove duplicate hashtags + stray blank lines/spaces"
+                className="text-[11px] font-bold uppercase tracking-[0.14em] text-gray-500 hover:text-[#00E5FF] disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                ✦ Tidy
+              </button>
+              <button
+                type="button"
                 onClick={handleSuggestHashtags}
                 className="text-[11px] font-bold uppercase tracking-[0.14em] text-gray-500 hover:text-[#00E5FF]"
               >
                 ＃ Suggest hashtags
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleHashtagsToComment()}
+                title="Move the trailing hashtags out of the caption and copy them to paste as your first comment (cleaner caption = better reach)"
+                className="text-[11px] font-bold uppercase tracking-[0.14em] text-gray-500 hover:text-[#00E5FF]"
+              >
+                ↘ # to 1st comment
               </button>
               <button
                 type="button"
@@ -2966,6 +3728,15 @@ export default function App() {
                 >
                   {translateBusy ? '🌐 …' : '🌐 Translate'}
                 </button>
+                <button
+                  type="button"
+                  onClick={() => void handleTranslateDeck()}
+                  disabled={translateBusy}
+                  title="Translate the whole deck (slides + caption) to repost for a different-language audience"
+                  className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#A78BFA] hover:text-[#C4B5FD] disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  + deck
+                </button>
               </span>
             </div>
 
@@ -3002,8 +3773,17 @@ export default function App() {
             </div>
           </section>
 
-          <Group open={!!openGroups.more} onToggle={() => toggleGroup('more')} title="Workspace" accent="#FFC857" hint="Media · Patterns · Analytics · options">
-            <div className="grid grid-cols-3 gap-2 mb-4">
+          <Group open={!!openGroups.more} onToggle={() => toggleGroup('more')} title="Workspace" accent="#FFC857" hint="Discover · Media · Patterns · Analytics">
+            <button
+              type="button"
+              onClick={() => { setMainView('discover'); setMobileView('discover'); }}
+              className="w-full mb-3 py-3 rounded-xl text-[11px] md:text-xs font-bold uppercase tracking-[0.12em]
+                         border border-[#00E5FF]/30 bg-[#00E5FF]/[0.08] text-[#00E5FF]
+                         hover:bg-[#00E5FF]/[0.16] transition-all"
+            >
+              🔥 Discover viral slideshows
+            </button>
+            <div className="grid grid-cols-2 gap-2 mb-4">
               <button
                 type="button"
                 onClick={() => {
@@ -3039,6 +3819,18 @@ export default function App() {
                            hover:border-[#00E5FF]/40 hover:text-[#00E5FF] transition-all"
               >
                 Analytics
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setMainView('trends');
+                  setMobileView('trends');
+                }}
+                className="py-3 rounded-xl text-[11px] md:text-xs font-bold uppercase tracking-[0.12em]
+                           border border-white/[0.10] bg-white/[0.03] text-gray-300
+                           hover:border-[#00E5FF]/40 hover:text-[#00E5FF] transition-all"
+              >
+                📈 Trends
               </button>
             </div>
 
@@ -3113,7 +3905,13 @@ export default function App() {
             </div>
           </Group>
 
-          <Group open={!!openGroups.drafts} onToggle={() => toggleGroup('drafts')} title="Drafts" accent="#34D399" hint={drafts.length ? `${drafts.length} saved` : 'save projects'}>
+          <Group open={!!openGroups.drafts} onToggle={() => toggleGroup('drafts')} title="Drafts" accent="#34D399" hint={(() => {
+            if (!drafts.length) return 'save projects';
+            const startToday = new Date(); startToday.setHours(0, 0, 0, 0);
+            const overdue = drafts.filter((d) => !d.posted && d.scheduledFor && d.scheduledFor < startToday.getTime()).length;
+            const sched = scheduledCount(drafts);
+            return `${drafts.length} saved${sched ? ` · ${sched} scheduled` : ''}${overdue ? ` · ${overdue} overdue` : ''}`;
+          })()}>
             <p className="text-xs text-gray-500 leading-relaxed mb-3">
               Keep multiple posts in progress. Saves the JSON, caption, format, backgrounds &amp; handle settings — load any one back instantly.
             </p>
@@ -3196,11 +3994,73 @@ export default function App() {
                 Clear {drafts.filter((d) => d.posted).length} posted
               </button>
             )}
+            {drafts.some((d) => !d.posted && !d.scheduledFor) && (
+              <div className="mb-2 flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const { planAroundExisting } = await import('./schedulePlan');
+                    const unsched = drafts.filter((d) => !d.posted && !d.scheduledFor);
+                    // Don't double-book days that already hold a scheduled draft.
+                    const taken = drafts.filter((d) => d.scheduledFor).map((d) => new Date(d.scheduledFor!));
+                    const dates = planAroundExisting(unsched.length, taken, new Date(), scheduleHour);
+                    let next = drafts;
+                    unsched.forEach((d, i) => { next = setDraftSchedule(d.id, dates[i].getTime()); });
+                    setDrafts(next);
+                    const hr = new Date(dates[0]).toLocaleTimeString([], { hour: 'numeric' });
+                    ui.notify(`Scheduled ${unsched.length} draft${unsched.length === 1 ? '' : 's'} on the next free day${unsched.length === 1 ? '' : 's'} at ${hr}. Export to calendar below.`, { type: 'success' });
+                  }}
+                  className="flex-1 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-[0.12em] text-gray-400 hover:text-[#34D399] border border-white/[0.08] hover:border-[#34D399]/30"
+                  title="Auto-assign each unscheduled draft to the next free day at the chosen hour"
+                >
+                  🗓 Spread {drafts.filter((d) => !d.posted && !d.scheduledFor).length} across the week
+                </button>
+                <select
+                  value={scheduleHour}
+                  onChange={(e) => setScheduleHour(Number(e.target.value))}
+                  aria-label="Posting time"
+                  title="Posting time for the spread"
+                  className="shrink-0 bg-[#070b18] border border-white/[0.10] rounded-md px-1.5 py-1 text-[10px] text-gray-300 focus:outline-none focus:border-[#34D399]/40"
+                >
+                  {[6, 9, 12, 15, 18, 21].map((h) => (
+                    <option key={h} value={h}>{h % 12 === 0 ? 12 : h % 12}{h < 12 ? 'am' : 'pm'}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+            {scheduledCount(drafts) > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  const ics = buildIcs(drafts);
+                  if (!ics) { ui.notify('Schedule a draft first, then export the plan.', { type: 'info' }); return; }
+                  downloadBlob(new Blob([ics], { type: 'text/calendar' }), `iro-posting-plan-${timestampSlug()}.ics`);
+                  ui.notify(`Exported ${scheduledCount(drafts)} scheduled post${scheduledCount(drafts) === 1 ? '' : 's'} to your calendar.`, { type: 'success' });
+                }}
+                className="w-full mb-2 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-[0.12em] text-gray-400 hover:text-[#34D399] border border-white/[0.08] hover:border-[#34D399]/30"
+                title="Download your scheduled posts as a calendar (.ics) file for Google / Apple / Outlook Calendar"
+              >
+                📅 Add plan to calendar (.ics)
+              </button>
+            )}
+            {drafts.length > 5 && (
+              <input
+                type="search"
+                value={draftQuery}
+                onChange={(e) => setDraftQuery(e.target.value)}
+                placeholder={`Filter ${drafts.length} drafts by name…`}
+                className="w-full mb-2 bg-[#070b18] border border-white/[0.08] rounded-lg px-3 py-1.5 text-[11px] text-gray-200 placeholder:text-gray-600 focus:border-[#00E5FF]/40 focus:outline-none"
+              />
+            )}
             {drafts.length === 0 ? (
               <div className="text-[11px] text-gray-600 text-center py-2">No drafts yet.</div>
-            ) : (
+            ) : (() => {
+              const q = draftQuery.trim().toLowerCase();
+              const shown = q ? drafts.filter((d) => d.name.toLowerCase().includes(q)) : drafts;
+              if (shown.length === 0) return <div className="text-[11px] text-gray-600 text-center py-2">No drafts match “{draftQuery}”.</div>;
+              return (
               <div className="flex flex-col gap-1.5">
-                {drafts.map((d) => {
+                {shown.map((d) => {
                   const isoDate = d.scheduledFor ? new Date(d.scheduledFor).toISOString().slice(0, 10) : '';
                   return (
                   <div key={d.id} className={'flex items-center gap-2 p-2.5 rounded-lg border bg-white/[0.02] ' + (d.posted ? 'border-white/[0.05] opacity-55' : d.scheduledFor ? 'border-[#34D399]/30' : 'border-white/[0.08]')}>
@@ -3219,7 +4079,12 @@ export default function App() {
                       className="flex-1 text-left min-w-0"
                       title={`Load "${d.name}"`}
                     >
-                      <div className={'text-[12px] font-bold truncate ' + (d.posted ? 'text-gray-400 line-through' : 'text-gray-200')}>{d.name}</div>
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <div className={'text-[12px] font-bold truncate ' + (d.posted ? 'text-gray-400 line-through' : 'text-gray-200')}>{d.name}</div>
+                        {(() => { const m = PRESETS[d.state?.preset as PresetKey]; return m ? (
+                          <span className="shrink-0 text-[8px] font-bold uppercase tracking-[0.1em] px-1 py-0.5 rounded" style={{ color: m.accent, backgroundColor: m.accent + '22' }}>{m.label}</span>
+                        ) : null; })()}
+                      </div>
                       <div className="text-[10px] text-gray-500">
                         {d.scheduledFor ? (() => {
                           const todayEnd = new Date(); todayEnd.setHours(23, 59, 59, 999);
@@ -3242,13 +4107,33 @@ export default function App() {
                       value={isoDate}
                       onChange={(e) => {
                         const v = e.target.value;
-                        const ts = v ? new Date(v + 'T12:00:00').getTime() : null;
+                        // Schedule at the creator's chosen posting hour (same
+                        // pref the "spread across the week" planner uses).
+                        const ts = v ? new Date(v + `T${String(scheduleHour).padStart(2, '0')}:00:00`).getTime() : null;
                         setDrafts(setDraftSchedule(d.id, ts));
                       }}
                       title="Schedule a post date"
                       aria-label={`Schedule date for ${d.name}`}
                       className="shrink-0 w-[34px] hover:w-auto bg-transparent text-[10px] text-gray-500 cursor-pointer focus:w-auto focus:text-gray-200 [color-scheme:dark]"
                     />
+                    <button
+                      type="button"
+                      onClick={() => void handleRenameDraft(d)}
+                      className="shrink-0 w-7 h-7 rounded-md flex items-center justify-center text-gray-500 hover:text-[#00E5FF] hover:bg-[#00E5FF]/10"
+                      title="Rename draft"
+                      aria-label={`Rename ${d.name}`}
+                    >
+                      ✎
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setDrafts(duplicateDraft(d.id)); ui.notify(`Duplicated “${d.name}”.`, { type: 'success' }); }}
+                      className="shrink-0 w-7 h-7 rounded-md flex items-center justify-center text-gray-500 hover:text-[#00E5FF] hover:bg-[#00E5FF]/10"
+                      title="Duplicate draft"
+                      aria-label={`Duplicate ${d.name}`}
+                    >
+                      ⧉
+                    </button>
                     <button
                       type="button"
                       onClick={() => void handleDeleteDraft(d)}
@@ -3262,12 +4147,30 @@ export default function App() {
                   );
                 })}
               </div>
-            )}
+              );
+            })()}
           </Group>
 
           <Group open={!!openGroups.tiktok} onToggle={() => toggleGroup('tiktok')} title="Publish to TikTok" accent="#ff0050" hint={ttToken ? 'connected' : 'send to inbox'}>
             {/* Pre-publish quality checklist */}
             <div className="mb-4 p-3 rounded-xl border border-white/[0.08] bg-white/[0.02]">
+              {/* Composite readiness verdict — one number + the next fix. */}
+              <div className="mb-3">
+                <div className="flex items-center gap-2.5 mb-1.5">
+                  <span
+                    className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-[0.1em]"
+                    style={{ color: READINESS_COLOR[readiness.tier], backgroundColor: READINESS_COLOR[readiness.tier] + '1f', border: `1px solid ${READINESS_COLOR[readiness.tier]}40` }}
+                  >
+                    {READINESS_TEXT[readiness.tier]} · {readiness.score}
+                  </span>
+                  <div className="h-1 flex-1 rounded-full bg-white/[0.06] overflow-hidden">
+                    <div className="h-full rounded-full transition-all duration-300" style={{ width: `${readiness.score}%`, backgroundColor: READINESS_COLOR[readiness.tier] }} />
+                  </div>
+                </div>
+                {readiness.topFix && (
+                  <div className="text-[11px] text-gray-400 leading-snug">Next: {readiness.topFix}</div>
+                )}
+              </div>
               <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-gray-400 mb-2">
                 Pre-publish check · {prePublishChecks.filter((c) => c.ok).length}/{prePublishChecks.length}
               </div>
@@ -3279,13 +4182,35 @@ export default function App() {
                   </div>
                 ))}
               </div>
-              <button
-                type="button"
-                onClick={() => void handleCopyScript()}
-                className="w-full mt-2.5 py-2 rounded-lg text-[11px] font-bold uppercase tracking-[0.1em] border border-white/[0.10] bg-white/[0.03] text-gray-300 hover:text-[#00E5FF] hover:border-[#00E5FF]/30 transition-all"
-              >
-                📝 Copy slide script
-              </button>
+              {deckBalance && !deckBalance.balanced && deckBalance.tip && (
+                <div className="mt-2 flex items-start gap-2 text-[11px] text-amber-300/90 leading-snug">
+                  <span className="shrink-0">⚠</span>
+                  <span>{deckBalance.tip}</span>
+                </div>
+              )}
+              {deckLength && deckLength.tip && (
+                <div className="mt-2 flex items-start gap-2 text-[11px] text-amber-300/90 leading-snug">
+                  <span className="shrink-0">↕</span>
+                  <span>{deckLength.tip}</span>
+                </div>
+              )}
+              <div className="mt-2.5 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => void handleCopyScript()}
+                  className="flex-1 py-2 rounded-lg text-[11px] font-bold uppercase tracking-[0.1em] border border-white/[0.10] bg-white/[0.03] text-gray-300 hover:text-[#00E5FF] hover:border-[#00E5FF]/30 transition-all"
+                >
+                  📝 Copy script
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleCopyPostPack()}
+                  title="Copy the full posting plan (caption, first-comment hashtags, sound, checklist) to paste anywhere"
+                  className="flex-1 py-2 rounded-lg text-[11px] font-bold uppercase tracking-[0.1em] border border-white/[0.10] bg-white/[0.03] text-gray-300 hover:text-[#34D399] hover:border-[#34D399]/30 transition-all"
+                >
+                  📋 Copy post pack
+                </button>
+              </div>
             </div>
             <p className="text-xs text-gray-500 leading-relaxed mb-3">
               Push the current slideshow straight to your TikTok <strong className="text-gray-300">inbox</strong> as a photo draft — then open the app to finish posting. Uses your caption below.
@@ -3348,6 +4273,17 @@ export default function App() {
                            disabled:opacity-60 disabled:cursor-not-allowed hover:border-[#FFC857]/50 hover:text-[#FFC857] transition-all"
               >
                 {pdfBusy || '📄 Export PDF (IG / LinkedIn)'}
+              </button>
+              <button
+                type="button"
+                onClick={handleDownloadImages}
+                disabled={!!imagesBusy}
+                className="w-full py-3 rounded-xl text-[12px] font-bold uppercase tracking-[0.12em]
+                           border border-white/[0.12] bg-white/[0.03] text-gray-200
+                           disabled:opacity-60 disabled:cursor-not-allowed hover:border-[#34D399]/50 hover:text-[#34D399] transition-all"
+                title="Download every slide as a JPEG (zipped) to upload manually"
+              >
+                {imagesBusy || '🖼 Download slides (.zip)'}
               </button>
               {phoneErr && <div className="text-[11px] text-red-400 leading-relaxed">{phoneErr}</div>}
               {ttToken && (
@@ -3414,6 +4350,19 @@ export default function App() {
                   Import backup
                 </button>
               </div>
+              <button
+                type="button"
+                onClick={async () => {
+                  const posts = await listPosts();
+                  if (posts.length === 0) { ui.notify('No posts to export yet — save a post to history first.', { type: 'info' }); return; }
+                  downloadBlob(new Blob([postsToCsv(posts)], { type: 'text/csv' }), `iro-performance-${timestampSlug()}.csv`);
+                  ui.notify(`Exported ${posts.length} post${posts.length === 1 ? '' : 's'} to CSV.`, { type: 'success' });
+                }}
+                className="w-full mt-2 py-2 rounded-lg text-[11px] font-bold uppercase tracking-[0.14em] bg-white/[0.04] text-gray-300 hover:bg-white/[0.08] border border-white/10"
+                title="Download your post history + stats + scores as a spreadsheet (CSV)"
+              >
+                ⤓ Export performance CSV
+              </button>
             </div>
 
             <label className="flex flex-col gap-1.5 mb-3">
@@ -3541,9 +4490,20 @@ export default function App() {
               {saveStatus.kind === 'saving' ? 'Saving…' : saveStatus.kind === 'ok' ? '✓ Saved' : 'Save'}
             </button>
           </div>
-          <p className="mt-1.5 text-center text-[10px] text-gray-600 tracking-wide">
-            tip: press <kbd className="px-1 py-0.5 rounded bg-white/[0.06] text-gray-400 font-mono">⌘/Ctrl + Enter</kbd> to render
-          </p>
+          <div className="mt-1.5 flex items-center justify-center gap-2 text-[10px] text-gray-600 tracking-wide">
+            {caption.trim() && (
+              <button
+                type="button"
+                onClick={() => setOpenGroups((p) => ({ ...p, tiktok: true }))}
+                className="px-1.5 py-0.5 rounded-full font-bold uppercase tracking-[0.1em] cursor-pointer hover:brightness-125"
+                style={{ color: READINESS_COLOR[readiness.tier], backgroundColor: READINESS_COLOR[readiness.tier] + '1f', border: `1px solid ${READINESS_COLOR[readiness.tier]}40` }}
+                title={readiness.topFix ? `Next: ${readiness.topFix} — tap for the full checklist` : 'Looks good to post — tap for the checklist'}
+              >
+                {READINESS_TEXT[readiness.tier]} · {readiness.score}
+              </button>
+            )}
+            <span>tip: <kbd className="px-1 py-0.5 rounded bg-white/[0.06] text-gray-400 font-mono">⌘/Ctrl + Enter</kbd> to render</span>
+          </div>
         </div>
       </aside>
 
@@ -3592,6 +4552,20 @@ export default function App() {
           />
         </div>
         <div className={
+          'absolute inset-0 ' +
+          (mobileView === 'discover' ? 'block ' : 'hidden ') +
+          (mainView === 'discover' ? 'md:block' : 'md:hidden')
+        }>
+          <Discover onAdapt={handleAdaptPattern} onCloneUrl={handleCloneAgain} />
+        </div>
+        <div className={
+          'absolute inset-0 ' +
+          (mobileView === 'trends' ? 'block ' : 'hidden ') +
+          (mainView === 'trends' ? 'md:block' : 'md:hidden')
+        }>
+          <Trends />
+        </div>
+        <div className={
           'absolute inset-0 flex flex-col ' +
           (mobileView === 'preview' ? 'flex ' : 'hidden ') +
           (mainView === 'preview' ? 'md:flex' : 'md:hidden')
@@ -3613,6 +4587,20 @@ export default function App() {
                   </button>
                 );
               })}
+              <button
+                type="button"
+                onClick={() => setSafeZone((v) => !v)}
+                title="Show TikTok safe zone — the top/bottom strips get cropped in-feed. Keep key text inside the dashed box. (Never appears in exports.)"
+                aria-pressed={safeZone}
+                className={
+                  'shrink-0 ml-auto px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-[0.1em] border transition-colors ' +
+                  (safeZone
+                    ? 'bg-[#ff2d2d]/15 text-[#ff9b9b] border-[#ff2d2d]/45'
+                    : 'bg-white/[0.04] text-gray-400 hover:text-gray-200 border-white/10')
+                }
+              >
+                ⛶ Safe zone
+              </button>
             </div>
           )}
           <iframe
@@ -3626,6 +4614,45 @@ export default function App() {
       </main>
 
       <CommandPalette open={paletteOpen} commands={commands} onClose={() => setPaletteOpen(false)} />
+      {shortcutsOpen && (
+        <div
+          className="fixed inset-0 z-[120] bg-black/70 backdrop-blur-sm flex items-center justify-center p-6"
+          onClick={() => setShortcutsOpen(false)}
+        >
+          <div
+            className="w-full max-w-sm rounded-2xl border border-white/10 bg-[#0d1320] p-6 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-sm font-bold text-gray-100">Keyboard shortcuts</h2>
+              <button type="button" onClick={() => setShortcutsOpen(false)} className="text-gray-500 hover:text-gray-300 text-sm" aria-label="Close">✕</button>
+            </div>
+            <div className="flex flex-col gap-2.5">
+              {([
+                ['Command palette', [mod, 'K']],
+                ['Render preview', [mod, '⏎']],
+                ['Save draft', [mod, 'S']],
+                ['Toggle safe zone', ['Safe zone btn']],
+                ['Step through slides', ['←', '→']],
+                ['This help', ['?']],
+                ['Close dialogs', ['Esc']],
+              ] as [string, string[]][]).map(([label, keys]) => (
+                <div key={label} className="flex items-center justify-between gap-4">
+                  <span className="text-[12px] text-gray-400">{label}</span>
+                  <span className="flex items-center gap-1">
+                    {keys.map((k) => (
+                      <kbd key={k} className="text-[11px] font-mono bg-white/[0.07] text-gray-200 rounded px-1.5 py-0.5 border border-white/10">{k}</kbd>
+                    ))}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <p className="mt-4 text-[11px] text-gray-600 leading-relaxed">
+              Tip: most actions are also in the command palette ({mod} K).
+            </p>
+          </div>
+        </div>
+      )}
       {showOnboarding && <Onboarding onClose={() => setShowOnboarding(false)} />}
 
       {phoneQr && (

@@ -288,6 +288,25 @@ const CLONING_INSTRUCTIONS = [
     'aesthetics; NOT for photo posts).',
   '- product_demo — phone mockup + app screenshots. app_stack — "apps I use" carousel. ' +
     'checklist — "if you…" qualifier list.',
+  '- receipts — social-proof testimonials, one gold-star review per slide with a quote + ' +
+    'reviewer name (ONLY when the source is reviews / testimonials / "what people are saying"). ' +
+    'reviews:[{stars:1-5, text, name}].',
+  '- tweet — "screenshot of a tweet" cards, one X/Twitter post per slide: avatar, name, ' +
+    'verified check, @handle, the tweet text, faux engagement counts (ONLY when the source is ' +
+    'tweets / X posts / quote-tweet style content). tweets:[{name, handle, text, verified, ' +
+    'replies, retweets, likes}].',
+  '- notes — iOS Notes-app screenshot look, one note per slide: yellow "Notes" bar, a date, a ' +
+    'bold title, and the body (ONLY for announcement / storytime / confession / list content ' +
+    'that suits the "notes app" aesthetic). notes:[{title, body, date}]; body may use <br/>.',
+  '- reddit — "screenshot of a Reddit post" cards, one post per slide: subreddit + user meta ' +
+    'row, title, body, and a votes/comments action row (ONLY for AITA / Reddit-story / forum ' +
+    'content). posts:[{subreddit, user, time, title, body, score, comments}].',
+  '- news — "breaking news" broadcast lower-third over a photo: a red label box, a headline ' +
+    'bar, and a ticker (ONLY for news-parody / "breaking" / satirical-announcement content). ' +
+    'stories:[{label, headline, ticker}].',
+  '- search — "Google search bar" with an autocomplete dropdown, one query per slide (ONLY for ' +
+    '"what your search history says" / "things everyone googles" relatable-reveal content). ' +
+    'searches:[{query, suggestions:[...]}].',
   '- output_vs_hype — one slide per tool/brand, each with a logo and two bars (Output vs Hype) ' +
     'scaled 0–100 (ONLY when the source is a per-item bar-chart comparison, e.g. "X vs Y" rankings).',
   '- curated_list — aesthetic photo + cream heading + a recommendation card per slide ("things I ' +

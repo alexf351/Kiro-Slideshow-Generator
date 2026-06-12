@@ -12,6 +12,12 @@ export const PRESET_KEYS = [
   'meme_pov',
   'product_demo',
   'checklist',
+  'receipts',
+  'tweet',
+  'notes',
+  'reddit',
+  'news',
+  'search',
   'handwritten_pack',
   'app_stack',
   'output_vs_hype',
@@ -33,6 +39,22 @@ export const PRESET_KEYS = [
 ] as const;
 
 export type PresetKey = (typeof PRESET_KEYS)[number];
+
+// Coarse buckets for the format picker's filter chips — with ~28 formats a
+// flat grid is hard to scan, so the chips let the creator narrow by intent
+// (e.g. "Social" for the screenshot-style cards). Kept as a separate map so
+// adding a format only needs one line here, not a PresetMeta change.
+export const FORMAT_CATEGORIES = ['AI', 'List', 'Story', 'Social', 'Facts', 'Takes'] as const;
+export type FormatCategory = (typeof FORMAT_CATEGORIES)[number];
+
+export const FORMAT_CATEGORY: Record<PresetKey, FormatCategory> = {
+  prompt_pack: 'AI', product_demo: 'AI', handwritten_pack: 'AI', app_stack: 'AI',
+  checklist: 'List', curated_list: 'List', tier_list: 'List', countdown: 'List', flags: 'List', steps: 'List',
+  pain_story: 'Story', aspirational: 'Story', notes: 'Story', storytime: 'Story',
+  receipts: 'Social', tweet: 'Social', reddit: 'Social',
+  output_vs_hype: 'Facts', myth_fact: 'Facts', stat_drop: 'Facts', definition: 'Facts', qa: 'Facts', timeline: 'Facts',
+  meme_pov: 'Takes', hot_take: 'Takes', this_or_that: 'Takes', quote_card: 'Takes', before_after: 'Takes', news: 'Takes', search: 'Takes',
+};
 
 export type PresetMeta = {
   key: PresetKey;
@@ -146,6 +168,132 @@ const CHECKLIST_JSON = `{
     "searchTerm": "Iro AI",
     "instructionBelow": "on the App Store.",
     "slogan": "5 min/day. for real."
+  },
+  "attribution": ""
+}`;
+
+const RECEIPTS_JSON = `{
+  "preset": "receipts",
+  "hook": {
+    "headline": "what people are<br/>saying about <strong>iro</strong>",
+    "subline": "(unprompted. real reviews.)"
+  },
+  "reviews": [
+    { "stars": 5, "text": "i finally get AI instead of just nodding along", "name": "@learner.lena" },
+    { "stars": 5, "text": "the only app i open every single morning now", "name": "@deshawn.codes" },
+    { "stars": 5, "text": "5 minutes a day actually stuck. nothing else did", "name": "@mia.builds" },
+    { "stars": 4, "text": "wish i'd found this a year ago, genuinely", "name": "@tomas.k" }
+  ],
+  "cta": {
+    "headline": "join them.",
+    "instructionAbove": "search",
+    "searchTerm": "Iro AI",
+    "instructionBelow": "on the App Store.",
+    "slogan": "your turn."
+  },
+  "attribution": ""
+}`;
+
+const TWEET_JSON = `{
+  "preset": "tweet",
+  "hook": {
+    "headline": "tweets that <strong>get it</strong>",
+    "subline": "(swipe — they're all right)"
+  },
+  "tweets": [
+    { "name": "maya", "handle": "mayabuilds", "verified": true, "text": "i stopped consuming AI content and started building with it. changed everything in 2 weeks.", "replies": "1.2K", "retweets": "8.4K", "likes": "62K" },
+    { "name": "devon", "handle": "devon_ai", "verified": false, "text": "nobody is ready for what AI agents do to the 9-5 this year", "replies": "340", "retweets": "2.1K", "likes": "19K" },
+    { "name": "priya", "handle": "priyacodes", "verified": true, "text": "the gap isn't access to AI anymore. it's knowing what to actually ask it.", "replies": "880", "retweets": "5.7K", "likes": "41K" }
+  ],
+  "cta": {
+    "headline": "learn to build.",
+    "instructionAbove": "search",
+    "searchTerm": "Iro AI",
+    "instructionBelow": "on the App Store.",
+    "slogan": "stop scrolling. start shipping."
+  },
+  "attribution": ""
+}`;
+
+const SEARCH_JSON = `{
+  "preset": "search",
+  "hook": {
+    "headline": "what your <strong>search history</strong> says about you",
+    "subline": "(swipe — it's all of us)"
+  },
+  "searches": [
+    { "query": "how to learn ai", "suggestions": ["how to learn ai for free", "how to learn ai with no coding", "how to learn ai in 2026", "how to learn ai fast"] },
+    { "query": "is it too late to", "suggestions": ["is it too late to learn ai", "is it too late to switch careers", "is it too late to start over at 30"] },
+    { "query": "best app to actually", "suggestions": ["best app to actually learn ai", "best app to actually stay consistent", "best app to actually get good"] }
+  ],
+  "cta": {
+    "headline": "stop googling. start building.",
+    "instructionAbove": "search",
+    "searchTerm": "Iro AI",
+    "instructionBelow": "on the App Store."
+  },
+  "attribution": ""
+}`;
+
+const NEWS_JSON = `{
+  "preset": "news",
+  "hook": {
+    "label": "BREAKING NEWS",
+    "headline": "STUDY: the people learning AI now will <strong>run the room</strong> in 2026",
+    "ticker": "this just in — the skills gap is widening fast"
+  },
+  "stories": [
+    { "label": "BREAKING", "headline": "Local man finishes his entire workday by 10:43 AM", "ticker": "sources say an AI tool was involved" },
+    { "label": "DEVELOPING", "headline": "Everyone who said \\"AI is just hype\\" now quietly learning it", "ticker": "more at 11" },
+    { "label": "JUST IN", "headline": "5 minutes a day reportedly enough to actually keep up", "ticker": "experts stunned by the simple routine" }
+  ],
+  "cta": {
+    "label": "JUST IN",
+    "headline": "You can start today.",
+    "instructionAbove": "search",
+    "searchTerm": "Iro AI",
+    "instructionBelow": "on the App Store"
+  },
+  "attribution": ""
+}`;
+
+const REDDIT_JSON = `{
+  "preset": "reddit",
+  "hook": {
+    "headline": "the <strong>AITA</strong> that went viral",
+    "subline": "(wait for the update)"
+  },
+  "posts": [
+    { "subreddit": "AmItheAsshole", "user": "throwaway_8821", "time": "5h", "title": "AITA for automating my whole job and not telling anyone?", "body": "I built an AI tool that does 90% of my work in minutes. Now I finish by 10am and just relax. A coworker found out and says I'm cheating.", "score": "14.2k", "comments": "3.1k" },
+    { "subreddit": "antiwork", "user": "tired_dev", "time": "2h", "title": "Update: I told my boss the AI does my job. He promoted me.", "body": "Turns out leadership wanted someone to roll it out to the whole team. Learn the skill before someone else does.", "score": "48.9k", "comments": "5.7k" }
+  ],
+  "cta": {
+    "headline": "be the one who builds it.",
+    "instructionAbove": "search",
+    "searchTerm": "Iro AI",
+    "instructionBelow": "on the App Store.",
+    "slogan": "automate before you're automated."
+  },
+  "attribution": ""
+}`;
+
+const NOTES_JSON = `{
+  "preset": "notes",
+  "hook": {
+    "date": "Today at 9:41 AM",
+    "headline": "an <strong>announcement</strong>",
+    "subline": "(read to the end)"
+  },
+  "notes": [
+    { "date": "Today at 9:41 AM", "title": "why i finally learned AI", "body": "i kept saying i'd start <strong>someday</strong>.<br/><br/>then someday became 2 years.<br/><br/>here's what actually changed it." },
+    { "date": "Today at 9:42 AM", "title": "the 3 things that worked", "body": "1. building, not just watching<br/>2. five minutes a day<br/>3. one real project, start to finish" }
+  ],
+  "cta": {
+    "headline": "your turn.",
+    "instructionAbove": "search",
+    "searchTerm": "Iro AI",
+    "instructionBelow": "on the App Store.",
+    "slogan": "start today, not someday."
   },
   "attribution": ""
 }`;
@@ -309,6 +457,50 @@ const CHECKLIST_CAPTION = `save this if any of these is you ⤴️
 iro is for you. search "Iro AI" on the App Store.
 
 #aitok #aichecklist #fyp #learningai #productivity`;
+
+const SEARCH_CAPTION = `the search history doesn't lie 🔍😭
+
+which one was you? be honest in the comments ⤵️
+search "Iro AI" on the App Store and stop googling.
+
+#aitok #relatable #fyp #learningai #pov`;
+
+const NEWS_CAPTION = `we interrupt your scroll for this important update 📰
+
+which headline felt a little too real? comment below ⤵️
+search "Iro AI" on the App Store before it's old news.
+
+#breakingnews #ai #aitok #fyp #news`;
+
+const REDDIT_CAPTION = `i was NOT ready for that update 💀
+
+wait for the last slide — what would you have done?
+search "Iro AI" on the App Store to learn the skill.
+
+#reddit #aita #redditstories #aitok #fyp`;
+
+const NOTES_CAPTION = `had to put it in the notes app to actually say it 🫣
+
+read to the last slide — which part hit?
+search "Iro AI" on the App Store to start today.
+
+#aitok #notesapp #storytime #learningai #fyp`;
+
+const TWEET_CAPTION = `saving these for the next time someone says AI is just hype 📌
+
+which tweet hit hardest? tell me below ⤵️
+search "Iro AI" on the App Store to actually learn it.
+
+#aitok #ai #tech #buildinpublic #fyp`;
+
+const RECEIPTS_CAPTION = `the reviews keep coming in and we're not okay 🥹
+
+real people, real results — swipe through what they're saying.
+
+which one sounds like you? tell me below ⤵️
+search "Iro AI" on the App Store to join them.
+
+#aitok #reviews #socialproof #learningai #fyp`;
 
 const APP_STACK_JSON = `{
   "preset": "app_stack",
@@ -922,6 +1114,60 @@ export const PRESETS: Record<PresetKey, PresetMeta> = {
     defaultJson: CHECKLIST_JSON,
     defaultCaption: CHECKLIST_CAPTION,
     accent: '#22C55E', // green check
+  },
+  receipts: {
+    key: 'receipts',
+    label: 'Receipts',
+    pitch: 'Social proof — one gold-star review per slide. Built for testimonials.',
+    status: 'ready',
+    defaultJson: RECEIPTS_JSON,
+    defaultCaption: RECEIPTS_CAPTION,
+    accent: '#FFC857', // gold star
+  },
+  tweet: {
+    key: 'tweet',
+    label: 'Tweet',
+    pitch: '“Screenshot of a tweet” cards — one X post per slide, avatar + verified check.',
+    status: 'ready',
+    defaultJson: TWEET_JSON,
+    defaultCaption: TWEET_CAPTION,
+    accent: '#1D9BF0', // X blue
+  },
+  notes: {
+    key: 'notes',
+    label: 'Notes App',
+    pitch: 'iOS-Notes screenshot look — one note per slide. Great for announcements & lists.',
+    status: 'ready',
+    defaultJson: NOTES_JSON,
+    defaultCaption: NOTES_CAPTION,
+    accent: '#FFD60A', // Notes yellow
+  },
+  reddit: {
+    key: 'reddit',
+    label: 'Reddit',
+    pitch: '“Screenshot of a Reddit post” — one post per slide. Built for AITA / story content.',
+    status: 'ready',
+    defaultJson: REDDIT_JSON,
+    defaultCaption: REDDIT_CAPTION,
+    accent: '#FF4500', // Reddit orange
+  },
+  news: {
+    key: 'news',
+    label: 'Breaking News',
+    pitch: 'Broadcast “BREAKING” lower-third over a photo — the viral news-parody look.',
+    status: 'ready',
+    defaultJson: NEWS_JSON,
+    defaultCaption: NEWS_CAPTION,
+    accent: '#E1132C', // news red
+  },
+  search: {
+    key: 'search',
+    label: 'Search Bar',
+    pitch: 'Google search bar + autocomplete — the “what your search history says” reveal.',
+    status: 'ready',
+    defaultJson: SEARCH_JSON,
+    defaultCaption: SEARCH_CAPTION,
+    accent: '#4285F4', // Google blue
   },
   handwritten_pack: {
     key: 'handwritten_pack',

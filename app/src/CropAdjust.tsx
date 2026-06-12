@@ -8,7 +8,7 @@ import { useEffect, useRef, useState } from 'react';
 // background-size / background-position is applied by the engine on export,
 // so this preview is WYSIWYG.
 
-export type CropValue = { x: number; y: number; zoom: number; ar?: number };
+export type CropValue = { x: number; y: number; zoom: number; ar?: number; darken?: number };
 
 export const DEFAULT_CROP: CropValue = { x: 50, y: 50, zoom: 1 };
 
@@ -123,7 +123,12 @@ export default function CropAdjust({
             backgroundSize: `${sw}% ${sh}%`,
             backgroundPosition: `${v.x}% ${v.y}%`,
           }}
-        />
+        >
+          {/* WYSIWYG darken overlay — matches the engine's export. */}
+          {(v.darken || 0) > 0 && (
+            <div className="absolute inset-0 pointer-events-none" style={{ background: `rgba(0,0,0,${Math.min(0.85, v.darken || 0)})` }} />
+          )}
+        </div>
 
         {/* controls */}
         <div className="flex-1 flex flex-col justify-center gap-3">
@@ -144,6 +149,23 @@ export default function CropAdjust({
               onChange={(e) => onChange({ ...v, zoom: Number(e.target.value), ar: effAr })}
               className="w-full cursor-pointer"
               style={{ accentColor: '#00E5FF' }}
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-500 flex justify-between">
+              <span>Darken</span>
+              <span className="text-gray-400 tabular-nums">{Math.round((v.darken || 0) * 100)}%</span>
+            </span>
+            <input
+              type="range"
+              min={0}
+              max={0.85}
+              step={0.05}
+              value={v.darken || 0}
+              onChange={(e) => onChange({ ...v, darken: Number(e.target.value), ar: effAr })}
+              className="w-full cursor-pointer"
+              style={{ accentColor: '#00E5FF' }}
+              title="Dim the photo so text stays readable"
             />
           </label>
           <button

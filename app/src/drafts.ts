@@ -13,6 +13,8 @@ export type DraftState = {
   attrPresets: Record<string, boolean>;
   // On-slide text/image overlays, keyed by slide index (optional).
   overlays?: Record<string, unknown>;
+  // Free-text reminder of which trending sound to add at post time (optional).
+  audioNote?: string;
 };
 
 export type Draft = { id: string; name: string; savedAt: number; state: DraftState; scheduledFor?: number; posted?: boolean };
@@ -91,5 +93,35 @@ export function renameDraft(id: string, name: string): Draft[] {
   const drafts = listDrafts();
   const d = drafts.find((x) => x.id === id);
   if (d) { d.name = name.trim() || d.name; write(drafts); }
+  return listDrafts();
+}
+
+// A "(copy)" name that doesn't collide with an existing draft — "(copy)",
+// then "(copy 2)", "(copy 3)"… Pure + exported so the numbering is testable.
+export function uniqueCopyName(base: string, existing: string[]): string {
+  const taken = new Set(existing.map((n) => n.toLowerCase()));
+  const first = `${base} (copy)`;
+  if (!taken.has(first.toLowerCase())) return first;
+  for (let i = 2; i < 1000; i++) {
+    const candidate = `${base} (copy ${i})`;
+    if (!taken.has(candidate.toLowerCase())) return candidate;
+  }
+  return `${base} (copy ${Date.now()})`;
+}
+
+// Duplicate a draft (fork its content under a fresh "(copy)" name), reset so
+// the copy is a clean unscheduled, not-yet-posted draft.
+export function duplicateDraft(id: string): Draft[] {
+  const drafts = listDrafts();
+  const src = drafts.find((d) => d.id === id);
+  if (!src) return drafts;
+  const name = uniqueCopyName(src.name, drafts.map((d) => d.name));
+  drafts.unshift({
+    id: 'd' + Date.now() + Math.random().toString(36).slice(2, 6),
+    name,
+    savedAt: Date.now(),
+    state: src.state,
+  });
+  write(drafts);
   return listDrafts();
 }

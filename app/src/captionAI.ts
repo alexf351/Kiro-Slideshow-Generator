@@ -91,6 +91,155 @@ Rules:
   return { caption: out.caption.trim(), hashtags: tags };
 }
 
+// Generate several alternative opening hooks (first lines) for the current
+// post so the creator can A/B test the single highest-leverage line. Fed the
+// slide content + the current hook for relevance; returns distinct, punchy
+// candidates that each use a different angle (question / number / curiosity /
+// stakes). The hook-strength meter then scores whichever the user picks.
+export async function generateHookVariations(opts: {
+  json: string;
+  currentHook: string;
+  preset: string;
+  apiKey: string;
+  model: ClaudeModelId;
+  n?: number;
+}): Promise<string[]> {
+  const n = Math.max(3, Math.min(8, opts.n ?? 5));
+  const content = summariseSlides(opts.json);
+  const system = `You write scroll-stopping opening lines (hooks) for TikTok photo carousels about "Iro AI" (an app that teaches people to actually build with AI).
+A hook is the FIRST line of the caption / the first slide — it decides whether anyone swipes.
+Rules:
+- Each hook is ONE short line (ideally 3-12 words), lowercase-leaning, native and casual.
+- Make the ${n} hooks genuinely DIFFERENT from each other in angle: a question, a specific number, a curiosity gap, a bold/contrarian claim, a relatable confession.
+- No hashtags, no emojis, no quotes around them. Just the lines.
+- Ground them in the actual slide content; don't invent unrelated claims.`;
+  const res = await callClaude({
+    apiKey: opts.apiKey,
+    model: opts.model,
+    maxTokens: 600,
+    system: [{ type: 'text', text: system }],
+    messages: [{
+      role: 'user',
+      content: `Format: ${opts.preset}\n\nCurrent hook:\n${opts.currentHook || '(none yet)'}\n\nSlide content:\n${content}\n\nGive me ${n} alternative hooks.`,
+    }],
+    tools: [{
+      name: 'hooks',
+      description: 'Return the alternative opening hooks.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          hooks: { type: 'array', items: { type: 'string' }, description: `${n} distinct one-line hooks, no hashtags or emojis.` },
+        },
+        required: ['hooks'],
+      },
+    }],
+    toolChoice: { type: 'tool', name: 'hooks' },
+  });
+  const out = extractToolUse<{ hooks: string[] }>(res, 'hooks');
+  if (!out || !Array.isArray(out.hooks)) throw new Error('Claude did not return hooks.');
+  // Clean: strip stray quotes/leading bullets, drop blanks + dupes.
+  const seen = new Set<string>();
+  const cleaned: string[] = [];
+  for (const raw of out.hooks) {
+    const h = String(raw ?? '').replace(/^[\s\-*•\d.)]+/, '').replace(/^["“']|["”']$/g, '').trim();
+    const key = h.toLowerCase();
+    if (h && !seen.has(key)) { seen.add(key); cleaned.push(h); }
+  }
+  if (cleaned.length === 0) throw new Error('No usable hooks returned.');
+  return cleaned;
+}
+
+// Split a caption into its body and the trailing hashtag block, for the
+// common TikTok tactic of keeping the caption clean and dropping the
+// hashtags into the first comment (the algorithm reads a wall of in-caption
+// tags as spam). Only the CONTIGUOUS run of hashtags at the very END is
+// moved — inline tags inside the body are left alone. Pure + exported so the
+// split is unit-testable.
+export function splitForFirstComment(caption: string): { body: string; hashtags: string } {
+  const m = caption.match(/(\s*(?:#[\p{L}0-9_]+\s*)+)$/u);
+  if (!m) return { body: caption, hashtags: '' };
+  const tags = m[0].match(/#[\p{L}0-9_]+/gu) || [];
+  if (tags.length === 0) return { body: caption, hashtags: '' };
+  const body = caption.slice(0, m.index).replace(/\s+$/, '');
+  return { body, hashtags: tags.join(' ') };
+}
+
+// Build the "posting.txt" that ships inside the slide-image ZIP — a one-stop
+// cheat sheet for actually posting the carousel: the caption to paste, the
+// hashtags split out for the first comment (the reach tactic), and a short
+// checklist. Pure + exported so it's unit-testable. `slideCount` is the
+// number of slide images in the pack.
+export function buildPostingNotes(caption: string, formatLabel: string, slideCount: number, audioNote = '', credits = ''): string {
+  const { body, hashtags } = splitForFirstComment(caption);
+  const sound = (audioNote || '').trim();
+  const cred = (credits || '').trim();
+  const lines: string[] = [];
+  lines.push('=== IRO POST PACK ===');
+  lines.push(`Format: ${formatLabel}`);
+  lines.push(`Slides: ${slideCount}  (slide-01 … slide-${String(slideCount).padStart(2, '0')})`);
+  if (sound) lines.push(`Sound: 🎵 ${sound}`);
+  lines.push('');
+  lines.push('--- CAPTION (paste as the post caption) ---');
+  lines.push(body || '(no caption)');
+  lines.push('');
+  if (hashtags) {
+    lines.push('--- FIRST COMMENT (paste as comment #1 for cleaner reach) ---');
+    lines.push(hashtags);
+    lines.push('');
+  }
+  if (cred) {
+    lines.push('--- PHOTO CREDITS (some licenses require this) ---');
+    lines.push(cred);
+    lines.push('');
+  }
+  lines.push('--- CHECKLIST ---');
+  lines.push(sound ? `[ ] Add the sound: ${sound}` : '[ ] Add a trending sound');
+  lines.push('[ ] Cover = slide 1 (your hook)');
+  lines.push('[ ] Upload slides in order (slide-01 first)');
+  if (hashtags) lines.push('[ ] Post, then immediately drop the first comment');
+  if (cred) lines.push('[ ] Add the photo credits (caption or comment)');
+  return lines.join('\n') + '\n';
+}
+
+// One-tap caption cleanup: drop duplicate hashtags (case-insensitive, keeping
+// the first occurrence), collapse runs of blank lines to a single blank line,
+// strip trailing whitespace, and squeeze double spaces. Captions accumulate
+// this cruft from successive AI ops + manual edits. Pure + unit-tested.
+export function tidyCaption(caption: string): string {
+  let s = (caption || '').replace(/\r\n/g, '\n');
+  // Drop a hashtag the second time it appears (keep the first), replacing the
+  // later one with nothing — the whitespace tidy below closes the gap.
+  const seen = new Set<string>();
+  s = s.replace(/#[\p{L}0-9_]+/gu, (tag) => {
+    const k = tag.toLowerCase();
+    if (seen.has(k)) return '';
+    seen.add(k);
+    return tag;
+  });
+  // Whitespace tidy: collapse blank-line runs, trailing spaces, double spaces.
+  s = s
+    .replace(/[ \t]{2,}/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    .split('\n')
+    .map((l) => l.replace(/[ \t]+$/, ''))
+    .join('\n')
+    .trim();
+  return s;
+}
+
+// Replace just the first (hook) line of a caption, preserving the rest of the
+// body and any trailing hashtags. Pure + exported so the apply step is
+// unit-testable. If the caption is empty, the new hook becomes the caption.
+export function replaceFirstLine(caption: string, newHook: string): string {
+  if (!caption.trim()) return newHook;
+  const lines = caption.split('\n');
+  // Find the first non-empty line (the hook) and swap it in place.
+  const idx = lines.findIndex((l) => l.trim().length > 0);
+  if (idx === -1) return newHook;
+  lines[idx] = newHook;
+  return lines.join('\n');
+}
+
 // Translate a caption into another language for reaching a different
 // audience, keeping it native (not a stiff literal translation) and leaving
 // #hashtags and @handles intact.

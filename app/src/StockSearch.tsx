@@ -23,6 +23,8 @@ type Props = {
 
 const PROVIDER_LABEL: Record<StockProvider, string> = {
   openverse: 'Openverse',
+  wikimedia: 'Wikimedia',
+  artic: 'Art Institute',
   pexels: 'Pexels',
   unsplash: 'Unsplash',
   pixabay: 'Pixabay',
@@ -30,12 +32,14 @@ const PROVIDER_LABEL: Record<StockProvider, string> = {
 
 const PROVIDER_NOTE: Record<StockProvider, string> = {
   openverse: 'keyless · ~700M CC images',
+  wikimedia: 'keyless · Commons library',
+  artic: 'keyless · public-domain art',
   pexels: 'free · no attribution',
   unsplash: 'free · credit appreciated',
   pixabay: 'free · no attribution',
 };
 
-const PROVIDER_ORDER: StockProvider[] = ['openverse', 'pexels', 'unsplash', 'pixabay'];
+const PROVIDER_ORDER: StockProvider[] = ['openverse', 'wikimedia', 'artic', 'pexels', 'unsplash', 'pixabay'];
 
 export default function StockSearch({ pexelsKey, unsplashKey, pixabayKey, onImported }: Props) {
   const [provider, setProvider] = useState<StockProvider>('openverse');
