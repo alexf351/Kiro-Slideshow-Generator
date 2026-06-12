@@ -226,6 +226,11 @@ function stripJsonWrappers(t: string): string {
 
 const CONTENT_KEYS = ['hook', 'prompts', 'beats', 'panels', 'features', 'items', 'apps', 'tools', 'picks', 'tiers', 'reviews', 'tweets', 'notes', 'posts', 'stories'];
 
+// Formats whose copy sits directly over the photo (no solid card/box behind
+// it). When auto-assigning a stock background to these, we drop in a default
+// darken so the text stays readable without the creator touching the slider.
+const PHOTO_TEXT_PRESETS = new Set(['aspirational', 'pain_story', 'meme_pov', 'hot_take', 'before_after', 'quote_card', 'news']);
+
 // If someone pastes a whole clone / propose payload
 // ({ preset, slides: {...}, caption, cloneAnalysis, bgAssignments }) into the
 // JSON box, the real slide content lives under `slides` — unwrap to it so the
@@ -1171,6 +1176,9 @@ export default function App() {
       const r = await resolveStockBgForLabel(label);
       if (!r) { ui.notify('No stock match for this slide. Try My Library or a URL.', { type: 'info' }); return; }
       setSlideBgs((prev) => ({ ...prev, [slideKey]: { type: 'media', mediaId: r.mediaId } }));
+      if (PHOTO_TEXT_PRESETS.has(preset)) {
+        setSlideBgAdjust((prev) => prev[slideKey]?.darken ? prev : { ...prev, [slideKey]: { ...(prev[slideKey] || DEFAULT_CROP), darken: 0.4 } });
+      }
       setTimeout(() => void handleRender({ switchView: false }), 60);
       ui.notify(`Added a photo for “${r.query}”.`, { type: 'success' });
     } catch (e) {
@@ -1196,6 +1204,15 @@ export default function App() {
     }
     if (done > 0) {
       setSlideBgs((prev) => ({ ...prev, ...updates }));
+      if (PHOTO_TEXT_PRESETS.has(preset)) {
+        setSlideBgAdjust((prev) => {
+          const next = { ...prev };
+          for (const k of Object.keys(updates)) {
+            if (!next[k]?.darken) next[k] = { ...(next[k] || DEFAULT_CROP), darken: 0.4 };
+          }
+          return next;
+        });
+      }
       setTimeout(() => void handleRender({ switchView: false }), 80);
     }
     setAutoBgBusy(null);
