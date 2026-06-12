@@ -28,6 +28,7 @@ export const PRESET_KEYS = [
   'definition',
   'qa',
   'flags',
+  'steps',
 ] as const;
 
 export type PresetKey = (typeof PRESET_KEYS)[number];
@@ -806,6 +807,36 @@ want to be all green flags? search "Iro AI" on the App Store.
 
 #ai #greenflags #redflags #aitok #productivity`;
 
+const STEPS_JSON = `{
+  "preset": "steps",
+  "hook": {
+    "headline": "build your <strong>first AI tool</strong><br/>in 4 steps",
+    "subline": "no code, ~10 minutes"
+  },
+  "items": [
+    { "title": "Pick one annoying task", "body": "Something you redo every week — a report, a reply, a summary." },
+    { "title": "Describe it to the AI", "body": "Plain English: the input, the output, and the format you want." },
+    { "title": "Wire it to your tools", "body": "Drop it into the app you already use so it runs where you work." },
+    { "title": "Use it daily, then tweak", "body": "Real use shows you the one prompt line worth fixing." }
+  ],
+  "cta": {
+    "headline": "Want the <strong>guided</strong> version?",
+    "instructionAbove": "search:",
+    "searchTerm": "Iro AI",
+    "instructionBelow": "on the App Store.",
+    "slogan": "5 minutes a day."
+  },
+  "attribution": ""
+}`;
+
+const STEPS_CAPTION = `how to build your first AI tool in 4 steps 🛠️ save this
+
+step 2 is where most people overthink it — keep it plain.
+
+want it guided? search "Iro AI" on the App Store.
+
+#ai #tutorial #howto #aitok #nocode`;
+
 export const PRESETS: Record<PresetKey, PresetMeta> = {
   prompt_pack: {
     key: 'prompt_pack',
@@ -1004,5 +1035,14 @@ export const PRESETS: Record<PresetKey, PresetMeta> = {
     defaultJson: FLAGS_JSON,
     defaultCaption: FLAGS_CAPTION,
     accent: '#34D399', // green flag
+  },
+  steps: {
+    key: 'steps',
+    label: 'Steps / Tutorial',
+    pitch: 'Sequential how-to — one numbered step per slide with a progress bar.',
+    status: 'ready',
+    defaultJson: STEPS_JSON,
+    defaultCaption: STEPS_CAPTION,
+    accent: '#00E5FF', // progress cyan
   },
 };
