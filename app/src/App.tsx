@@ -24,6 +24,7 @@ import { postsToCsv } from './csv';
 import { scoreHook, HOOK_TIER_COLOR, HOOK_TIER_TEXT } from './hookScore';
 import { lintHashtags, HASHTAG_TIER_COLOR, HASHTAG_TIER_TEXT } from './hashtagLint';
 import { checkEngagement } from './captionSignals';
+import { makeZip, dataUrlToBytes } from './zip';
 import { listSets, saveSet, deleteSet, formatTags, type HashtagSet } from './hashtagSets';
 import { encodePost, decodePost } from './postShare';
 import { useUI } from './ui';
@@ -433,6 +434,8 @@ export default function App() {
   const [videoPace, setVideoPace] = useState<number>(() => { const v = Number(loadPref('videoPace')); return v >= 1 && v <= 6 ? v : 2.5; });
   // PDF export (repurpose the deck as an IG / LinkedIn carousel).
   const [pdfBusy, setPdfBusy] = useState<string | null>(null);
+  // ZIP-of-images export (manual upload to TikTok / IG / anywhere).
+  const [imagesBusy, setImagesBusy] = useState<string | null>(null);
   const [genDeckBusy, setGenDeckBusy] = useState(false);
   // Named drafts (multiple in-progress projects).
   const [drafts, setDrafts] = useState<Draft[]>(() => listDrafts());
@@ -1538,6 +1541,33 @@ export default function App() {
     }
   }
 
+  // Download every slide as an image, bundled into a single ZIP — for
+  // manually uploading the photos to TikTok / Instagram / wherever. The
+  // caption rides along as caption.txt so it's one tap to grab everything.
+  async function handleDownloadImages() {
+    setImagesBusy('Capturing slides…');
+    try {
+      const slides = await captureTikTokSlides();
+      if (!slides.length) throw new Error('No slides captured. Hit Render first.');
+      setImagesBusy('Zipping…');
+      const pad = (n: number) => String(n).padStart(2, '0');
+      const entries = slides.map((dataUrl, i) => ({
+        name: `slide-${pad(i + 1)}.jpg`,
+        data: dataUrlToBytes(dataUrl),
+      }));
+      if (caption.trim()) {
+        entries.push({ name: 'caption.txt', data: new TextEncoder().encode(caption) });
+      }
+      const blob = makeZip(entries);
+      downloadBlob(blob, `iro_${preset}_${timestampSlug()}.zip`);
+      ui.notify(`Downloaded ${slides.length} slide image${slides.length === 1 ? '' : 's'}.`, { type: 'success' });
+    } catch (e) {
+      ui.notify(`Image export failed: ${(e as Error).message}`, { type: 'error' });
+    } finally {
+      setImagesBusy(null);
+    }
+  }
+
   // Fill the current template's JSON from a one-line topic, via Claude.
   // Topic → complete ready-to-post post: AI picks the best format, fills it,
   // and writes a caption — all in one tap.
@@ -2017,6 +2047,7 @@ export default function App() {
       { id: 'send-phone', section: 'Export', label: 'Send to phone (QR)', keywords: 'mobile transfer', run: () => void handlePhoneHandoff() },
       { id: 'export-video', section: 'Export', label: 'Export as video', keywords: 'mp4 reel', run: () => handleExportVideo() },
       { id: 'export-pdf', section: 'Export', label: 'Export as PDF', keywords: 'carousel instagram linkedin', run: () => void handleExportPdf() },
+      { id: 'export-images', section: 'Export', label: 'Download slides (.zip)', keywords: 'images jpg photos manual upload zip', run: () => void handleDownloadImages() },
       { id: 'send-tiktok', section: 'Export', label: 'Send to TikTok inbox', keywords: 'publish post', run: () => void sendToTikTok() },
       { id: 'go-edit', section: 'Go to', label: 'Edit', run: goto('preview', 'edit') },
       { id: 'go-preview', section: 'Go to', label: 'Preview', run: goto('preview', 'preview') },
@@ -3439,6 +3470,17 @@ export default function App() {
                            disabled:opacity-60 disabled:cursor-not-allowed hover:border-[#FFC857]/50 hover:text-[#FFC857] transition-all"
               >
                 {pdfBusy || '📄 Export PDF (IG / LinkedIn)'}
+              </button>
+              <button
+                type="button"
+                onClick={handleDownloadImages}
+                disabled={!!imagesBusy}
+                className="w-full py-3 rounded-xl text-[12px] font-bold uppercase tracking-[0.12em]
+                           border border-white/[0.12] bg-white/[0.03] text-gray-200
+                           disabled:opacity-60 disabled:cursor-not-allowed hover:border-[#34D399]/50 hover:text-[#34D399] transition-all"
+                title="Download every slide as a JPEG (zipped) to upload manually"
+              >
+                {imagesBusy || '🖼 Download slides (.zip)'}
               </button>
               {phoneErr && <div className="text-[11px] text-red-400 leading-relaxed">{phoneErr}</div>}
               {ttToken && (
