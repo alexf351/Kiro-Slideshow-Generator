@@ -412,6 +412,8 @@ export default function App() {
   const [phoneErr, setPhoneErr] = useState<string | null>(null);
   // Animated MP4/WebM export progress.
   const [videoBusy, setVideoBusy] = useState<string | null>(null);
+  // Seconds per slide for the video export (pacing).
+  const [videoPace, setVideoPace] = useState<number>(2.5);
   // PDF export (repurpose the deck as an IG / LinkedIn carousel).
   const [pdfBusy, setPdfBusy] = useState<string | null>(null);
   // Named drafts (multiple in-progress projects).
@@ -1262,7 +1264,7 @@ export default function App() {
     window.addEventListener('message', onMessage);
     // Generous timeout — real-time recording of a long deck can take a while.
     const timer = setTimeout(() => { window.removeEventListener('message', onMessage); setVideoBusy(null); ui.notify('Video export timed out.', { type: 'error' }); }, 180000);
-    iframe.contentWindow.postMessage({ type: 'capture-video', requestId, secondsPerSlide: 2.5 }, '*');
+    iframe.contentWindow.postMessage({ type: 'capture-video', requestId, secondsPerSlide: videoPace }, '*');
   }
 
   // Capture the slides and assemble a multi-page PDF (one slide per page at
@@ -2442,6 +2444,22 @@ export default function App() {
               >
                 {videoBusy || '🎬 Export as video'}
               </button>
+              <div className="flex items-center gap-1 -mt-1">
+                <span className="text-[10px] uppercase tracking-[0.12em] text-gray-600 mr-1">Pace</span>
+                {([['Fast', 1.5], ['Normal', 2.5], ['Slow', 4]] as const).map(([label, secs]) => (
+                  <button
+                    key={label}
+                    type="button"
+                    onClick={() => setVideoPace(secs)}
+                    className={
+                      'flex-1 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-[0.1em] transition-colors ' +
+                      (videoPace === secs ? 'bg-[#A78BFA]/20 text-[#C4B5FD]' : 'text-gray-500 hover:text-gray-300 bg-white/[0.02]')
+                    }
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
               <button
                 type="button"
                 onClick={handleExportPdf}
