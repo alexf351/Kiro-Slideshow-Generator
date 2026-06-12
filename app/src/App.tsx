@@ -1319,6 +1319,7 @@ export default function App() {
   function handleCloneAgain(sourceUrl: string) {
     setMainView('preview');
     setMobileView('edit');
+    setOpenGroups((p) => ({ ...p, ai: true })); // reveal the Clone panel
     setPrefillCloneUrl(sourceUrl);
   }
 
@@ -4529,7 +4530,7 @@ export default function App() {
           (mobileView === 'discover' ? 'block ' : 'hidden ') +
           (mainView === 'discover' ? 'md:block' : 'md:hidden')
         }>
-          <Discover onAdapt={handleAdaptPattern} />
+          <Discover onAdapt={handleAdaptPattern} onCloneUrl={handleCloneAgain} />
         </div>
         <div className={
           'absolute inset-0 flex flex-col ' +

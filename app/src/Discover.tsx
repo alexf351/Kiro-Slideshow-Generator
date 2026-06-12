@@ -7,9 +7,10 @@ import { useMemo, useState } from 'react';
 import { VIRAL_PATTERNS, VIRAL_MECHANICS, type ViralPattern, type ViralMechanic } from './viralLibrary';
 import { PRESETS } from './presets';
 
-export default function Discover({ onAdapt }: { onAdapt: (p: ViralPattern) => void }) {
+export default function Discover({ onAdapt, onCloneUrl }: { onAdapt: (p: ViralPattern) => void; onCloneUrl: (url: string) => void }) {
   const [mechanic, setMechanic] = useState<ViralMechanic | 'All'>('All');
   const [query, setQuery] = useState('');
+  const [cloneUrl, setCloneUrl] = useState('');
 
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -31,6 +32,25 @@ export default function Discover({ onAdapt }: { onAdapt: (p: ViralPattern) => vo
           The slideshow shapes that go viral, distilled into reusable starts. Tap <strong className="text-gray-300">Adapt</strong> to
           load one into the editor — then hit <strong className="text-gray-300">Full post</strong> to spin up your own version.
         </p>
+        {/* Saw a real one in the wild? Clone it via the existing AI flow. */}
+        <div className="mb-3 flex gap-2">
+          <input
+            type="url"
+            value={cloneUrl}
+            onChange={(e) => setCloneUrl(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter' && cloneUrl.trim()) { onCloneUrl(cloneUrl.trim()); setCloneUrl(''); } }}
+            placeholder="Saw a viral one? Paste its TikTok link to clone & adapt it…"
+            className="flex-1 bg-[#070b18] border border-[#A78BFA]/25 rounded-lg px-3 py-2 text-[12px] text-gray-200 placeholder:text-gray-600 focus:border-[#A78BFA]/50 focus:outline-none"
+          />
+          <button
+            type="button"
+            onClick={() => { if (cloneUrl.trim()) { onCloneUrl(cloneUrl.trim()); setCloneUrl(''); } }}
+            disabled={!cloneUrl.trim()}
+            className="shrink-0 px-3 py-2 rounded-lg text-[11px] font-bold uppercase tracking-[0.1em] bg-[#A78BFA]/15 text-[#C4B5FD] border border-[#A78BFA]/30 hover:bg-[#A78BFA]/25 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            Clone
+          </button>
+        </div>
         <input
           type="search"
           value={query}
