@@ -15,7 +15,7 @@ import HypeEditor from './HypeEditor';
 import CropAdjust, { DEFAULT_CROP, type CropValue } from './CropAdjust';
 import { GRADIENTS, SOLID_BGS } from './gradients';
 import { coerceDesign, DEFAULT_DESIGN, designPayload, ASPECT_KEYS, ASPECTS, type BrandDesign } from './design';
-import { listDrafts, saveDraft, deleteDraft, setDraftSchedule, type Draft } from './drafts';
+import { listDrafts, saveDraft, deleteDraft, setDraftSchedule, setDraftPosted, type Draft } from './drafts';
 import { exportBackup, importBackup, downloadBlob, timestampSlug } from './backup';
 import { suggestHashtags, parseHashtags } from './insights';
 import { listSets, saveSet, deleteSet, formatTags, type HashtagSet } from './hashtagSets';
@@ -2872,14 +2872,23 @@ export default function App() {
                 {drafts.map((d) => {
                   const isoDate = d.scheduledFor ? new Date(d.scheduledFor).toISOString().slice(0, 10) : '';
                   return (
-                  <div key={d.id} className={'flex items-center gap-2 p-2.5 rounded-lg border bg-white/[0.02] ' + (d.scheduledFor ? 'border-[#34D399]/30' : 'border-white/[0.08]')}>
+                  <div key={d.id} className={'flex items-center gap-2 p-2.5 rounded-lg border bg-white/[0.02] ' + (d.posted ? 'border-white/[0.05] opacity-55' : d.scheduledFor ? 'border-[#34D399]/30' : 'border-white/[0.08]')}>
+                    <button
+                      type="button"
+                      onClick={() => setDrafts(setDraftPosted(d.id, !d.posted))}
+                      title={d.posted ? 'Mark not posted' : 'Mark as posted'}
+                      aria-label={d.posted ? `Mark ${d.name} not posted` : `Mark ${d.name} posted`}
+                      className={'shrink-0 w-6 h-6 rounded-md border flex items-center justify-center text-[12px] transition-colors ' + (d.posted ? 'border-[#34D399] bg-[#34D399]/20 text-[#34D399]' : 'border-white/15 text-transparent hover:text-gray-500')}
+                    >
+                      ✓
+                    </button>
                     <button
                       type="button"
                       onClick={() => void handleLoadDraft(d)}
                       className="flex-1 text-left min-w-0"
                       title={`Load "${d.name}"`}
                     >
-                      <div className="text-[12px] font-bold text-gray-200 truncate">{d.name}</div>
+                      <div className={'text-[12px] font-bold truncate ' + (d.posted ? 'text-gray-400 line-through' : 'text-gray-200')}>{d.name}</div>
                       <div className="text-[10px] text-gray-500">
                         {d.scheduledFor
                           ? <span className="text-[#34D399]">📅 {new Date(d.scheduledFor).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}</span>
