@@ -1386,6 +1386,9 @@ export default function App() {
   // reload) and saved with each draft.
   const [audioNote, setAudioNote] = useState(() => loadPref('audioNote'));
   useEffect(() => { savePref('audioNote', audioNote); }, [audioNote]);
+  // Posting hour (0-23) used by the "spread across the week" auto-scheduler.
+  const [scheduleHour, setScheduleHour] = useState<number>(() => { const v = Number(loadPref('scheduleHour')); return v >= 0 && v <= 23 ? v : 18; });
+  useEffect(() => { savePref('scheduleHour', String(scheduleHour)); }, [scheduleHour]);
   const [translateLang, setTranslateLang] = useState('Spanish');
   const [translateBusy, setTranslateBusy] = useState(false);
 
@@ -3833,24 +3836,38 @@ export default function App() {
               </button>
             )}
             {drafts.some((d) => !d.posted && !d.scheduledFor) && (
-              <button
-                type="button"
-                onClick={async () => {
-                  const { planAroundExisting } = await import('./schedulePlan');
-                  const unsched = drafts.filter((d) => !d.posted && !d.scheduledFor);
-                  // Don't double-book days that already hold a scheduled draft.
-                  const taken = drafts.filter((d) => d.scheduledFor).map((d) => new Date(d.scheduledFor!));
-                  const dates = planAroundExisting(unsched.length, taken);
-                  let next = drafts;
-                  unsched.forEach((d, i) => { next = setDraftSchedule(d.id, dates[i].getTime()); });
-                  setDrafts(next);
-                  ui.notify(`Scheduled ${unsched.length} draft${unsched.length === 1 ? '' : 's'} on the next free day${unsched.length === 1 ? '' : 's'} at 6pm. Export to calendar below.`, { type: 'success' });
-                }}
-                className="w-full mb-2 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-[0.12em] text-gray-400 hover:text-[#34D399] border border-white/[0.08] hover:border-[#34D399]/30"
-                title="Auto-assign each unscheduled draft to a day (one per day from tomorrow, 6pm)"
-              >
-                🗓 Spread {drafts.filter((d) => !d.posted && !d.scheduledFor).length} across the week
-              </button>
+              <div className="mb-2 flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const { planAroundExisting } = await import('./schedulePlan');
+                    const unsched = drafts.filter((d) => !d.posted && !d.scheduledFor);
+                    // Don't double-book days that already hold a scheduled draft.
+                    const taken = drafts.filter((d) => d.scheduledFor).map((d) => new Date(d.scheduledFor!));
+                    const dates = planAroundExisting(unsched.length, taken, new Date(), scheduleHour);
+                    let next = drafts;
+                    unsched.forEach((d, i) => { next = setDraftSchedule(d.id, dates[i].getTime()); });
+                    setDrafts(next);
+                    const hr = new Date(dates[0]).toLocaleTimeString([], { hour: 'numeric' });
+                    ui.notify(`Scheduled ${unsched.length} draft${unsched.length === 1 ? '' : 's'} on the next free day${unsched.length === 1 ? '' : 's'} at ${hr}. Export to calendar below.`, { type: 'success' });
+                  }}
+                  className="flex-1 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-[0.12em] text-gray-400 hover:text-[#34D399] border border-white/[0.08] hover:border-[#34D399]/30"
+                  title="Auto-assign each unscheduled draft to the next free day at the chosen hour"
+                >
+                  🗓 Spread {drafts.filter((d) => !d.posted && !d.scheduledFor).length} across the week
+                </button>
+                <select
+                  value={scheduleHour}
+                  onChange={(e) => setScheduleHour(Number(e.target.value))}
+                  aria-label="Posting time"
+                  title="Posting time for the spread"
+                  className="shrink-0 bg-[#070b18] border border-white/[0.10] rounded-md px-1.5 py-1 text-[10px] text-gray-300 focus:outline-none focus:border-[#34D399]/40"
+                >
+                  {[6, 9, 12, 15, 18, 21].map((h) => (
+                    <option key={h} value={h}>{h % 12 === 0 ? 12 : h % 12}{h < 12 ? 'am' : 'pm'}</option>
+                  ))}
+                </select>
+              </div>
             )}
             {scheduledCount(drafts) > 0 && (
               <button
