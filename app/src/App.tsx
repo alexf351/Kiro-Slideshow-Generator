@@ -1979,6 +1979,12 @@ export default function App() {
       { id: 'ai-caption', section: 'AI', label: 'Write AI caption', keywords: 'generate caption', run: () => void handleAiCaption() },
       { id: 'ai-hashtags', section: 'AI', label: 'Generate AI hashtags', keywords: 'tags', run: () => void handleAiHashtags() },
       { id: 'ai-improve', section: 'AI', label: 'Improve: make it punchier', keywords: 'rewrite', run: () => void handleImprovePost('Punchier', 'Make every line punchier and more scroll-stopping; tighten wordy phrases.') },
+      { id: 'ai-improve-simpler', section: 'AI', label: 'Improve: make it simpler', keywords: 'rewrite beginner', run: () => void handleImprovePost('Simpler', 'Simplify the language so a beginner instantly gets it; cut jargon.') },
+      { id: 'ai-improve-spicier', section: 'AI', label: 'Improve: make it spicier', keywords: 'rewrite bold controversial', run: () => void handleImprovePost('Spicier', 'Make it bolder and more opinionated/controversial (still true and on-brand).') },
+      { id: 'ai-improve-shorter', section: 'AI', label: 'Improve: make it shorter', keywords: 'rewrite trim', run: () => void handleImprovePost('Shorter', 'Cut each piece of text to the essential words; keep it skimmable.') },
+      { id: 'ai-punch', section: 'AI', label: 'Punch up the caption', keywords: 'sharpen rewrite caption', run: () => void handlePunchUpCaption() },
+      { id: 'ai-ideas', section: 'AI', label: 'Brainstorm post ideas', keywords: 'topics batch niche', run: () => void handleGenerateIdeas() },
+      ...(aiUndo ? [{ id: 'ai-undo', section: 'AI', label: 'Undo last AI change', keywords: 'revert', run: handleUndoAi }] : []),
       { id: 'save-draft', section: 'Actions', label: 'Save as draft', hint: '⌘S', keywords: 'project', run: () => void handleSaveDraft() },
       { id: 'copy-script', section: 'Actions', label: 'Copy slide script', keywords: 'voiceover text', run: () => void handleCopyScript() },
       { id: 'send-phone', section: 'Export', label: 'Send to phone (QR)', keywords: 'mobile transfer', run: () => void handlePhoneHandoff() },
@@ -1999,7 +2005,7 @@ export default function App() {
     }
     return list;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [preset, editMode, caption, jsonText]);
+  }, [preset, editMode, caption, jsonText, aiUndo]);
 
   // Wired to the CloneFromTikTok panel. Takes the clone result and
   // populates everything in one shot: JSON, preset, caption, per-slide
