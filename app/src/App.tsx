@@ -421,6 +421,8 @@ export default function App() {
   const [pdfBusy, setPdfBusy] = useState<string | null>(null);
   // Named drafts (multiple in-progress projects).
   const [drafts, setDrafts] = useState<Draft[]>(() => listDrafts());
+  // The draft currently loaded for editing (enables one-tap "Update").
+  const [activeDraftName, setActiveDraftName] = useState('');
   // Opt-in "swipe →" cue on non-final slides (completion-rate booster).
   const [swipeHint, setSwipeHintState] = useState<boolean>(() => {
     try { return localStorage.getItem('kiro_swipe_hint') === '1'; } catch { return false; }
@@ -1540,11 +1542,23 @@ export default function App() {
   }
 
   // ---- Drafts (named in-progress projects) ----
+  function currentDraftState() {
+    return { jsonText, caption, preset, slideBgs, slideBgAdjust, attribution, attrPresets };
+  }
+
   async function handleSaveDraft() {
-    const name = await ui.prompt({ title: 'Save draft', message: 'Name this project (re-using a name overwrites it).', placeholder: 'e.g. Monday prompt pack', confirmLabel: 'Save' });
+    const name = await ui.prompt({ title: 'Save draft', message: 'Name this project (re-using a name overwrites it).', placeholder: 'e.g. Monday prompt pack', confirmLabel: 'Save', defaultValue: activeDraftName });
     if (!name || !name.trim()) return;
-    setDrafts(saveDraft(name, { jsonText, caption, preset, slideBgs, slideBgAdjust, attribution, attrPresets }));
+    setDrafts(saveDraft(name, currentDraftState()));
+    setActiveDraftName(name.trim());
     ui.notify('Draft saved.', { type: 'success' });
+  }
+
+  // Save back to the currently-loaded draft without re-typing its name.
+  function handleUpdateDraft() {
+    if (!activeDraftName) return;
+    setDrafts(saveDraft(activeDraftName, currentDraftState()));
+    ui.notify(`Updated "${activeDraftName}".`, { type: 'success' });
   }
 
   async function handleLoadDraft(d: Draft) {
@@ -1557,6 +1571,7 @@ export default function App() {
     setSlideBgAdjust((s.slideBgAdjust || {}) as Record<string, CropValue>);
     setAttribution(s.attribution || '');
     if (s.attrPresets) setAttrPresets(s.attrPresets);
+    setActiveDraftName(d.name);
     setTimeout(() => void handleRender({ switchView: false }), 80);
     ui.notify(`Loaded "${d.name}".`, { type: 'success' });
   }
@@ -1663,6 +1678,7 @@ export default function App() {
     setPreset(key);
     setJsonText(PRESETS[key].defaultJson);
     setCaption(PRESETS[key].defaultCaption);
+    setActiveDraftName(''); // a fresh example is no longer "the loaded draft"
   }
 
   // Command palette entries, rebuilt when the bits they reference change.
@@ -2754,6 +2770,16 @@ export default function App() {
                 {batchBusy || `Generate ${batchTopics.split('\n').map((s) => s.trim()).filter(Boolean).length || ''} drafts`.trim()}
               </button>
             </div>
+            {activeDraftName && (
+              <button
+                type="button"
+                onClick={handleUpdateDraft}
+                className="w-full py-3 mb-2 rounded-xl text-[12px] font-bold uppercase tracking-[0.12em]
+                           bg-[#34D399]/20 text-[#34D399] hover:bg-[#34D399]/30 transition-all"
+              >
+                💾 Update “{activeDraftName}”
+              </button>
+            )}
             <button
               type="button"
               onClick={handleSaveDraft}
@@ -2761,7 +2787,7 @@ export default function App() {
                          border border-[#34D399]/30 bg-[#34D399]/10 text-[#34D399]
                          hover:bg-[#34D399]/20 transition-all"
             >
-              + Save current as draft
+              {activeDraftName ? '+ Save as new draft' : '+ Save current as draft'}
             </button>
             <div className="flex gap-2 mb-3">
               <button
