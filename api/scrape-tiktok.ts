@@ -260,11 +260,32 @@ type FetchAttempt = {
   followedCanonical: boolean;
 };
 
+// Fetch a TikTok page, retrying transient throttling/overload (429 / 5xx) and
+// network blips. TikTok rate-limits scraping aggressively, so a short backoff
+// turns a one-off throttle into a brief wait. A hard 403 block is NOT retried.
+async function fetchPage(url: string, ua: string): Promise<Response> {
+  const maxAttempts = 3;
+  let last: Response | null = null;
+  for (let a = 0; a < maxAttempts; a++) {
+    let res: Response;
+    try {
+      res = await fetch(url, { headers: headersFor(ua), redirect: 'follow' });
+    } catch (e) {
+      if (a < maxAttempts - 1) { await new Promise((r) => setTimeout(r, 700 * (a + 1))); continue; }
+      throw e;
+    }
+    if (res.ok || (res.status !== 429 && res.status < 500) || a === maxAttempts - 1) return res;
+    last = res;
+    await new Promise((r) => setTimeout(r, 700 * (a + 1)));
+  }
+  return last as Response;
+}
+
 // Fetch + parse with one UA. Doesn't throw — returns enough info that
 // the caller can decide whether to fall back to the other UA.
 async function attemptFetch(rawUrl: string, ua: string, uaLabel: string): Promise<FetchAttempt> {
   const canonicalUrl = await resolveTikTokUrl(rawUrl, ua).catch(() => rawUrl);
-  let pageRes = await fetch(canonicalUrl, { headers: headersFor(ua), redirect: 'follow' });
+  let pageRes = await fetchPage(canonicalUrl, ua);
   let finalUrl = pageRes.url || canonicalUrl;
   if (!pageRes.ok) {
     return {
@@ -286,7 +307,7 @@ async function attemptFetch(rawUrl: string, ua: string, uaLabel: string): Promis
     const canonicalHref = extractCanonicalPostUrl(html);
     if (canonicalHref && canonicalHref !== finalUrl) {
       followedCanonical = true;
-      const r2 = await fetch(canonicalHref, { headers: headersFor(ua), redirect: 'follow' });
+      const r2 = await fetchPage(canonicalHref, ua);
       if (r2.ok) {
         pageRes = r2;
         finalUrl = r2.url || canonicalHref;
