@@ -2418,6 +2418,8 @@ export default function App() {
       { id: 'ai-improve-simpler', section: 'AI', label: 'Improve: make it simpler', keywords: 'rewrite beginner', run: () => void handleImprovePost('Simpler', 'Simplify the language so a beginner instantly gets it; cut jargon.') },
       { id: 'ai-improve-spicier', section: 'AI', label: 'Improve: make it spicier', keywords: 'rewrite bold controversial', run: () => void handleImprovePost('Spicier', 'Make it bolder and more opinionated/controversial (still true and on-brand).') },
       { id: 'ai-improve-shorter', section: 'AI', label: 'Improve: make it shorter', keywords: 'rewrite trim', run: () => void handleImprovePost('Shorter', 'Cut each piece of text to the essential words; keep it skimmable.') },
+      { id: 'ai-improve-funnier', section: 'AI', label: 'Improve: make it funnier', keywords: 'rewrite humor witty', run: () => void handleImprovePost('Funnier', 'Add wit and personality — a joke, a bit, or a self-aware aside where it fits; keep it natural, not corny.') },
+      { id: 'ai-improve-lowercase', section: 'AI', label: 'Improve: lowercase aesthetic voice', keywords: 'rewrite lowercase aesthetic vibe', run: () => void handleImprovePost('Lowercase', 'Rewrite in the soft, all-lowercase aesthetic-creator voice; keep meaning and any emphasis tags.') },
       { id: 'ai-punch', section: 'AI', label: 'Punch up the caption', keywords: 'sharpen rewrite caption', run: () => void handlePunchUpCaption() },
       { id: 'ai-hooks', section: 'AI', label: 'Generate hook variations', keywords: 'hook first line ab test alternatives', run: () => void handleHookVariations() },
       { id: 'ai-translate-deck', section: 'AI', label: 'Translate whole deck', keywords: 'language localize international reach slides', run: () => void handleTranslateDeck() },
@@ -2964,6 +2966,8 @@ export default function App() {
                 ['Simpler', 'Simplify the language so a beginner instantly gets it; cut jargon.'],
                 ['Spicier', 'Make it bolder and more opinionated/controversial (still true and on-brand).'],
                 ['Shorter', 'Cut each piece of text to the essential words; keep it skimmable.'],
+                ['Funnier', 'Add wit and personality — a joke, a bit, or a self-aware aside where it fits; keep it natural, not corny.'],
+                ['Lowercase', 'Rewrite in the soft, all-lowercase aesthetic-creator voice; keep meaning and any emphasis tags.'],
               ] as const).map(([label, instruction]) => (
                 <button
                   key={label}
