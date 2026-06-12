@@ -29,6 +29,7 @@ import { makeZip, dataUrlToBytes } from './zip';
 import { analyzeDeck } from './deckBalance';
 import { deckLengthVerdict } from './deckPacing';
 import { sampleFormulas } from './hookFormulas';
+import { extractStockQuery, cleanLabelForQuery } from './stockKeywords';
 import { listSets, saveSet, deleteSet, formatTags, type HashtagSet } from './hashtagSets';
 import { encodePost, decodePost } from './postShare';
 import { useUI } from './ui';
@@ -1133,6 +1134,36 @@ export default function App() {
     setOpenBgMenuKey(null);
     setTimeout(() => void handleRender({ switchView: false }), 60);
     ui.notify(`Applied to ${targets.length} slide${targets.length === 1 ? '' : 's'}.`, { type: 'success' });
+  }
+
+  // One-tap relevant background: derive a search term from the slide's own
+  // text and pull the first keyless-Openverse result. Free (no OpenAI key) —
+  // complements the AI-image generator. Bytes route through the stock proxy
+  // for canvas-safe export, same as the Library stock import.
+  async function handleStockBgForSlide(slideKey: string, label: string) {
+    const seed = cleanLabelForQuery(label);
+    const query = extractStockQuery(seed) || seed.slice(0, 30);
+    if (!query.trim()) { ui.notify('No searchable text on this slide.', { type: 'info' }); return; }
+    setOpenBgMenuKey(null);
+    ui.notify(`Finding a photo for “${query}”…`, { type: 'info' });
+    try {
+      const { searchStock, fetchStockBlob } = await import('./stockPhotos');
+      const photos = await searchStock('openverse', query, '', 8);
+      if (!photos.length) { ui.notify(`No stock photo for “${query}”. Try My Library or a URL.`, { type: 'info' }); return; }
+      const photo = photos[0];
+      const blob = await fetchStockBlob(photo);
+      const item = await addStockItem({
+        blob,
+        mimeType: blob.type || 'image/jpeg',
+        name: `openverse-${query.replace(/\s+/g, '-').slice(0, 40)}`,
+        source: { provider: photo.provider, photographer: photo.photographer, photographerUrl: photo.photographerUrl, photoUrl: photo.photoUrl },
+      });
+      setSlideBgs((prev) => ({ ...prev, [slideKey]: { type: 'media', mediaId: item.id } }));
+      setTimeout(() => void handleRender({ switchView: false }), 60);
+      ui.notify(`Added a photo for “${query}”.`, { type: 'success' });
+    } catch (e) {
+      ui.notify(`Stock search failed: ${(e as Error).message}`, { type: 'error' });
+    }
   }
 
   function handleClearBgForSlide(slideKey: string) {
@@ -3117,6 +3148,9 @@ export default function App() {
                             })}
                             {menuItem('Paste image URL', () => handlePasteUrlForSlide(key), {
                               sub: 'Direct link to a publicly reachable image.',
+                            })}
+                            {menuItem('🔍 Auto stock photo', () => void handleStockBgForSlide(key, label), {
+                              sub: 'Free — searches Openverse from this slide’s text. No API key.',
                             })}
                             {openaiKey && menuItem(
                               editing ? 'Generating…' : '✨ Generate with AI',
