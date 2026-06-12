@@ -3208,6 +3208,38 @@ window.addEventListener('message', async (e) => {
     return;
   }
 
+  // Capture every slide as a JPEG data URL and post them back to the
+  // parent — used by the "Send to TikTok" flow, which uploads each image
+  // and pushes them to the connected account's inbox. JPEG (not PNG) keeps
+  // each slide small enough to POST without hitting serverless body limits.
+  if (msg.type === 'capture-tiktok') {
+    try {
+      const html2canvas = await loadHtml2Canvas();
+      if (document.fonts && document.fonts.ready) { try { await document.fonts.ready; } catch (err) {} }
+      const safeWasOn = document.body.classList.contains('show-safezone');
+      document.body.classList.remove('show-safezone');
+      if (typeof deselectAll === 'function') deselectAll();
+      document.body.classList.add('capturing');
+      const slideEls = document.querySelectorAll('.slide');
+      const slides = [];
+      try {
+        for (let i = 0; i < slideEls.length; i++) {
+          const canvas = await html2canvas(slideEls[i], {
+            width: PAGE_W, height: PAGE_H, scale: 1, useCORS: true, backgroundColor: '#000000',
+          });
+          slides.push(canvas.toDataURL('image/jpeg', 0.92));
+        }
+      } finally {
+        if (safeWasOn) document.body.classList.add('show-safezone');
+        document.body.classList.remove('capturing');
+      }
+      e.source.postMessage({ type: 'tiktokSlides', requestId: msg.requestId, slides }, '*');
+    } catch (err) {
+      try { e.source.postMessage({ type: 'tiktokSlides', requestId: msg.requestId, error: String(err) }, '*'); } catch (e2) {}
+    }
+    return;
+  }
+
   // Lightweight design-only update (brand colors / aspect / watermark)
   // without re-resolving slide content — lets the Design panel preview
   // changes live as the user drags a color or flips a ratio.

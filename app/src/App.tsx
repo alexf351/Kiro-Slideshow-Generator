@@ -399,6 +399,12 @@ export default function App() {
   const [attrPresets, setAttrPresets] = useState<Record<string, boolean>>(initial.attrPresets);
   // Whether the handle is stamped on the currently-selected format.
   const attrOnThisPreset = attrPresets[preset] === true;
+  // TikTok publish: the OAuth access token lives in its own localStorage key
+  // (kept out of the bulky persisted state blob).
+  const [ttToken, setTtToken] = useState<string>(() => {
+    try { return localStorage.getItem('kiro_tiktok_token') || ''; } catch { return ''; }
+  });
+  const [ttStatus, setTtStatus] = useState<{ kind: 'idle' | 'connecting' | 'sending' | 'ok' | 'err'; msg?: string }>({ kind: 'idle' });
   // Which collapsible sidebar groups are expanded. Everything outside the
   // core Format → Content → Caption spine is collapsed by default so the
   // panel reads as a simple "make a post" funnel instead of a wall of
@@ -1057,6 +1063,95 @@ export default function App() {
       }, 15000);
       iframe.contentWindow.postMessage({ type: 'capture-thumb', requestId }, '*');
     });
+  }
+
+  // Ask the engine to render every slide to a JPEG data URL and ship them
+  // back. Used by the "Send to TikTok" flow. Resolves [] on timeout.
+  function captureTikTokSlides(): Promise<string[]> {
+    return new Promise((resolve) => {
+      const iframe = iframeRef.current;
+      if (!iframe || !iframe.contentWindow) { resolve([]); return; }
+      const requestId = Math.random().toString(36).slice(2);
+      const onMessage = (e: MessageEvent) => {
+        const m = e.data as { type?: string; requestId?: string; slides?: string[] };
+        if (!m || m.type !== 'tiktokSlides' || m.requestId !== requestId) return;
+        window.removeEventListener('message', onMessage);
+        clearTimeout(timer);
+        resolve(Array.isArray(m.slides) ? m.slides : []);
+      };
+      window.addEventListener('message', onMessage);
+      const timer = setTimeout(() => { window.removeEventListener('message', onMessage); resolve([]); }, 60000);
+      iframe.contentWindow.postMessage({ type: 'capture-tiktok', requestId }, '*');
+    });
+  }
+
+  // OAuth-connect a TikTok account via a popup. The /api/tiktok/callback
+  // page postMessages the access token back to us.
+  async function connectTikTok(): Promise<boolean> {
+    setTtStatus({ kind: 'connecting', msg: 'Opening TikTok…' });
+    try {
+      const r = await fetch('/api/tiktok/auth-url');
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'TikTok is not configured on this deployment.');
+      const popup = window.open(d.url, 'tiktok-auth', 'width=560,height=760');
+      const token = await new Promise<string>((resolve, reject) => {
+        const onMsg = (e: MessageEvent) => {
+          if (e.origin !== window.location.origin) return;
+          const m = e.data as { type?: string; ok?: boolean; accessToken?: string; error?: string };
+          if (!m || m.type !== 'tiktok-auth') return;
+          window.removeEventListener('message', onMsg);
+          clearInterval(iv);
+          if (m.ok && m.accessToken) resolve(m.accessToken);
+          else reject(new Error(m.error || 'Authorization failed.'));
+        };
+        window.addEventListener('message', onMsg);
+        const iv = setInterval(() => {
+          if (popup && popup.closed) { clearInterval(iv); window.removeEventListener('message', onMsg); reject(new Error('Window closed before authorizing.')); }
+        }, 800);
+      });
+      setTtToken(token);
+      try { localStorage.setItem('kiro_tiktok_token', token); } catch {}
+      setTtStatus({ kind: 'ok', msg: 'TikTok connected.' });
+      return true;
+    } catch (e) {
+      setTtStatus({ kind: 'err', msg: (e as Error).message });
+      return false;
+    }
+  }
+
+  function disconnectTikTok() {
+    setTtToken('');
+    try { localStorage.removeItem('kiro_tiktok_token'); } catch {}
+    setTtStatus({ kind: 'idle' });
+  }
+
+  // Capture → upload each slide → push to the account's TikTok inbox.
+  async function sendToTikTok() {
+    let token = ttToken;
+    if (!token) { const ok = await connectTikTok(); if (!ok) return; token = (localStorage.getItem('kiro_tiktok_token') || ''); if (!token) return; }
+    setTtStatus({ kind: 'sending', msg: 'Capturing slides…' });
+    try {
+      const slides = await captureTikTokSlides();
+      if (!slides.length) throw new Error('No slides captured. Hit Render first, then try again.');
+      const mediaUrls: string[] = [];
+      for (let i = 0; i < slides.length; i++) {
+        setTtStatus({ kind: 'sending', msg: `Uploading slide ${i + 1} / ${slides.length}…` });
+        const up = await fetch('/api/tiktok/upload', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dataUrl: slides[i] }) });
+        const ud = await up.json();
+        if (!up.ok) throw new Error(ud.error || 'Slide upload failed.');
+        mediaUrls.push(ud.mediaUrl);
+      }
+      setTtStatus({ kind: 'sending', msg: 'Sending to your TikTok inbox…' });
+      const pr = await fetch('/api/tiktok/post', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ accessToken: token, mediaUrls, caption }) });
+      const pd = await pr.json();
+      if (!pr.ok) {
+        if (pr.status === 401 || pd.code === 'access_token_invalid') disconnectTikTok();
+        throw new Error(pd.error || 'TikTok rejected the post.');
+      }
+      setTtStatus({ kind: 'ok', msg: 'Sent! Open TikTok → notifications/inbox to finish posting.' });
+    } catch (e) {
+      setTtStatus({ kind: 'err', msg: (e as Error).message });
+    }
   }
 
   async function handleSaveToHistory() {
@@ -1985,6 +2080,46 @@ export default function App() {
               <span className="text-[10px] text-gray-500 leading-relaxed">
                 The handle only stamps on the formats you tick here — on by default for Prompt Pack, Aspirational &amp; Product Demo.
               </span>
+            </div>
+          </Group>
+
+          <Group open={!!openGroups.tiktok} onToggle={() => toggleGroup('tiktok')} title="Publish to TikTok" accent="#ff0050" hint={ttToken ? 'connected' : 'send to inbox'}>
+            <p className="text-xs text-gray-500 leading-relaxed mb-3">
+              Push the current slideshow straight to your TikTok <strong className="text-gray-300">inbox</strong> as a photo draft — then open the app to finish posting. Uses your caption below.
+            </p>
+            <div className="flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={sendToTikTok}
+                disabled={ttStatus.kind === 'sending' || ttStatus.kind === 'connecting'}
+                className="w-full py-3 rounded-xl text-[12px] font-bold uppercase tracking-[0.12em]
+                           bg-gradient-to-r from-[#ff0050] to-[#ff4d7d] text-white
+                           disabled:opacity-60 disabled:cursor-not-allowed hover:brightness-110 transition-all"
+              >
+                {ttStatus.kind === 'sending' ? (ttStatus.msg || 'Sending…')
+                  : ttStatus.kind === 'connecting' ? 'Connecting…'
+                  : ttToken ? 'Send to TikTok inbox' : 'Connect TikTok & send'}
+              </button>
+              {ttToken && (
+                <button
+                  type="button"
+                  onClick={disconnectTikTok}
+                  className="self-start text-[10px] font-bold uppercase tracking-[0.12em] text-gray-500 hover:text-[#ff4d7d]"
+                >
+                  Disconnect account
+                </button>
+              )}
+              {ttStatus.kind !== 'sending' && ttStatus.msg && (
+                <div className={
+                  'text-[11px] leading-relaxed mt-0.5 ' +
+                  (ttStatus.kind === 'err' ? 'text-red-400' : ttStatus.kind === 'ok' ? 'text-emerald-400' : 'text-gray-400')
+                }>
+                  {ttStatus.msg}
+                </div>
+              )}
+              <div className="text-[10px] text-gray-600 leading-relaxed mt-1">
+                Needs a one-time setup: a TikTok developer app + Vercel Blob storage. See <code className="text-gray-500">TIKTOK_SETUP.md</code>.
+              </div>
             </div>
           </Group>
 
