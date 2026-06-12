@@ -3982,7 +3982,9 @@ export default function App() {
                       value={isoDate}
                       onChange={(e) => {
                         const v = e.target.value;
-                        const ts = v ? new Date(v + 'T12:00:00').getTime() : null;
+                        // Schedule at the creator's chosen posting hour (same
+                        // pref the "spread across the week" planner uses).
+                        const ts = v ? new Date(v + `T${String(scheduleHour).padStart(2, '0')}:00:00`).getTime() : null;
                         setDrafts(setDraftSchedule(d.id, ts));
                       }}
                       title="Schedule a post date"
