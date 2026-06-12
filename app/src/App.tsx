@@ -95,6 +95,15 @@ const DEFAULT_JSON = `{
 
 const STORAGE_KEY = 'kiro_slideshow_generator_state_v2';
 
+// Which formats stamp the creator handle by default. The polished/branded
+// styles get it; the casual aesthetic ones (pain story, meme, curated list)
+// stay clean. Fully overridable per-format via the HUD checkbox.
+const DEFAULT_ATTR_PRESETS: Record<string, boolean> = {
+  prompt_pack: true,
+  aspirational: true,
+  product_demo: true,
+};
+
 type Persisted = {
   mascot: Mascot;
   variant: string;
@@ -119,6 +128,9 @@ type Persisted = {
   // Creator handle stamped under each slide (e.g. "@yourname"). Empty =
   // no handle. Source of truth for the attribution field at render.
   attribution: string;
+  // Per-format toggle for whether the handle is stamped on that style's
+  // slides. Absent key → use DEFAULT_ATTR_PRESETS.
+  attrPresets: Record<string, boolean>;
 };
 
 const CLAUDE_MODEL_IDS = CLAUDE_MODELS.map((m) => m.id) as readonly ClaudeModelId[];
@@ -150,6 +162,7 @@ function loadPersisted(): Persisted {
         design: coerceDesign(p.design),
         nativeTextOverlay: p.nativeTextOverlay === true,
         attribution: typeof p.attribution === 'string' ? p.attribution : '',
+        attrPresets: { ...DEFAULT_ATTR_PRESETS, ...(p.attrPresets && typeof p.attrPresets === 'object' ? p.attrPresets : {}) },
       };
     }
   } catch {}
@@ -170,6 +183,7 @@ function loadPersisted(): Persisted {
     design: { ...DEFAULT_DESIGN },
     nativeTextOverlay: false,
     attribution: '',
+    attrPresets: { ...DEFAULT_ATTR_PRESETS },
   };
 }
 
@@ -378,6 +392,9 @@ export default function App() {
   const [design, setDesign] = useState<BrandDesign>(initial.design);
   const [nativeTextOverlay, setNativeTextOverlay] = useState<boolean>(initial.nativeTextOverlay);
   const [attribution, setAttribution] = useState<string>(initial.attribution);
+  const [attrPresets, setAttrPresets] = useState<Record<string, boolean>>(initial.attrPresets);
+  // Whether the handle is stamped on the currently-selected format.
+  const attrOnThisPreset = attrPresets[preset] === true;
   // Which collapsible sidebar groups are expanded. Everything outside the
   // core Format → Content → Caption spine is collapsed by default so the
   // panel reads as a simple "make a post" funnel instead of a wall of
@@ -502,6 +519,7 @@ export default function App() {
           design,
           nativeTextOverlay,
           attribution,
+          attrPresets,
         }),
       );
     } catch {}
@@ -522,6 +540,7 @@ export default function App() {
     design,
     nativeTextOverlay,
     attribution,
+    attrPresets,
   ]);
 
   useEffect(() => {
@@ -673,8 +692,9 @@ export default function App() {
 
     // Creator handle: the HUD "Creator handle" field is the single source
     // of truth, so a blank field reliably removes the handle (overriding
-    // any "@tryiro" left in older saved JSON).
-    slides.attribution = attribution.trim();
+    // any "@tryiro" left in older saved JSON). Only stamped on formats
+    // toggled on for the handle (polished styles by default).
+    slides.attribution = attrPresets[preset] === true ? attribution.trim() : '';
 
     // Per-photo crop adjustments, keyed by the resolved URL so the engine
     // can apply pan/zoom to that exact background.
@@ -1931,22 +1951,35 @@ export default function App() {
             </label>
 
             {/* Creator handle stamped under each slide. Empty = no handle
-               (the old "@tryiro" default is gone). Overrides the
-               attribution field in the JSON when set. */}
-            <label className="flex flex-col gap-1.5 p-3 rounded-xl border border-white/[0.06] bg-white/[0.02]">
-              <span className="text-[12px] font-bold text-gray-200">Creator handle</span>
-              <input
-                type="text"
-                value={attribution}
-                onChange={(e) => setAttribution(e.target.value)}
-                placeholder="@yourhandle (leave blank for none)"
-                className="w-full rounded-lg border border-white/[0.10] bg-[#070b18] px-3 py-2 text-[13px] text-gray-200
-                           placeholder:text-gray-600 focus:border-[#00E5FF]/40 focus:outline-none"
-              />
+               (the old "@tryiro" default is gone). A per-format toggle
+               controls which styles actually stamp it. */}
+            <div className="flex flex-col gap-2 p-3 rounded-xl border border-white/[0.06] bg-white/[0.02]">
+              <label className="flex flex-col gap-1.5">
+                <span className="text-[12px] font-bold text-gray-200">Creator handle</span>
+                <input
+                  type="text"
+                  value={attribution}
+                  onChange={(e) => setAttribution(e.target.value)}
+                  placeholder="@yourhandle (leave blank for none)"
+                  className="w-full rounded-lg border border-white/[0.10] bg-[#070b18] px-3 py-2 text-[13px] text-gray-200
+                             placeholder:text-gray-600 focus:border-[#00E5FF]/40 focus:outline-none"
+                />
+              </label>
+              <label className="flex items-center gap-2.5 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={attrOnThisPreset}
+                  onChange={(e) => setAttrPresets((prev) => ({ ...prev, [preset]: e.target.checked }))}
+                  className="w-4 h-4 accent-[#00E5FF] cursor-pointer"
+                />
+                <span className="text-[11px] text-gray-300 leading-snug">
+                  Show on <strong className="text-gray-100">{PRESETS[preset]?.label || preset}</strong> slides
+                </span>
+              </label>
               <span className="text-[10px] text-gray-500 leading-relaxed">
-                Stamped at the bottom of every slide. Leave blank to remove it entirely.
+                The handle only stamps on the formats you tick here — on by default for Prompt Pack, Aspirational &amp; Product Demo.
               </span>
-            </label>
+            </div>
           </Group>
 
           <Group open={!!openGroups.settings} onToggle={() => toggleGroup('settings')} title="Settings" accent="#94a3b8" hint="API keys · backup · model">
