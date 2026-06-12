@@ -980,6 +980,28 @@ export default function App() {
   // Write a fresh caption + hashtags with Claude from the current slide
   // content. Learns the user's voice from their recent saved captions.
   const [captionAiBusy, setCaptionAiBusy] = useState(false);
+  const [translateLang, setTranslateLang] = useState('Spanish');
+  const [translateBusy, setTranslateBusy] = useState(false);
+
+  // Translate the current caption into another language for a different
+  // audience. Save as a draft afterward to keep one post per market.
+  async function handleTranslateCaption() {
+    if (!caption.trim()) { ui.notify('Write a caption first.', { type: 'info' }); return; }
+    if (!anthropicKey) { ui.notify('Add an Anthropic API key in Settings to translate.', { type: 'error' }); return; }
+    if (!(await ui.confirm({ message: `Translate the caption to ${translateLang}? (tip: Save as a draft first to keep the original.)`, confirmLabel: 'Translate' }))) return;
+    setTranslateBusy(true);
+    try {
+      const { translateCaption } = await import('./captionAI');
+      const out = await translateCaption({ caption, language: translateLang, apiKey: anthropicKey, model: claudeModel });
+      setCaption(out);
+      ui.notify(`Translated to ${translateLang}.`, { type: 'success' });
+    } catch (e) {
+      ui.notify(`Translation failed: ${(e as Error).message}`, { type: 'error' });
+    } finally {
+      setTranslateBusy(false);
+    }
+  }
+
   async function handleAiCaption() {
     if (!anthropicKey) {
       ui.notify('Add an Anthropic API key in Settings to use AI captions.', { type: 'error' });
@@ -2244,6 +2266,26 @@ export default function App() {
                 {captionAiBusy ? '✨ Writing…' : '✨ AI caption'}
               </button>
               <EmojiPicker onPick={insertEmoji} />
+              <span className="flex items-center gap-1">
+                <select
+                  value={translateLang}
+                  onChange={(e) => setTranslateLang(e.target.value)}
+                  aria-label="Translation language"
+                  className="bg-[#070b18] border border-white/[0.10] rounded-md px-1.5 py-1 text-[11px] text-gray-300 focus:outline-none focus:border-[#A78BFA]/50"
+                >
+                  {['Spanish', 'Portuguese', 'French', 'German', 'Italian', 'Hindi', 'Arabic', 'Japanese', 'Indonesian', 'English'].map((l) => (
+                    <option key={l} value={l}>{l}</option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={handleTranslateCaption}
+                  disabled={translateBusy}
+                  className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#A78BFA] hover:text-[#C4B5FD] disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {translateBusy ? '🌐 …' : '🌐 Translate'}
+                </button>
+              </span>
             </div>
           </section>
 

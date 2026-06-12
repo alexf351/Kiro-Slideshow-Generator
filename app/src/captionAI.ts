@@ -80,6 +80,32 @@ Rules:
   return { caption: out.caption.trim(), hashtags: tags };
 }
 
+// Translate a caption into another language for reaching a different
+// audience, keeping it native (not a stiff literal translation) and leaving
+// #hashtags and @handles intact.
+export async function translateCaption(opts: {
+  caption: string;
+  language: string;
+  apiKey: string;
+  model: ClaudeModelId;
+}): Promise<string> {
+  const system = `You localize short TikTok captions. Translate the caption into ${opts.language}, written the way a native creator on that side of TikTok would actually phrase it (casual, punchy — not a stiff literal translation). Keep any #hashtags and @handles exactly as-is (do not translate them). Keep emoji. Return only the translated caption.`;
+  const res = await callClaude({
+    apiKey: opts.apiKey,
+    model: opts.model,
+    maxTokens: 700,
+    system: [{ type: 'text', text: system }],
+    messages: [{ role: 'user', content: opts.caption }],
+  });
+  const text = res.content
+    .filter((b): b is { type: 'text'; text: string } => b.type === 'text')
+    .map((b) => b.text)
+    .join('\n')
+    .trim();
+  if (!text) throw new Error('No translation returned.');
+  return text;
+}
+
 // Join the caption body + hashtag line the way the textarea expects.
 export function composeCaption(caption: string, hashtags: string[]): string {
   if (!hashtags.length) return caption;
