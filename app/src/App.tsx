@@ -323,6 +323,24 @@ function extractSlideMeta(parsed: unknown): SlideMeta[] {
       out.push({ key: `item:${i}`, label: truncate(`${i + 1}. ${t}`, 40) });
     });
   }
+  // New social / broadcast formats — one background per card so the photo
+  // sits behind the tweet / review / note / Reddit post / news chyron.
+  const p2 = p as Record<string, unknown>;
+  const social: { field: string; prefix: string; text: (x: Record<string, unknown>) => string }[] = [
+    { field: 'reviews', prefix: 'review', text: (x) => String(x.text || x.name || '') },
+    { field: 'tweets', prefix: 'tweet', text: (x) => String(x.text || x.name || '') },
+    { field: 'notes', prefix: 'note', text: (x) => String(x.title || x.body || '') },
+    { field: 'posts', prefix: 'post', text: (x) => String(x.title || x.subreddit || '') },
+    { field: 'stories', prefix: 'story', text: (x) => String(x.headline || x.label || '') },
+  ];
+  for (const { field, prefix, text } of social) {
+    const arr = p2[field];
+    if (!Array.isArray(arr)) continue;
+    (arr as Record<string, unknown>[]).forEach((x, i) => {
+      const t = clean(text(x) || `${prefix} ${i + 1}`);
+      out.push({ key: `${prefix}:${i}`, label: truncate(`${i + 1}. ${t}`, 40) });
+    });
+  }
   if (p.cta) out.push({ key: 'cta', label: 'CTA' });
   return out;
 }
@@ -978,6 +996,12 @@ export default function App() {
       { field: 'tools', prefix: 'tool' },
       { field: 'picks', prefix: 'pick' },
       { field: 'tiers', prefix: 'tier' },
+      // New social / broadcast formats — photo sits behind the card / chyron.
+      { field: 'reviews', prefix: 'review' },
+      { field: 'tweets', prefix: 'tweet' },
+      { field: 'notes', prefix: 'note' },
+      { field: 'posts', prefix: 'post' },
+      { field: 'stories', prefix: 'story' },
     ];
     for (const { field, prefix } of contentArrays) {
       const arr = slides[field];
