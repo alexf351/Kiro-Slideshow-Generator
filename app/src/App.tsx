@@ -14,6 +14,7 @@ import QuickEdit from './QuickEdit';
 import HypeEditor from './HypeEditor';
 import CropAdjust, { DEFAULT_CROP, type CropValue } from './CropAdjust';
 import { coerceDesign, DEFAULT_DESIGN, designPayload, ASPECT_KEYS, ASPECTS, type BrandDesign } from './design';
+import { listDrafts, saveDraft, deleteDraft, type Draft } from './drafts';
 import { exportBackup, importBackup, downloadBlob, timestampSlug } from './backup';
 import { suggestHashtags } from './insights';
 import { useUI } from './ui';
@@ -413,6 +414,8 @@ export default function App() {
   const [videoBusy, setVideoBusy] = useState<string | null>(null);
   // PDF export (repurpose the deck as an IG / LinkedIn carousel).
   const [pdfBusy, setPdfBusy] = useState<string | null>(null);
+  // Named drafts (multiple in-progress projects).
+  const [drafts, setDrafts] = useState<Draft[]>(() => listDrafts());
   // Which collapsible sidebar groups are expanded. Everything outside the
   // core Format → Content → Caption spine is collapsed by default so the
   // panel reads as a simple "make a post" funnel instead of a wall of
@@ -1278,6 +1281,33 @@ export default function App() {
     } finally {
       setPdfBusy(null);
     }
+  }
+
+  // ---- Drafts (named in-progress projects) ----
+  async function handleSaveDraft() {
+    const name = await ui.prompt({ title: 'Save draft', message: 'Name this project (re-using a name overwrites it).', placeholder: 'e.g. Monday prompt pack', confirmLabel: 'Save' });
+    if (!name || !name.trim()) return;
+    setDrafts(saveDraft(name, { jsonText, caption, preset, slideBgs, slideBgAdjust, attribution, attrPresets }));
+    ui.notify('Draft saved.', { type: 'success' });
+  }
+
+  async function handleLoadDraft(d: Draft) {
+    if (!isExampleJson(jsonText) && !(await ui.confirm({ message: `Load "${d.name}"? Your current unsaved edits will be replaced.`, confirmLabel: 'Load' }))) return;
+    const s = d.state;
+    setJsonText(s.jsonText);
+    setCaption(s.caption || '');
+    if (s.preset && (PRESET_KEYS as readonly string[]).includes(s.preset)) setPreset(s.preset as PresetKey);
+    setSlideBgs((s.slideBgs || {}) as SlideBgMap);
+    setSlideBgAdjust((s.slideBgAdjust || {}) as Record<string, CropValue>);
+    setAttribution(s.attribution || '');
+    if (s.attrPresets) setAttrPresets(s.attrPresets);
+    setTimeout(() => void handleRender({ switchView: false }), 80);
+    ui.notify(`Loaded "${d.name}".`, { type: 'success' });
+  }
+
+  async function handleDeleteDraft(d: Draft) {
+    if (!(await ui.confirm({ message: `Delete draft "${d.name}"?`, confirmLabel: 'Delete' }))) return;
+    setDrafts(deleteDraft(d.id));
   }
 
   async function handleSaveToHistory() {
@@ -2215,6 +2245,49 @@ export default function App() {
                 The handle only stamps on the formats you tick here — on by default for Prompt Pack, Aspirational &amp; Product Demo.
               </span>
             </div>
+          </Group>
+
+          <Group open={!!openGroups.drafts} onToggle={() => toggleGroup('drafts')} title="Drafts" accent="#34D399" hint={drafts.length ? `${drafts.length} saved` : 'save projects'}>
+            <p className="text-xs text-gray-500 leading-relaxed mb-3">
+              Keep multiple posts in progress. Saves the JSON, caption, format, backgrounds &amp; handle settings — load any one back instantly.
+            </p>
+            <button
+              type="button"
+              onClick={handleSaveDraft}
+              className="w-full py-3 mb-3 rounded-xl text-[12px] font-bold uppercase tracking-[0.12em]
+                         border border-[#34D399]/30 bg-[#34D399]/10 text-[#34D399]
+                         hover:bg-[#34D399]/20 transition-all"
+            >
+              + Save current as draft
+            </button>
+            {drafts.length === 0 ? (
+              <div className="text-[11px] text-gray-600 text-center py-2">No drafts yet.</div>
+            ) : (
+              <div className="flex flex-col gap-1.5">
+                {drafts.map((d) => (
+                  <div key={d.id} className="flex items-center gap-2 p-2.5 rounded-lg border border-white/[0.08] bg-white/[0.02]">
+                    <button
+                      type="button"
+                      onClick={() => void handleLoadDraft(d)}
+                      className="flex-1 text-left min-w-0"
+                      title={`Load "${d.name}"`}
+                    >
+                      <div className="text-[12px] font-bold text-gray-200 truncate">{d.name}</div>
+                      <div className="text-[10px] text-gray-500">{new Date(d.savedAt).toLocaleDateString()} · {new Date(d.savedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void handleDeleteDraft(d)}
+                      className="shrink-0 w-7 h-7 rounded-md flex items-center justify-center text-gray-500 hover:text-red-400 hover:bg-red-400/10"
+                      title="Delete draft"
+                      aria-label="Delete draft"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </Group>
 
           <Group open={!!openGroups.tiktok} onToggle={() => toggleGroup('tiktok')} title="Publish to TikTok" accent="#ff0050" hint={ttToken ? 'connected' : 'send to inbox'}>
