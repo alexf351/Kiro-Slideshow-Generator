@@ -25,6 +25,7 @@ export const PRESET_KEYS = [
   'quote_card',
   'before_after',
   'countdown',
+  'definition',
 ] as const;
 
 export type PresetKey = (typeof PRESET_KEYS)[number];
@@ -715,6 +716,35 @@ want to learn them for real? search "Iro AI" on the App Store.
 
 #ai #skills #aitok #careertok #productivity`;
 
+const DEFINITION_JSON = `{
+  "preset": "definition",
+  "hook": {
+    "headline": "<strong>AI words</strong> everyone<br/>pretends to know",
+    "subline": "swipe — save the ones you didn't"
+  },
+  "items": [
+    { "term": "Token", "pron": "/ˈtoʊ.kən/ · noun", "def": "A chunk of text (roughly ¾ of a word) that a model reads and writes one at a time.", "example": "Long prompts cost more tokens." },
+    { "term": "Hallucination", "pron": "/həˌluː.sɪˈneɪ.ʃən/ · noun", "def": "When a model states something false with total confidence.", "example": "Always verify the citations." },
+    { "term": "Context window", "pron": "noun phrase", "def": "How much text a model can keep in mind at once.", "example": "Paste the whole doc — it fits the context window." }
+  ],
+  "cta": {
+    "headline": "Actually <strong>understand</strong> AI,<br/>not just the buzzwords.",
+    "instructionAbove": "search:",
+    "searchTerm": "Iro AI",
+    "instructionBelow": "on the App Store.",
+    "slogan": "5 minutes a day."
+  },
+  "attribution": ""
+}`;
+
+const DEFINITION_CAPTION = `AI words everyone pretends to know 📖 save this glossary
+
+if you've been nodding along to "tokens" and "context windows" — this one's for you.
+
+learn it properly: search "Iro AI" on the App Store.
+
+#ai #glossary #aitok #learnai #tech`;
+
 export const PRESETS: Record<PresetKey, PresetMeta> = {
   prompt_pack: {
     key: 'prompt_pack',
@@ -886,5 +916,14 @@ export const PRESETS: Record<PresetKey, PresetMeta> = {
     defaultJson: COUNTDOWN_JSON,
     defaultCaption: COUNTDOWN_CAPTION,
     accent: '#FFC857', // gold #1
+  },
+  definition: {
+    key: 'definition',
+    label: 'Definition',
+    pitch: 'Clean dictionary cards on cream — term, pronunciation, definition, example. "AI word of the day".',
+    status: 'ready',
+    defaultJson: DEFINITION_JSON,
+    defaultCaption: DEFINITION_CAPTION,
+    accent: '#b8861b', // dictionary gold
   },
 };

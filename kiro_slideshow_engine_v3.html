@@ -1370,6 +1370,81 @@
   }
 
   /* ============================================================
+     PRESET: definition
+     Dictionary-style term card: term, pronunciation, definition, example.
+     ============================================================ */
+  .preset-definition .frame {
+    padding: 170px 110px 200px 110px;
+    display: flex; flex-direction: column;
+    justify-content: center; align-items: flex-start; text-align: left;
+  }
+  .preset-definition .bg-photo-scrim { display: none; }
+  .preset-definition .bg-solid {
+    background: linear-gradient(180deg, #f7f4ec 0%, #ece6d6 100%);
+  }
+  .preset-definition .df-hook {
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 128px; font-weight: 700; line-height: 1.04;
+    letter-spacing: -0.01em; color: #1a1712; max-width: 900px;
+  }
+  .preset-definition .df-hook strong { color: #b8861b; }
+  .preset-definition .df-subline {
+    margin-top: 36px;
+    font-family: 'Inter', sans-serif; font-size: 46px; font-weight: 500;
+    letter-spacing: 0.02em; color: rgba(26,23,18,0.6);
+  }
+  .preset-definition .df-block { width: 100%; max-width: 900px; }
+  .preset-definition .df-rule { width: 160px; height: 12px; background: #b8861b; border-radius: 6px; margin-bottom: 48px; }
+  .preset-definition .df-term {
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 150px; font-weight: 700; line-height: 1.0;
+    letter-spacing: -0.02em; color: #14110c;
+  }
+  .preset-definition .df-pron {
+    margin-top: 16px;
+    font-family: Georgia, serif; font-size: 48px; font-style: italic;
+    color: rgba(26,23,18,0.55);
+  }
+  .preset-definition .df-def {
+    margin-top: 44px;
+    font-family: 'Inter', sans-serif; font-size: 62px; font-weight: 500; line-height: 1.28;
+    color: #2a2620;
+  }
+  .preset-definition .df-example {
+    margin-top: 40px;
+    font-family: Georgia, serif; font-size: 52px; font-style: italic; line-height: 1.3;
+    color: rgba(26,23,18,0.62);
+    border-left: 8px solid rgba(184,134,27,0.5); padding-left: 32px;
+  }
+  .preset-definition .df-cta-headline {
+    font-family: Georgia, serif;
+    font-size: 120px; font-weight: 700; line-height: 1.05;
+    color: #14110c; margin-bottom: 56px; max-width: 920px;
+  }
+  .preset-definition .df-cta-headline strong { color: #b8861b; }
+  .preset-definition .df-cta-search-row {
+    display: flex; align-items: baseline; gap: 24px; margin-bottom: 24px;
+  }
+  .preset-definition .df-cta-instruction {
+    font-family: 'Inter', sans-serif; font-size: 48px; font-weight: 500; color: rgba(26,23,18,0.7);
+  }
+  .preset-definition .df-cta-search {
+    font-family: 'Inter', sans-serif; font-size: 120px; font-weight: 900;
+    letter-spacing: -0.02em; color: #1565d8;
+    border-bottom: 6px solid #1565d8; padding-bottom: 6px;
+  }
+  .preset-definition .df-cta-slogan {
+    margin-top: 48px;
+    font-family: 'Inter', sans-serif; font-size: 48px; font-weight: 600; font-style: italic;
+    color: rgba(26,23,18,0.7);
+  }
+  .preset-definition .df-attribution {
+    position: absolute; bottom: 80px; left: 110px; right: 110px; text-align: left;
+    font-family: 'Inter', sans-serif; font-size: 32px; font-weight: 700;
+    letter-spacing: 0.20em; color: rgba(26,23,18,0.4);
+  }
+
+  /* ============================================================
      PRESET: app_stack
      "5 apps I use every day" carousel. Hook slide with centered
      headline over a photo, then one slide per app showing a large
@@ -2581,6 +2656,21 @@ const PRESETS = {
       return out;
     },
   },
+  definition: {
+    label: 'Definition',
+    slideClass: 'preset-definition',
+    showCounter: false,
+    fallbackBg: 'photo',
+    buildSlides(S) {
+      const out = [];
+      out.push({ html: buildDefHook(S.hook), bg: (S.hook && S.hook.bg) || S.background });
+      (S.items || []).forEach((it) => {
+        out.push({ html: buildDefItem(it), bg: (it && it.bg) || S.background });
+      });
+      out.push({ html: buildDefCTA(S.cta, S.attribution), bg: (S.cta && S.cta.bg) || S.background });
+      return out;
+    },
+  },
   handwritten_pack: {
     label: 'Handwritten Pack',
     slideClass: 'preset-handwritten-pack',
@@ -3301,6 +3391,41 @@ function buildHotCTA(c, attribution) {
   const below = c.instructionBelow ? `<div class="ht-cta-instruction">${c.instructionBelow}</div>` : '';
   const slogan = c.slogan ? `<div class="ht-cta-slogan">${c.slogan}</div>` : '';
   const attr = attribution ? `<div class="ht-attribution">${attribution}</div>` : '';
+  return `${headline}${searchRow}${below}${slogan}${attr}`;
+}
+
+// ============================================================
+// PRESET: definition builders
+// Dictionary-style term cards. items:[{ term, pron, def, example }].
+// ============================================================
+function buildDefHook(h) {
+  if (!h) return '';
+  const headline = h.headline ? `<div class="df-hook">${h.headline}</div>` : '';
+  const subline = h.subline ? `<div class="df-subline">${h.subline}</div>` : '';
+  return `${headline}${subline}`;
+}
+
+function buildDefItem(it) {
+  if (!it) return '';
+  const term = it.term ? `<div class="df-term">${it.term}</div>` : '';
+  const pron = it.pron ? `<div class="df-pron">${it.pron}</div>` : '';
+  const def = it.def ? `<div class="df-def">${it.def}</div>` : '';
+  const example = it.example ? `<div class="df-example">“${it.example}”</div>` : '';
+  return `<div class="df-block"><div class="df-rule"></div>${term}${pron}${def}${example}</div>`;
+}
+
+function buildDefCTA(c, attribution) {
+  if (!c) return '';
+  const headline = c.headline ? `<div class="df-cta-headline">${c.headline}</div>` : '';
+  let searchRow = '';
+  if (c.instructionAbove || c.searchTerm) {
+    const above = c.instructionAbove ? `<span class="df-cta-instruction">${c.instructionAbove}</span>` : '';
+    const term = c.searchTerm ? `<span class="df-cta-search">${c.searchTerm}</span>` : '';
+    searchRow = `<div class="df-cta-search-row">${above}${term}</div>`;
+  }
+  const below = c.instructionBelow ? `<div class="df-cta-instruction">${c.instructionBelow}</div>` : '';
+  const slogan = c.slogan ? `<div class="df-cta-slogan">${c.slogan}</div>` : '';
+  const attr = attribution ? `<div class="df-attribution">${attribution}</div>` : '';
   return `${headline}${searchRow}${below}${slogan}${attr}`;
 }
 
