@@ -301,6 +301,9 @@ const CLONING_INSTRUCTIONS = [
   '- reddit — "screenshot of a Reddit post" cards, one post per slide: subreddit + user meta ' +
     'row, title, body, and a votes/comments action row (ONLY for AITA / Reddit-story / forum ' +
     'content). posts:[{subreddit, user, time, title, body, score, comments}].',
+  '- news — "breaking news" broadcast lower-third over a photo: a red label box, a headline ' +
+    'bar, and a ticker (ONLY for news-parody / "breaking" / satirical-announcement content). ' +
+    'stories:[{label, headline, ticker}].',
   '- output_vs_hype — one slide per tool/brand, each with a logo and two bars (Output vs Hype) ' +
     'scaled 0–100 (ONLY when the source is a per-item bar-chart comparison, e.g. "X vs Y" rankings).',
   '- curated_list — aesthetic photo + cream heading + a recommendation card per slide ("things I ' +

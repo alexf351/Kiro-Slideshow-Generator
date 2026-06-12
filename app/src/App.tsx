@@ -221,7 +221,7 @@ function stripJsonWrappers(t: string): string {
     .trim();
 }
 
-const CONTENT_KEYS = ['hook', 'prompts', 'beats', 'panels', 'features', 'items', 'apps', 'tools', 'picks', 'tiers', 'reviews', 'tweets', 'notes', 'posts'];
+const CONTENT_KEYS = ['hook', 'prompts', 'beats', 'panels', 'features', 'items', 'apps', 'tools', 'picks', 'tiers', 'reviews', 'tweets', 'notes', 'posts', 'stories'];
 
 // If someone pastes a whole clone / propose payload
 // ({ preset, slides: {...}, caption, cloneAnalysis, bgAssignments }) into the

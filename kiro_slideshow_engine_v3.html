@@ -949,6 +949,58 @@
   }
 
   /* ============================================================
+     PRESET: news
+     "Breaking news" broadcast lower-third over a photo. Solid
+     rectangular bars (no rounded-gradient boxes) + bottom-anchored
+     frame so html2canvas captures the chyron cleanly.
+     ============================================================ */
+  .preset-news .frame {
+    justify-content: flex-end; align-items: stretch;
+    padding: 0 0 150px 0;
+  }
+  .preset-news .bg-photo-scrim {
+    /* a solid-ish dark gradient up from the bottom so the chyron reads on
+       any photo — full-slide gradient is export-reliable. */
+    background: linear-gradient(180deg, rgba(0,0,0,0) 35%, rgba(0,0,0,0.55) 70%, rgba(0,0,0,0.9) 100%);
+  }
+  .preset-news .bg-solid {
+    background: linear-gradient(180deg, #20242c 0%, #0a0c10 100%);
+  }
+  .preset-news .nw-lower { width: 100%; }
+  .preset-news .nw-label {
+    display: inline-block;
+    background: #E1132C; color: #fff;
+    font-family: 'Inter', sans-serif; font-size: 46px; font-weight: 900;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    padding: 22px 40px; margin-left: 70px; border-radius: 8px 8px 0 0;
+  }
+  .preset-news .nw-headline {
+    background: rgba(8,10,14,0.92); color: #fff;
+    font-family: 'Inter', sans-serif; font-size: 84px; font-weight: 900; line-height: 1.08;
+    letter-spacing: -0.015em; padding: 44px 70px 48px 70px;
+    border-left: 12px solid #E1132C;
+  }
+  .preset-news .nw-headline strong { color: #FFD60A; }
+  .preset-news .nw-ticker {
+    display: flex; align-items: center;
+    background: #0a0c10; color: rgba(255,255,255,0.92);
+    font-family: 'Inter', sans-serif; font-size: 44px; font-weight: 600;
+    padding: 26px 70px; border-top: 2px solid rgba(255,255,255,0.08);
+  }
+  .preset-news .nw-live {
+    background: #E1132C; color: #fff; font-weight: 900; font-size: 34px;
+    padding: 8px 22px; border-radius: 6px; margin-right: 28px; letter-spacing: 0.04em;
+    flex-shrink: 0;
+  }
+  .preset-news .nw-ticker-text { color: rgba(255,255,255,0.85); }
+  .preset-news .nw-cta-search { color: #FFD60A; font-weight: 900; }
+  .preset-news .nw-attribution {
+    position: absolute; top: 70px; right: 70px; text-align: right;
+    font-family: 'Inter', sans-serif; font-size: 32px; font-weight: 700; letter-spacing: 0.18em;
+    color: rgba(255,255,255,0.6);
+  }
+
+  /* ============================================================
      PRESET: tier_list
      "I ranked every X" — one tier per slide, big colored grade
      badge + the items in that tier. Classic S/A/B/C/D/F palette.
@@ -3299,6 +3351,30 @@ const PRESETS = {
       return out;
     },
   },
+  news: {
+    label: 'Breaking News',
+    slideClass: 'preset-news',
+    showCounter: false,
+    fallbackBg: 'photo',
+    buildSlides(S) {
+      const out = [];
+      out.push({
+        html: buildNewsHook(S.hook),
+        bg: (S.hook && S.hook.bg) || S.background,
+      });
+      (S.stories || S.items || []).forEach((st) => {
+        out.push({
+          html: buildNewsItem(st),
+          bg: (st && st.bg) || S.background,
+        });
+      });
+      out.push({
+        html: buildNewsCTA(S.cta, S.attribution),
+        bg: (S.cta && S.cta.bg) || S.background,
+      });
+      return out;
+    },
+  },
   tier_list: {
     label: 'Tier List',
     slideClass: 'preset-tier-list',
@@ -4310,6 +4386,45 @@ function buildRedditCTA(c, attribution) {
   const slogan = c.slogan ? `<div class="rd-cta-slogan">${c.slogan}</div>` : '';
   const attr = attribution ? `<div class="rd-attribution">${attribution}</div>` : '';
   return `${headline}${searchRow}${below}${slogan}${attr}`;
+}
+
+// ============================================================
+// PRESET: news builders
+// "Breaking news" broadcast lower-third over a photo: a red label box, a
+// headline bar, and a ticker. stories:[{ label, headline, ticker }].
+// Solid rectangular bars (no rounded-gradient boxes) so html2canvas
+// captures the chyron faithfully. The .frame is bottom-anchored.
+// ============================================================
+function buildNewsLower(label, headline, ticker) {
+  const lab = `<div class="nw-label">${label || 'BREAKING'}</div>`;
+  const head = headline ? `<div class="nw-headline">${headline}</div>` : '';
+  const tick = ticker ? `<div class="nw-ticker"><span class="nw-live">● LIVE</span><span class="nw-ticker-text">${ticker}</span></div>` : '';
+  return `<div class="nw-lower">${lab}${head}${tick}</div>`;
+}
+
+function buildNewsHook(h) {
+  if (!h) return '';
+  const label = h.label || 'BREAKING NEWS';
+  const headline = h.headline || '';
+  const ticker = h.ticker || h.subline || '';
+  return buildNewsLower(label, headline, ticker);
+}
+
+function buildNewsItem(st) {
+  if (!st) return '';
+  return buildNewsLower(st.label || 'BREAKING', st.headline || '', st.ticker || '');
+}
+
+function buildNewsCTA(c, attribution) {
+  if (!c) return '';
+  let line = c.headline || '';
+  const searchBits = [];
+  if (c.instructionAbove) searchBits.push(c.instructionAbove);
+  if (c.searchTerm) searchBits.push(`<span class="nw-cta-search">${c.searchTerm}</span>`);
+  if (c.instructionBelow) searchBits.push(c.instructionBelow);
+  const ticker = searchBits.length ? searchBits.join(' ') : (c.slogan || '');
+  const attr = attribution ? `<div class="nw-attribution">${attribution}</div>` : '';
+  return buildNewsLower(c.label || 'JUST IN', line, ticker) + attr;
 }
 
 // ============================================================

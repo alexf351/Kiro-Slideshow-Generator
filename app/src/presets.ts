@@ -16,6 +16,7 @@ export const PRESET_KEYS = [
   'tweet',
   'notes',
   'reddit',
+  'news',
   'handwritten_pack',
   'app_stack',
   'output_vs_hype',
@@ -51,7 +52,7 @@ export const FORMAT_CATEGORY: Record<PresetKey, FormatCategory> = {
   pain_story: 'Story', aspirational: 'Story', notes: 'Story', storytime: 'Story',
   receipts: 'Social', tweet: 'Social', reddit: 'Social',
   output_vs_hype: 'Facts', myth_fact: 'Facts', stat_drop: 'Facts', definition: 'Facts', qa: 'Facts', timeline: 'Facts',
-  meme_pov: 'Takes', hot_take: 'Takes', this_or_that: 'Takes', quote_card: 'Takes', before_after: 'Takes',
+  meme_pov: 'Takes', hot_take: 'Takes', this_or_that: 'Takes', quote_card: 'Takes', before_after: 'Takes', news: 'Takes',
 };
 
 export type PresetMeta = {
@@ -209,6 +210,28 @@ const TWEET_JSON = `{
     "searchTerm": "Iro AI",
     "instructionBelow": "on the App Store.",
     "slogan": "stop scrolling. start shipping."
+  },
+  "attribution": ""
+}`;
+
+const NEWS_JSON = `{
+  "preset": "news",
+  "hook": {
+    "label": "BREAKING NEWS",
+    "headline": "STUDY: the people learning AI now will <strong>run the room</strong> in 2026",
+    "ticker": "this just in — the skills gap is widening fast"
+  },
+  "stories": [
+    { "label": "BREAKING", "headline": "Local man finishes his entire workday by 10:43 AM", "ticker": "sources say an AI tool was involved" },
+    { "label": "DEVELOPING", "headline": "Everyone who said \\"AI is just hype\\" now quietly learning it", "ticker": "more at 11" },
+    { "label": "JUST IN", "headline": "5 minutes a day reportedly enough to actually keep up", "ticker": "experts stunned by the simple routine" }
+  ],
+  "cta": {
+    "label": "JUST IN",
+    "headline": "You can start today.",
+    "instructionAbove": "search",
+    "searchTerm": "Iro AI",
+    "instructionBelow": "on the App Store"
   },
   "attribution": ""
 }`;
@@ -413,6 +436,13 @@ const CHECKLIST_CAPTION = `save this if any of these is you ⤴️
 iro is for you. search "Iro AI" on the App Store.
 
 #aitok #aichecklist #fyp #learningai #productivity`;
+
+const NEWS_CAPTION = `we interrupt your scroll for this important update 📰
+
+which headline felt a little too real? comment below ⤵️
+search "Iro AI" on the App Store before it's old news.
+
+#breakingnews #ai #aitok #fyp #news`;
 
 const REDDIT_CAPTION = `i was NOT ready for that update 💀
 
@@ -1092,6 +1122,15 @@ export const PRESETS: Record<PresetKey, PresetMeta> = {
     defaultJson: REDDIT_JSON,
     defaultCaption: REDDIT_CAPTION,
     accent: '#FF4500', // Reddit orange
+  },
+  news: {
+    key: 'news',
+    label: 'Breaking News',
+    pitch: 'Broadcast “BREAKING” lower-third over a photo — the viral news-parody look.',
+    status: 'ready',
+    defaultJson: NEWS_JSON,
+    defaultCaption: NEWS_CAPTION,
+    accent: '#E1132C', // news red
   },
   handwritten_pack: {
     key: 'handwritten_pack',
