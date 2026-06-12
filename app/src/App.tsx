@@ -418,6 +418,21 @@ export default function App() {
   const [pdfBusy, setPdfBusy] = useState<string | null>(null);
   // Named drafts (multiple in-progress projects).
   const [drafts, setDrafts] = useState<Draft[]>(() => listDrafts());
+  // Pre-publish quality checks, derived from the current JSON + caption.
+  const prePublishChecks = useMemo(() => {
+    let parsed: Record<string, unknown> | null = null;
+    try { parsed = JSON.parse(stripJsonWrappers(jsonText.trim())) as Record<string, unknown>; } catch { /* invalid JSON shows as failed checks */ }
+    const firstLine = (caption.split('\n')[0] || '').trim();
+    const contentArr = parsed ? CONTENT_KEYS.map((k) => parsed![k]).find((v) => Array.isArray(v)) as unknown[] | undefined : undefined;
+    const slideCount = (contentArr ? contentArr.length : 0) + (parsed && parsed.hook ? 1 : 0) + (parsed && parsed.cta ? 1 : 0);
+    return [
+      { label: 'Hook in caption’s first line', ok: firstLine.length > 0 && firstLine.length <= 100 },
+      { label: 'Call-to-action slide present', ok: !!(parsed && parsed.cta) },
+      { label: 'Hashtags in caption', ok: /#\w/.test(caption) },
+      { label: 'Caption within 2,200 chars', ok: caption.length > 0 && caption.length <= 2200 },
+      { label: '3+ slides (worth swiping)', ok: slideCount >= 3 },
+    ];
+  }, [jsonText, caption]);
   // "Fill from topic" — AI populates the current template from a typed topic.
   const [topic, setTopic] = useState('');
   const [topicBusy, setTopicBusy] = useState(false);
@@ -2450,6 +2465,20 @@ export default function App() {
           </Group>
 
           <Group open={!!openGroups.tiktok} onToggle={() => toggleGroup('tiktok')} title="Publish to TikTok" accent="#ff0050" hint={ttToken ? 'connected' : 'send to inbox'}>
+            {/* Pre-publish quality checklist */}
+            <div className="mb-4 p-3 rounded-xl border border-white/[0.08] bg-white/[0.02]">
+              <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-gray-400 mb-2">
+                Pre-publish check · {prePublishChecks.filter((c) => c.ok).length}/{prePublishChecks.length}
+              </div>
+              <div className="flex flex-col gap-1.5">
+                {prePublishChecks.map((c) => (
+                  <div key={c.label} className="flex items-center gap-2 text-[12px]">
+                    <span className={c.ok ? 'text-emerald-400' : 'text-amber-400'}>{c.ok ? '✓' : '○'}</span>
+                    <span className={c.ok ? 'text-gray-300' : 'text-gray-500'}>{c.label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
             <p className="text-xs text-gray-500 leading-relaxed mb-3">
               Push the current slideshow straight to your TikTok <strong className="text-gray-300">inbox</strong> as a photo draft — then open the app to finish posting. Uses your caption below.
             </p>
