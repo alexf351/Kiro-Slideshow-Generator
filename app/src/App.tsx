@@ -421,6 +421,22 @@ export default function App() {
   const [pdfBusy, setPdfBusy] = useState<string | null>(null);
   // Named drafts (multiple in-progress projects).
   const [drafts, setDrafts] = useState<Draft[]>(() => listDrafts());
+  // Pinned/favorite formats (sorted to the top of the picker).
+  const [favFormats, setFavFormats] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem('kiro_fav_formats') || '[]') as string[]; } catch { return []; }
+  });
+  function toggleFavFormat(key: string) {
+    setFavFormats((prev) => {
+      const next = prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key];
+      try { localStorage.setItem('kiro_fav_formats', JSON.stringify(next)); } catch {}
+      return next;
+    });
+  }
+  const orderedFormatKeys = useMemo(() => {
+    const fav = PRESET_KEYS.filter((k) => favFormats.includes(k));
+    const rest = PRESET_KEYS.filter((k) => !favFormats.includes(k));
+    return [...fav, ...rest];
+  }, [favFormats]);
   // Pre-publish quality checks, derived from the current JSON + caption.
   const prePublishChecks = useMemo(() => {
     let parsed: Record<string, unknown> | null = null;
@@ -1912,10 +1928,11 @@ export default function App() {
           <section className="px-5 md:px-10 py-6 md:py-7 border-b border-white/[0.05]">
             {sectionLabel('Format')}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-              {PRESET_KEYS.map((key) => {
+              {orderedFormatKeys.map((key) => {
                 const meta = PRESETS[key];
                 const selected = preset === key;
                 const planned = meta.status === 'planned';
+                const fav = favFormats.includes(key);
                 return (
                   <button
                     key={key}
@@ -1937,6 +1954,18 @@ export default function App() {
                       style={{ background: meta.accent, boxShadow: selected ? `0 0 12px ${meta.accent}99` : undefined }}
                       className="absolute top-3 right-3 w-1.5 h-1.5 rounded-full opacity-80"
                     />
+                    {/* favorite/pin star — sorts this format to the top */}
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      aria-label={fav ? `Unpin ${meta.label}` : `Pin ${meta.label}`}
+                      title={fav ? 'Unpin' : 'Pin to top'}
+                      onClick={(e) => { e.stopPropagation(); toggleFavFormat(key); }}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); toggleFavFormat(key); } }}
+                      className={'absolute bottom-2.5 right-2.5 text-[12px] leading-none cursor-pointer select-none transition-colors ' + (fav ? 'text-[#FFC857]' : 'text-gray-600 hover:text-gray-300 opacity-0 group-hover:opacity-100')}
+                    >
+                      {fav ? '★' : '☆'}
+                    </span>
                     <div
                       style={selected ? { color: meta.accent } : undefined}
                       className={
