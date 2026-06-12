@@ -20,6 +20,7 @@ export const PRESET_KEYS = [
   'myth_fact',
   'hot_take',
   'storytime',
+  'stat_drop',
 ] as const;
 
 export type PresetKey = (typeof PRESET_KEYS)[number];
@@ -562,6 +563,35 @@ want to do that too? search "Iro AI" on the App Store. 5 min a day.
 
 #ai #storytime #aitok #productivity #learnai`;
 
+const STAT_DROP_JSON = `{
+  "preset": "stat_drop",
+  "hook": {
+    "headline": "the <strong>AI numbers</strong> nobody tells you",
+    "subline": "screenshot the one that scares you"
+  },
+  "items": [
+    { "stat": "90%", "label": "of workers will use AI tools daily by 2026", "sub": "the ones who don't will feel it." },
+    { "stat": "10x", "label": "faster on the boring tasks", "sub": "drafts, summaries, research — gone in seconds." },
+    { "stat": "5 min", "label": "a day is all it takes to get fluent", "sub": "consistency beats cramming, every time." }
+  ],
+  "cta": {
+    "headline": "Be on the <strong>right side</strong><br/>of these numbers.",
+    "instructionAbove": "search:",
+    "searchTerm": "Iro AI",
+    "instructionBelow": "on the App Store.",
+    "slogan": "5 minutes a day.<br/><strong>start building.</strong>"
+  },
+  "attribution": ""
+}`;
+
+const STAT_DROP_CAPTION = `the AI stats that should honestly scare you 📊
+
+save this. the gap between people who use AI and people who don't is widening fast.
+
+want to be on the right side? search "Iro AI" on the App Store.
+
+#ai #stats #aitok #futureofwork #productivity`;
+
 export const PRESETS: Record<PresetKey, PresetMeta> = {
   prompt_pack: {
     key: 'prompt_pack',
@@ -688,5 +718,14 @@ export const PRESETS: Record<PresetKey, PresetMeta> = {
     defaultJson: STORYTIME_JSON,
     defaultCaption: STORYTIME_CAPTION,
     accent: '#34C759', // imessage green
+  },
+  stat_drop: {
+    key: 'stat_drop',
+    label: 'Stat Drop',
+    pitch: 'One giant glowing statistic per slide + context. Shock-value "the numbers speak for themselves" posts.',
+    status: 'ready',
+    defaultJson: STAT_DROP_JSON,
+    defaultCaption: STAT_DROP_CAPTION,
+    accent: '#00E5FF', // brand cyan
   },
 };
