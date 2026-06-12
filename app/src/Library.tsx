@@ -143,10 +143,19 @@ export default function Library({ pickMode, pexelsKey, unsplashKey, pixabayKey }
 
   async function bulkAddToSet(setId: string, member: boolean) {
     if (selectedIds.size === 0) return;
+    const n = selectedIds.size;
+    const set = sets.find((s) => s.id === setId);
     setBusy(member ? 'Adding to library…' : 'Removing from library…');
     try {
       await setItemSetMembership(Array.from(selectedIds), setId, member);
       await refresh();
+      setSelectedIds(new Set());
+      ui.notify(
+        member
+          ? `Added ${n} photo${n === 1 ? '' : 's'} to “${set?.name ?? 'library'}”.`
+          : `Removed ${n} photo${n === 1 ? '' : 's'} from “${set?.name ?? 'library'}”.`,
+        { type: 'success' },
+      );
     } finally {
       setBusy(null);
     }
@@ -283,6 +292,11 @@ export default function Library({ pickMode, pexelsKey, unsplashKey, pixabayKey }
             <button onClick={() => handleDeleteSet(activeSet)} className="hover:text-red-400">Delete library</button>
           </div>
         )}
+        {!pickMode && sets.length > 0 && !selectionMode && (
+          <div className="mt-3 text-[11px] text-gray-500">
+            Tip: <span className="text-gray-400">tap photos to select them</span>, then add them to a library from the bar that appears.
+          </div>
+        )}
       </header>
 
       <div className="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-6">
@@ -352,27 +366,30 @@ export default function Library({ pickMode, pexelsKey, unsplashKey, pixabayKey }
 
       {selectionMode && !pickMode && (
         <div className="shrink-0 border-t border-white/[0.06] bg-[#0a0e1a] px-4 md:px-6 py-3 flex flex-wrap items-center gap-2">
-          <span className="text-sm text-gray-300 mr-2">{selectedIds.size} selected</span>
+          <span className="text-sm text-gray-300 mr-1">{selectedIds.size} selected</span>
           {sets.length > 0 && (
-            <select
-              className="bg-[#070b18] border border-white/10 rounded-md text-xs text-gray-200 px-2 py-1.5"
-              defaultValue=""
-              onChange={(e) => {
-                const v = e.target.value;
-                if (!v) return;
-                const [op, id] = v.split(':');
-                bulkAddToSet(id, op === 'add');
-                e.target.value = '';
-              }}
+            <>
+              <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-gray-500">Add to</span>
+              {sets.map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => bulkAddToSet(s.id, true)}
+                  className="px-2.5 py-1.5 rounded-md text-xs font-bold bg-[#00E5FF]/[0.12] text-[#00E5FF] border border-[#00E5FF]/30 hover:bg-[#00E5FF]/[0.22] transition-colors"
+                >
+                  + {s.name}
+                </button>
+              ))}
+            </>
+          )}
+          {activeSet !== ALL_FILTER && (
+            <button
+              type="button"
+              onClick={() => bulkAddToSet(activeSet, false)}
+              className="px-2.5 py-1.5 rounded-md text-xs font-bold text-amber-300 border border-amber-400/30 hover:bg-amber-400/10 transition-colors"
             >
-              <option value="" disabled>Add / remove from library…</option>
-              {sets.map((s) => (
-                <option key={s.id} value={`add:${s.id}`}>Add to “{s.name}”</option>
-              ))}
-              {sets.map((s) => (
-                <option key={'r' + s.id} value={`remove:${s.id}`}>Remove from “{s.name}”</option>
-              ))}
-            </select>
+              Remove from “{sets.find((s) => s.id === activeSet)?.name ?? 'library'}”
+            </button>
           )}
           <button
             type="button"
