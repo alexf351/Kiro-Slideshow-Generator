@@ -39,6 +39,19 @@ function normalize(s: string): string {
     .trim();
 }
 
+// In-feed, TikTok collapses a caption after roughly the first line / ~140
+// characters and shows a "…more" link; anything past that point is hidden
+// until tapped. So the hook has to land BEFORE the fold. This returns the
+// visible portion + whether it's truncated, for a literal preview. Pure.
+const FOLD_CHARS = 140;
+export function captionFold(caption: string): { visible: string; folded: boolean } {
+  const text = caption || '';
+  const nl = text.indexOf('\n');
+  const lineCut = nl >= 0 ? nl : text.length;
+  const cut = Math.min(lineCut, FOLD_CHARS);
+  return { visible: text.slice(0, cut).trimEnd(), folded: text.length > cut };
+}
+
 // True when the caption contains a genuine prompt for the viewer to respond.
 export function checkEngagement(caption: string): EngagementCheck {
   const norm = normalize(caption);

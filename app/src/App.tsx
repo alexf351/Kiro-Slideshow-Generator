@@ -23,7 +23,7 @@ import { buildIcs, scheduledCount } from './ics';
 import { postsToCsv } from './csv';
 import { scoreHook, HOOK_TIER_COLOR, HOOK_TIER_TEXT } from './hookScore';
 import { lintHashtags, HASHTAG_TIER_COLOR, HASHTAG_TIER_TEXT } from './hashtagLint';
-import { checkEngagement } from './captionSignals';
+import { checkEngagement, captionFold } from './captionSignals';
 import { computeReadiness, READINESS_COLOR, READINESS_TEXT } from './postReadiness';
 import { makeZip, dataUrlToBytes } from './zip';
 import { analyzeDeck } from './deckBalance';
@@ -3312,6 +3312,19 @@ export default function App() {
                   <span className={'tabular-nums shrink-0 ' + (over ? 'text-red-400 font-bold' : len > 2000 ? 'text-amber-400' : 'text-gray-600')}>
                     {len}/2200
                   </span>
+                </div>
+              );
+            })()}
+            {/* In-feed fold preview — what shows before TikTok's "…more". */}
+            {caption.trim() && (() => {
+              const f = captionFold(caption);
+              return (
+                <div className="mt-2 rounded-lg border border-white/[0.07] bg-white/[0.02] px-2.5 py-1.5">
+                  <div className="text-[9px] font-bold uppercase tracking-[0.14em] text-gray-600 mb-0.5">In-feed preview</div>
+                  <div className="text-[12px] text-gray-300 leading-snug">
+                    {f.visible}
+                    {f.folded && <span className="text-gray-500"> …more</span>}
+                  </div>
                 </div>
               );
             })()}
