@@ -3800,7 +3800,13 @@ export default function App() {
             </div>
           </Group>
 
-          <Group open={!!openGroups.drafts} onToggle={() => toggleGroup('drafts')} title="Drafts" accent="#34D399" hint={drafts.length ? `${drafts.length} saved` : 'save projects'}>
+          <Group open={!!openGroups.drafts} onToggle={() => toggleGroup('drafts')} title="Drafts" accent="#34D399" hint={(() => {
+            if (!drafts.length) return 'save projects';
+            const startToday = new Date(); startToday.setHours(0, 0, 0, 0);
+            const overdue = drafts.filter((d) => !d.posted && d.scheduledFor && d.scheduledFor < startToday.getTime()).length;
+            const sched = scheduledCount(drafts);
+            return `${drafts.length} saved${sched ? ` · ${sched} scheduled` : ''}${overdue ? ` · ${overdue} overdue` : ''}`;
+          })()}>
             <p className="text-xs text-gray-500 leading-relaxed mb-3">
               Keep multiple posts in progress. Saves the JSON, caption, format, backgrounds &amp; handle settings — load any one back instantly.
             </p>
