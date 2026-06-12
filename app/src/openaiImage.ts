@@ -108,18 +108,40 @@ export async function generateImage(opts: {
   quality?: OpenAIImageQuality;
 }): Promise<Blob> {
   if (!opts.apiKey) throw new OpenAIImageError('Missing OpenAI API key. Add one in Settings.');
-  const res = await fetch(GEN_ENDPOINT, {
+  const gen = (body: Record<string, unknown>) => fetch(GEN_ENDPOINT, {
     method: 'POST',
     headers: { Authorization: `Bearer ${opts.apiKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: 'gpt-image-1',
-      prompt: opts.prompt,
-      n: 1,
-      size: opts.size || '1024x1536', // portrait, closest to the 9:16 canvas
-      quality: opts.quality || 'medium',
-    }),
+    body: JSON.stringify(body),
   });
-  return imageResponseToBlob(res);
+
+  // Prefer gpt-image-1 (best quality). It requires the OpenAI org to be
+  // "verified", which many keys aren't — so on a model-access error we fall
+  // back to dall-e-3, which any key can use. The fallback only runs when the
+  // primary already failed, so it can't regress existing behavior.
+  const primary = await gen({
+    model: 'gpt-image-1', prompt: opts.prompt, n: 1,
+    size: opts.size || '1024x1536', quality: opts.quality || 'medium',
+  });
+  if (primary.ok) return imageResponseToBlob(primary);
+
+  let primaryMsg = `OpenAI image API returned ${primary.status}.`;
+  let accessIssue = primary.status === 403 || primary.status === 404;
+  try {
+    const j = (await primary.clone().json()) as { error?: { message?: string; code?: string } };
+    if (j?.error?.message) primaryMsg = j.error.message;
+    if (/verif|not.*access|must be verified|model_not_found|does not exist/i.test(`${j?.error?.message} ${j?.error?.code}`)) accessIssue = true;
+  } catch {}
+
+  if (!accessIssue) return imageResponseToBlob(primary); // surface the real error
+  // dall-e-3: 1024x1792 is the portrait option; quality is standard | hd.
+  const fb = await gen({
+    model: 'dall-e-3', prompt: opts.prompt, n: 1,
+    size: '1024x1792', quality: opts.quality === 'high' ? 'hd' : 'standard',
+    response_format: 'b64_json',
+  });
+  if (fb.ok) return imageResponseToBlob(fb);
+  // Both failed — report the more informative primary error.
+  throw new OpenAIImageError(primaryMsg, primary.status);
 }
 
 // A background-friendly wrapper around a user's short description.
