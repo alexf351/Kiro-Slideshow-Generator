@@ -19,6 +19,7 @@ export const PRESET_KEYS = [
   'tier_list',
   'myth_fact',
   'hot_take',
+  'storytime',
 ] as const;
 
 export type PresetKey = (typeof PRESET_KEYS)[number];
@@ -529,6 +530,38 @@ if you actually want to get good instead of arguing online — search "Iro AI" o
 
 #hottake #ai #aitok #unpopularopinion #tech`;
 
+const STORYTIME_JSON = `{
+  "preset": "storytime",
+  "contact": "my friend",
+  "hook": {
+    "headline": "she said AI <strong>couldn't</strong> do her job",
+    "subline": "so i showed her this..."
+  },
+  "items": [
+    { "from": "them", "text": "there's no way AI can do what i do. it's all hype." },
+    { "from": "me", "text": "ok give me the most annoying part of your week" },
+    { "from": "them", "text": "honestly? turning my messy notes into a client report" },
+    { "from": "me", "text": "watch this 👀" },
+    { "from": "them", "text": "wait. it did in 10 seconds what takes me 2 hours??" }
+  ],
+  "cta": {
+    "headline": "Want to <strong>actually</strong> use AI<br/>like that?",
+    "instructionAbove": "search:",
+    "searchTerm": "Iro AI",
+    "instructionBelow": "on the App Store.",
+    "slogan": "5 minutes a day.<br/><strong>start building.</strong>"
+  },
+  "attribution": ""
+}`;
+
+const STORYTIME_CAPTION = `she really thought AI was all hype 😭
+
+watch her change her mind in real time
+
+want to do that too? search "Iro AI" on the App Store. 5 min a day.
+
+#ai #storytime #aitok #productivity #learnai`;
+
 export const PRESETS: Record<PresetKey, PresetMeta> = {
   prompt_pack: {
     key: 'prompt_pack',
@@ -646,5 +679,14 @@ export const PRESETS: Record<PresetKey, PresetMeta> = {
     defaultJson: HOT_TAKE_JSON,
     defaultCaption: HOT_TAKE_CAPTION,
     accent: '#FF6B4D', // ember orange-red
+  },
+  storytime: {
+    key: 'storytime',
+    label: 'Storytime',
+    pitch: 'iMessage-style chat that plays forward as you swipe. Great for jaw-dropping "they said WHAT" stories.',
+    status: 'ready',
+    defaultJson: STORYTIME_JSON,
+    defaultCaption: STORYTIME_CAPTION,
+    accent: '#34C759', // imessage green
   },
 };
