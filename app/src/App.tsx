@@ -23,6 +23,7 @@ import { buildIcs, scheduledCount } from './ics';
 import { postsToCsv } from './csv';
 import { scoreHook, HOOK_TIER_COLOR, HOOK_TIER_TEXT } from './hookScore';
 import { lintHashtags, HASHTAG_TIER_COLOR, HASHTAG_TIER_TEXT } from './hashtagLint';
+import { checkEngagement } from './captionSignals';
 import { listSets, saveSet, deleteSet, formatTags, type HashtagSet } from './hashtagSets';
 import { encodePost, decodePost } from './postShare';
 import { useUI } from './ui';
@@ -482,6 +483,7 @@ export default function App() {
       { label: 'No empty slides', ok: !!parsed && noEmpty },
       { label: 'Hook in caption’s first line', ok: firstLine.length > 0 && firstLine.length <= 100 },
       { label: 'Call-to-action slide present', ok: !!(parsed && parsed.cta) },
+      { label: 'Caption invites a comment (boosts reach)', ok: checkEngagement(caption).invites },
       { label: 'Hashtags in caption', ok: /#\w/.test(caption) },
       { label: 'Caption within 2,200 chars', ok: caption.length > 0 && caption.length <= 2200 },
       { label: '3+ slides (worth swiping)', ok: slideCount >= 3 },
