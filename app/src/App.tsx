@@ -1219,6 +1219,18 @@ export default function App() {
     ui.notify(`Filled ${done} background${done === 1 ? '' : 's'}${missed ? ` · ${missed} had no match` : ''}.`, { type: done ? 'success' : 'info' });
   }
 
+  // Clear every slide's background in one go — the undo for a bulk apply /
+  // auto-fill. Confirmed since it throws away the whole deck's photos.
+  async function handleClearAllBgs() {
+    const keys = slideMetas.map((m) => m.key).filter((k) => slideBgs[k]);
+    if (!keys.length) { ui.notify('No backgrounds to clear.', { type: 'info' }); return; }
+    if (!(await ui.confirm({ message: `Clear ${keys.length} background${keys.length === 1 ? '' : 's'} from this deck?`, confirmLabel: 'Clear all' }))) return;
+    setSlideBgs((prev) => { const next = { ...prev }; for (const k of keys) delete next[k]; return next; });
+    setSlideBgAdjust((prev) => { const next = { ...prev }; for (const k of keys) delete next[k]; return next; });
+    setTimeout(() => void handleRender({ switchView: false }), 60);
+    ui.notify(`Cleared ${keys.length} background${keys.length === 1 ? '' : 's'}.`, { type: 'success' });
+  }
+
   function handleClearBgForSlide(slideKey: string) {
     setSlideBgs((prev) => {
       const next = { ...prev };
@@ -2352,6 +2364,7 @@ export default function App() {
       { id: 'toggle-safezone', section: 'Actions', label: 'Toggle TikTok safe zone guide', keywords: 'crop margins overlay preview', run: () => setSafeZone((v) => !v) },
       { id: 'shortcuts', section: 'Actions', label: 'Keyboard shortcuts', keywords: 'help keys hotkeys cheat sheet', run: () => setShortcutsOpen(true) },
       { id: 'autofill-bg', section: 'Actions', label: 'Auto-fill stock backgrounds', keywords: 'photos openverse images deck free', run: () => void handleAutoFillStockBgs() },
+      { id: 'clear-bgs', section: 'Actions', label: 'Clear all backgrounds', keywords: 'remove photos reset deck', run: () => void handleClearAllBgs() },
       { id: 'send-tiktok', section: 'Export', label: 'Send to TikTok inbox', keywords: 'publish post', run: () => void sendToTikTok() },
       { id: 'go-edit', section: 'Go to', label: 'Edit', run: goto('preview', 'edit') },
       { id: 'go-preview', section: 'Go to', label: 'Preview', run: goto('preview', 'preview') },
@@ -3013,6 +3026,16 @@ export default function App() {
             >
               {autoBgBusy ? `🔍 Finding photos… ${autoBgBusy}` : '🔍 Auto-fill stock photos (free)'}
             </button>
+            {slideMetas.some((m) => slideBgs[m.key]) && (
+              <button
+                type="button"
+                onClick={() => void handleClearAllBgs()}
+                className="w-full mb-4 -mt-2 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-[0.12em]
+                           text-gray-500 hover:text-red-400 border border-white/[0.08]"
+              >
+                Clear all backgrounds
+              </button>
+            )}
             {/* Quick gradient background — no photo or API key needed. */}
             <div className="mb-4">
               <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-gray-400 mb-2">Gradient background (all slides)</div>
