@@ -1283,6 +1283,35 @@ export default function App() {
     }
   }
 
+  // Translate the whole DECK (slide content + caption) into another language
+  // so the same post can be reposted to a different-language audience — a
+  // reach multiplier. Structure is preserved deterministically; only prose
+  // is translated. Destructive in place, so we confirm + suggest a draft.
+  async function handleTranslateDeck() {
+    if (!anthropicKey) { ui.notify('Add an Anthropic API key in Settings to translate.', { type: 'error' }); return; }
+    if (!(await ui.confirm({ message: `Translate the whole deck (slides + caption) to ${translateLang}? Save a draft first to keep the original.`, confirmLabel: 'Translate deck' }))) return;
+    setTranslateBusy(true);
+    snapshotForAi();
+    try {
+      const { translateDeck } = await import('./deckTranslate');
+      const newJson = await translateDeck({ json: jsonText, language: translateLang, apiKey: anthropicKey, model: claudeModel });
+      setJsonText(newJson);
+      if (caption.trim()) {
+        try {
+          const { translateCaption } = await import('./captionAI');
+          setCaption(await translateCaption({ caption, language: translateLang, apiKey: anthropicKey, model: claudeModel }));
+        } catch { /* caption translation is best-effort */ }
+      }
+      setActiveDraftName('');
+      setTimeout(() => void handleRender({ switchView: false }), 80);
+      ui.notify(`Deck translated to ${translateLang}.`, { type: 'success' });
+    } catch (e) {
+      ui.notify(`Deck translation failed: ${(e as Error).message}`, { type: 'error' });
+    } finally {
+      setTranslateBusy(false);
+    }
+  }
+
   async function handleAiCaption() {
     if (!anthropicKey) {
       ui.notify('Add an Anthropic API key in Settings to use AI captions.', { type: 'error' });
@@ -2160,6 +2189,7 @@ export default function App() {
       { id: 'ai-improve-shorter', section: 'AI', label: 'Improve: make it shorter', keywords: 'rewrite trim', run: () => void handleImprovePost('Shorter', 'Cut each piece of text to the essential words; keep it skimmable.') },
       { id: 'ai-punch', section: 'AI', label: 'Punch up the caption', keywords: 'sharpen rewrite caption', run: () => void handlePunchUpCaption() },
       { id: 'ai-hooks', section: 'AI', label: 'Generate hook variations', keywords: 'hook first line ab test alternatives', run: () => void handleHookVariations() },
+      { id: 'ai-translate-deck', section: 'AI', label: 'Translate whole deck', keywords: 'language localize international reach slides', run: () => void handleTranslateDeck() },
       { id: 'ai-ideas', section: 'AI', label: 'Brainstorm post ideas', keywords: 'topics batch niche', run: () => void handleGenerateIdeas() },
       ...(aiUndo ? [{ id: 'ai-undo', section: 'AI', label: 'Undo last AI change', keywords: 'revert', run: handleUndoAi }] : []),
       { id: 'save-draft', section: 'Actions', label: 'Save as draft', hint: '⌘S', keywords: 'project', run: () => void handleSaveDraft() },
@@ -3248,6 +3278,15 @@ export default function App() {
                   className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#A78BFA] hover:text-[#C4B5FD] disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {translateBusy ? '🌐 …' : '🌐 Translate'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleTranslateDeck()}
+                  disabled={translateBusy}
+                  title="Translate the whole deck (slides + caption) to repost for a different-language audience"
+                  className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#A78BFA] hover:text-[#C4B5FD] disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  + deck
                 </button>
               </span>
             </div>
