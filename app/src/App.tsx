@@ -409,6 +409,8 @@ export default function App() {
   const [phoneBusy, setPhoneBusy] = useState<string | null>(null);
   const [phoneQr, setPhoneQr] = useState<{ img: string; url: string } | null>(null);
   const [phoneErr, setPhoneErr] = useState<string | null>(null);
+  // Animated MP4/WebM export progress.
+  const [videoBusy, setVideoBusy] = useState<string | null>(null);
   // Which collapsible sidebar groups are expanded. Everything outside the
   // core Format → Content → Caption spine is collapsed by default so the
   // panel reads as a simple "make a post" funnel instead of a wall of
@@ -1213,6 +1215,43 @@ export default function App() {
     } finally {
       setPhoneBusy(null);
     }
+  }
+
+  // Ask the engine to render the deck to a Ken-Burns video and download it.
+  function handleExportVideo() {
+    const iframe = iframeRef.current;
+    if (!iframe || !iframe.contentWindow) { ui.notify('Engine not ready.', { type: 'error' }); return; }
+    setVideoBusy('Starting…');
+    const requestId = Math.random().toString(36).slice(2);
+    const onMessage = (e: MessageEvent) => {
+      const m = e.data as { type?: string; requestId?: string; progress?: number; blob?: Blob; mime?: string; error?: string };
+      if (!m || m.requestId !== requestId) return;
+      if (m.type === 'videoProgress') {
+        setVideoBusy(`Rendering… ${Math.round((m.progress || 0) * 100)}%`);
+        return;
+      }
+      if (m.type === 'videoBlob') {
+        window.removeEventListener('message', onMessage);
+        clearTimeout(timer);
+        setVideoBusy(null);
+        if (m.error || !(m.blob instanceof Blob)) {
+          ui.notify(`Video export failed: ${m.error || 'no data'}`, { type: 'error' });
+          return;
+        }
+        const ext = (m.mime || '').includes('mp4') ? 'mp4' : 'webm';
+        const url = URL.createObjectURL(m.blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `iro_${timestampSlug()}.${ext}`;
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 4000);
+        ui.notify('Video downloaded.', { type: 'success' });
+      }
+    };
+    window.addEventListener('message', onMessage);
+    // Generous timeout — real-time recording of a long deck can take a while.
+    const timer = setTimeout(() => { window.removeEventListener('message', onMessage); setVideoBusy(null); ui.notify('Video export timed out.', { type: 'error' }); }, 180000);
+    iframe.contentWindow.postMessage({ type: 'capture-video', requestId, secondsPerSlide: 2.5 }, '*');
   }
 
   async function handleSaveToHistory() {
@@ -2178,6 +2217,16 @@ export default function App() {
                            disabled:opacity-60 disabled:cursor-not-allowed hover:border-[#00E5FF]/40 hover:text-[#00E5FF] transition-all"
               >
                 {phoneBusy || '📲 Send to phone (QR)'}
+              </button>
+              <button
+                type="button"
+                onClick={handleExportVideo}
+                disabled={!!videoBusy}
+                className="w-full py-3 rounded-xl text-[12px] font-bold uppercase tracking-[0.12em]
+                           border border-white/[0.12] bg-white/[0.03] text-gray-200
+                           disabled:opacity-60 disabled:cursor-not-allowed hover:border-[#A78BFA]/50 hover:text-[#A78BFA] transition-all"
+              >
+                {videoBusy || '🎬 Export as video'}
               </button>
               {phoneErr && <div className="text-[11px] text-red-400 leading-relaxed">{phoneErr}</div>}
               {ttToken && (
