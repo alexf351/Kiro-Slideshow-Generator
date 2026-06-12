@@ -44,6 +44,18 @@ export type StockPhoto = {
   downloadTrackUrl?: string;
 };
 
+// Choose a photo from a result set for use as a 9:16 slide background. Two
+// goals: prefer PORTRAIT shots (they fill a vertical slide without awkward
+// cropping) and VARY the pick so re-running "auto stock photo" on a slide
+// surfaces a fresh option instead of the same first result. Pure + `rng`
+// injectable for deterministic tests.
+export function pickBestStockPhoto(photos: StockPhoto[], rng: () => number = Math.random): StockPhoto | null {
+  if (!photos || photos.length === 0) return null;
+  const portrait = photos.filter((p) => p.height > 0 && p.width > 0 && p.height > p.width);
+  const pool = portrait.length > 0 ? portrait : photos;
+  return pool[Math.floor(rng() * pool.length)] || pool[0];
+}
+
 // Fetch with a couple of retries on transient throttling/overload (429 / 5xx)
 // and network blips — free stock tiers rate-limit easily.
 async function fetchRetry(url: string, init?: RequestInit): Promise<Response> {

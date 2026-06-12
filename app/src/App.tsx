@@ -1149,10 +1149,10 @@ export default function App() {
     const seed = cleanLabelForQuery(label);
     const query = (extractStockQuery(seed) || seed.slice(0, 30)).trim();
     if (!query) return null;
-    const { searchStock, fetchStockBlob } = await import('./stockPhotos');
+    const { searchStock, fetchStockBlob, pickBestStockPhoto } = await import('./stockPhotos');
     const photos = await searchStock('openverse', query, '', 8);
-    if (!photos.length) return null;
-    const photo = photos[0];
+    const photo = pickBestStockPhoto(photos);
+    if (!photo) return null;
     const blob = await fetchStockBlob(photo);
     const item = await addStockItem({
       blob,
@@ -3197,7 +3197,7 @@ export default function App() {
                               sub: 'Direct link to a publicly reachable image.',
                             })}
                             {menuItem('🔍 Auto stock photo', () => void handleStockBgForSlide(key, label), {
-                              sub: 'Free — searches Openverse from this slide’s text. No API key.',
+                              sub: 'Free Openverse search from this slide’s text (prefers portrait). Tap again for a new one.',
                             })}
                             {openaiKey && menuItem(
                               editing ? 'Generating…' : '✨ Generate with AI',
