@@ -18,6 +18,7 @@ export const PRESET_KEYS = [
   'curated_list',
   'tier_list',
   'myth_fact',
+  'hot_take',
 ] as const;
 
 export type PresetKey = (typeof PRESET_KEYS)[number];
@@ -490,6 +491,44 @@ want the real skills? search "Iro AI" on the App Store. 5 min a day.
 
 #ai #aimyths #aitok #learnai #productivity`;
 
+const HOT_TAKE_JSON = `{
+  "preset": "hot_take",
+  "hook": {
+    "headline": "<strong>AI hot takes</strong> that'll make you mad",
+    "subline": "(but i'm right)"
+  },
+  "items": [
+    {
+      "take": "Prompt engineering isn't a real skill.",
+      "defense": "Knowing what to BUILD is. The prompt is the easy part."
+    },
+    {
+      "take": "Most \\"AI gurus\\" have never shipped anything.",
+      "defense": "They sell courses about a tool they don't use."
+    },
+    {
+      "take": "You're not behind. You just haven't started.",
+      "defense": "Six months of 5-min-a-day beats doomscrolling about it."
+    }
+  ],
+  "cta": {
+    "headline": "Stop arguing.<br/><strong>Start building.</strong>",
+    "instructionAbove": "search:",
+    "searchTerm": "Iro AI",
+    "instructionBelow": "on the App Store.",
+    "slogan": "5 minutes a day. that's it."
+  },
+  "attribution": ""
+}`;
+
+const HOT_TAKE_CAPTION = `my spiciest AI takes 🌶️ tell me i'm wrong
+
+(i'm not)
+
+if you actually want to get good instead of arguing online — search "Iro AI" on the App Store.
+
+#hottake #ai #aitok #unpopularopinion #tech`;
+
 export const PRESETS: Record<PresetKey, PresetMeta> = {
   prompt_pack: {
     key: 'prompt_pack',
@@ -598,5 +637,14 @@ export const PRESETS: Record<PresetKey, PresetMeta> = {
     defaultJson: MYTH_FACT_JSON,
     defaultCaption: MYTH_FACT_CAPTION,
     accent: '#22C55E', // fact green
+  },
+  hot_take: {
+    key: 'hot_take',
+    label: 'Hot Take',
+    pitch: 'Bold full-bleed opinions on a fiery gradient. One spicy claim + defense per slide.',
+    status: 'ready',
+    defaultJson: HOT_TAKE_JSON,
+    defaultCaption: HOT_TAKE_CAPTION,
+    accent: '#FF6B4D', // ember orange-red
   },
 };
