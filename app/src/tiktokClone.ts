@@ -288,6 +288,9 @@ const CLONING_INSTRUCTIONS = [
     'aesthetics; NOT for photo posts).',
   '- product_demo — phone mockup + app screenshots. app_stack — "apps I use" carousel. ' +
     'checklist — "if you…" qualifier list.',
+  '- receipts — social-proof testimonials, one gold-star review per slide with a quote + ' +
+    'reviewer name (ONLY when the source is reviews / testimonials / "what people are saying"). ' +
+    'reviews:[{stars:1-5, text, name}].',
   '- output_vs_hype — one slide per tool/brand, each with a logo and two bars (Output vs Hype) ' +
     'scaled 0–100 (ONLY when the source is a per-item bar-chart comparison, e.g. "X vs Y" rankings).',
   '- curated_list — aesthetic photo + cream heading + a recommendation card per slide ("things I ' +

@@ -12,6 +12,7 @@ export const PRESET_KEYS = [
   'meme_pov',
   'product_demo',
   'checklist',
+  'receipts',
   'handwritten_pack',
   'app_stack',
   'output_vs_hype',
@@ -146,6 +147,28 @@ const CHECKLIST_JSON = `{
     "searchTerm": "Iro AI",
     "instructionBelow": "on the App Store.",
     "slogan": "5 min/day. for real."
+  },
+  "attribution": ""
+}`;
+
+const RECEIPTS_JSON = `{
+  "preset": "receipts",
+  "hook": {
+    "headline": "what people are<br/>saying about <strong>iro</strong>",
+    "subline": "(unprompted. real reviews.)"
+  },
+  "reviews": [
+    { "stars": 5, "text": "i finally get AI instead of just nodding along", "name": "@learner.lena" },
+    { "stars": 5, "text": "the only app i open every single morning now", "name": "@deshawn.codes" },
+    { "stars": 5, "text": "5 minutes a day actually stuck. nothing else did", "name": "@mia.builds" },
+    { "stars": 4, "text": "wish i'd found this a year ago, genuinely", "name": "@tomas.k" }
+  ],
+  "cta": {
+    "headline": "join them.",
+    "instructionAbove": "search",
+    "searchTerm": "Iro AI",
+    "instructionBelow": "on the App Store.",
+    "slogan": "your turn."
   },
   "attribution": ""
 }`;
@@ -309,6 +332,15 @@ const CHECKLIST_CAPTION = `save this if any of these is you ⤴️
 iro is for you. search "Iro AI" on the App Store.
 
 #aitok #aichecklist #fyp #learningai #productivity`;
+
+const RECEIPTS_CAPTION = `the reviews keep coming in and we're not okay 🥹
+
+real people, real results — swipe through what they're saying.
+
+which one sounds like you? tell me below ⤵️
+search "Iro AI" on the App Store to join them.
+
+#aitok #reviews #socialproof #learningai #fyp`;
 
 const APP_STACK_JSON = `{
   "preset": "app_stack",
@@ -922,6 +954,15 @@ export const PRESETS: Record<PresetKey, PresetMeta> = {
     defaultJson: CHECKLIST_JSON,
     defaultCaption: CHECKLIST_CAPTION,
     accent: '#22C55E', // green check
+  },
+  receipts: {
+    key: 'receipts',
+    label: 'Receipts',
+    pitch: 'Social proof — one gold-star review per slide. Built for testimonials.',
+    status: 'ready',
+    defaultJson: RECEIPTS_JSON,
+    defaultCaption: RECEIPTS_CAPTION,
+    accent: '#FFC857', // gold star
   },
   handwritten_pack: {
     key: 'handwritten_pack',
