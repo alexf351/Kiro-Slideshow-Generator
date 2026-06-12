@@ -15,7 +15,7 @@ import HypeEditor from './HypeEditor';
 import CropAdjust, { DEFAULT_CROP, type CropValue } from './CropAdjust';
 import { GRADIENTS, SOLID_BGS } from './gradients';
 import { coerceDesign, DEFAULT_DESIGN, designPayload, ASPECT_KEYS, ASPECTS, type BrandDesign } from './design';
-import { listDrafts, saveDraft, deleteDraft, type Draft } from './drafts';
+import { listDrafts, saveDraft, deleteDraft, setDraftSchedule, type Draft } from './drafts';
 import { exportBackup, importBackup, downloadBlob, timestampSlug } from './backup';
 import { suggestHashtags, parseHashtags } from './insights';
 import { listSets, saveSet, deleteSet, formatTags, type HashtagSet } from './hashtagSets';
@@ -2711,8 +2711,10 @@ export default function App() {
               <div className="text-[11px] text-gray-600 text-center py-2">No drafts yet.</div>
             ) : (
               <div className="flex flex-col gap-1.5">
-                {drafts.map((d) => (
-                  <div key={d.id} className="flex items-center gap-2 p-2.5 rounded-lg border border-white/[0.08] bg-white/[0.02]">
+                {drafts.map((d) => {
+                  const isoDate = d.scheduledFor ? new Date(d.scheduledFor).toISOString().slice(0, 10) : '';
+                  return (
+                  <div key={d.id} className={'flex items-center gap-2 p-2.5 rounded-lg border bg-white/[0.02] ' + (d.scheduledFor ? 'border-[#34D399]/30' : 'border-white/[0.08]')}>
                     <button
                       type="button"
                       onClick={() => void handleLoadDraft(d)}
@@ -2720,8 +2722,24 @@ export default function App() {
                       title={`Load "${d.name}"`}
                     >
                       <div className="text-[12px] font-bold text-gray-200 truncate">{d.name}</div>
-                      <div className="text-[10px] text-gray-500">{new Date(d.savedAt).toLocaleDateString()} · {new Date(d.savedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                      <div className="text-[10px] text-gray-500">
+                        {d.scheduledFor
+                          ? <span className="text-[#34D399]">📅 {new Date(d.scheduledFor).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}</span>
+                          : <>{new Date(d.savedAt).toLocaleDateString()} · {new Date(d.savedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</>}
+                      </div>
                     </button>
+                    <input
+                      type="date"
+                      value={isoDate}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        const ts = v ? new Date(v + 'T12:00:00').getTime() : null;
+                        setDrafts(setDraftSchedule(d.id, ts));
+                      }}
+                      title="Schedule a post date"
+                      aria-label={`Schedule date for ${d.name}`}
+                      className="shrink-0 w-[34px] hover:w-auto bg-transparent text-[10px] text-gray-500 cursor-pointer focus:w-auto focus:text-gray-200 [color-scheme:dark]"
+                    />
                     <button
                       type="button"
                       onClick={() => void handleDeleteDraft(d)}
@@ -2732,7 +2750,8 @@ export default function App() {
                       ✕
                     </button>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </Group>
