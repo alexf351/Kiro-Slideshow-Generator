@@ -10,7 +10,7 @@ const SETS_STORE = 'sets';
 const POSTS_STORE = 'posts';
 
 export type MediaItemSource = {
-  provider: 'openverse' | 'wikimedia' | 'pexels' | 'unsplash' | 'pixabay' | 'upload';
+  provider: 'openverse' | 'wikimedia' | 'artic' | 'pexels' | 'unsplash' | 'pixabay' | 'upload';
   // Where to credit the photo (only set for stock results). Pexels
   // doesn't require attribution but we keep the link anyway so the
   // Library can show it on hover / tap.

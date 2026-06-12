@@ -12,13 +12,14 @@
 //   Pixabay:  https://pixabay.com/api/docs/
 //   Openverse: no key required.
 
-export type StockProvider = 'openverse' | 'wikimedia' | 'pexels' | 'unsplash' | 'pixabay';
+export type StockProvider = 'openverse' | 'wikimedia' | 'artic' | 'pexels' | 'unsplash' | 'pixabay';
 
 // Providers whose image bytes aren't reliably CORS-enabled — fetch those
 // through our proxy so the blob is same-origin for canvas export.
 const PROXY_BLOB: Record<StockProvider, boolean> = {
   openverse: true,
   wikimedia: true,
+  artic: true,
   pixabay: true,
   pexels: false,
   unsplash: false,
@@ -80,10 +81,13 @@ const UNSPLASH_SEARCH = 'https://api.unsplash.com/search/photos';
 const OPENVERSE_SEARCH = 'https://api.openverse.org/v1/images/';
 const PIXABAY_SEARCH = 'https://pixabay.com/api/';
 const WIKIMEDIA_SEARCH = 'https://commons.wikimedia.org/w/api.php';
+const ARTIC_SEARCH = 'https://api.artic.edu/api/v1/artworks/search';
+const ARTIC_IIIF_DEFAULT = 'https://www.artic.edu/iiif/2';
 
-// Openverse + Wikimedia Commons need no key; everyone else does.
+// Keyless providers — everyone else needs a BYOK key.
+const KEYLESS: StockProvider[] = ['openverse', 'wikimedia', 'artic'];
 export function providerNeedsKey(provider: StockProvider): boolean {
-  return provider !== 'openverse' && provider !== 'wikimedia';
+  return !KEYLESS.includes(provider);
 }
 
 // Strip the HTML Wikimedia returns in some metadata fields (the Artist
@@ -188,6 +192,39 @@ export async function searchStock(
           photoUrl: ii.descriptionurl || '',
         };
       });
+  }
+
+  if (provider === 'artic') {
+    // Keyless. Art Institute of Chicago — public-domain art via a single
+    // search call. Image bytes come from a deterministic IIIF url
+    // ({iiif}/{image_id}/full/{w},/0/default.jpg) so no per-item lookup is
+    // needed; we proxy the bytes (PROXY_BLOB) for canvas-safe export.
+    const url = `${ARTIC_SEARCH}?q=${encodeURIComponent(trimmed)}` +
+      `&fields=id,title,image_id,artist_title&limit=${perPage}`;
+    const res = await fetchRetry(url, { headers: { Accept: 'application/json' } });
+    if (!res.ok) {
+      throw new StockApiError(`Art Institute search failed (${res.status}). Try again in a moment.`, res.status);
+    }
+    const data = (await res.json()) as {
+      data: Array<{ id: number; title?: string; image_id?: string | null; artist_title?: string | null }>;
+      config?: { iiif_url?: string };
+    };
+    const iiif = data.config?.iiif_url || ARTIC_IIIF_DEFAULT;
+    return (data.data || [])
+      // Only items with an image_id actually have a picture to show.
+      .filter((a) => !!a.image_id)
+      .map((a) => ({
+        id: `artic:${a.id}`,
+        provider: 'artic' as const,
+        thumbUrl: `${iiif}/${a.image_id}/full/400,/0/default.jpg`,
+        fullUrl: `${iiif}/${a.image_id}/full/1080,/0/default.jpg`,
+        width: 0,
+        height: 0,
+        alt: a.title || trimmed,
+        photographer: a.artist_title || 'Art Institute of Chicago',
+        photographerUrl: '',
+        photoUrl: `https://www.artic.edu/artworks/${a.id}`,
+      }));
   }
 
   if (provider === 'pixabay') {
