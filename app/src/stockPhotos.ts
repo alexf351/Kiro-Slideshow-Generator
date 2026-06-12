@@ -12,12 +12,13 @@
 //   Pixabay:  https://pixabay.com/api/docs/
 //   Openverse: no key required.
 
-export type StockProvider = 'openverse' | 'pexels' | 'unsplash' | 'pixabay';
+export type StockProvider = 'openverse' | 'wikimedia' | 'pexels' | 'unsplash' | 'pixabay';
 
 // Providers whose image bytes aren't reliably CORS-enabled — fetch those
 // through our proxy so the blob is same-origin for canvas export.
 const PROXY_BLOB: Record<StockProvider, boolean> = {
   openverse: true,
+  wikimedia: true,
   pixabay: true,
   pexels: false,
   unsplash: false,
@@ -78,11 +79,20 @@ const PEXELS_SEARCH = 'https://api.pexels.com/v1/search';
 const UNSPLASH_SEARCH = 'https://api.unsplash.com/search/photos';
 const OPENVERSE_SEARCH = 'https://api.openverse.org/v1/images/';
 const PIXABAY_SEARCH = 'https://pixabay.com/api/';
+const WIKIMEDIA_SEARCH = 'https://commons.wikimedia.org/w/api.php';
 
-// Openverse needs no key; everyone else does.
+// Openverse + Wikimedia Commons need no key; everyone else does.
 export function providerNeedsKey(provider: StockProvider): boolean {
-  return provider !== 'openverse';
+  return provider !== 'openverse' && provider !== 'wikimedia';
 }
+
+// Strip the HTML Wikimedia returns in some metadata fields (the Artist
+// credit is often an <a> tag) down to plain text for a clean byline.
+function stripHtml(s: string): string {
+  return (s || '').replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+}
+
+const IMAGE_EXT_RE = /\.(jpe?g|png|webp|gif)$/i;
 
 export async function searchStock(
   provider: StockProvider,
@@ -122,6 +132,62 @@ export async function searchStock(
       photographerUrl: p.creator_url || '',
       photoUrl: p.foreign_landing_url || '',
     }));
+  }
+
+  if (provider === 'wikimedia') {
+    // Keyless. Wikimedia Commons MediaWiki API: a generator=search over the
+    // File namespace (6), pulling imageinfo (a 480px-wide thumbnail + the
+    // full url + license/author metadata) for each hit. origin=* opts into
+    // anonymous CORS on the JSON. Image bytes come from upload.wikimedia.org,
+    // which we proxy (PROXY_BLOB) to be safe for html2canvas.
+    const params = new URLSearchParams({
+      action: 'query', format: 'json', generator: 'search',
+      gsrnamespace: '6', gsrsearch: trimmed, gsrlimit: String(perPage),
+      prop: 'imageinfo', iiprop: 'url|size|extmetadata', iiurlwidth: '480',
+      origin: '*',
+    });
+    const res = await fetchRetry(`${WIKIMEDIA_SEARCH}?${params.toString()}`, { headers: { Accept: 'application/json' } });
+    if (!res.ok) {
+      throw new StockApiError(`Wikimedia search failed (${res.status}). Try again in a moment.`, res.status);
+    }
+    const data = (await res.json()) as {
+      query?: {
+        pages?: Record<string, {
+          pageid: number; title: string; index?: number;
+          imageinfo?: Array<{
+            url: string; descriptionurl?: string;
+            thumburl?: string; thumbwidth?: number; thumbheight?: number;
+            width?: number; height?: number;
+            extmetadata?: { Artist?: { value?: string }; ImageDescription?: { value?: string } };
+          }>;
+        }>;
+      };
+    };
+    const pages = Object.values(data.query?.pages || {});
+    // Search results come back unordered (keyed by pageid); restore the
+    // relevance ranking the API assigned via `index`.
+    pages.sort((a, b) => (a.index ?? 0) - (b.index ?? 0));
+    return pages
+      .map((pg) => ({ pg, ii: pg.imageinfo && pg.imageinfo[0] }))
+      // Namespace 6 also holds svg/pdf/video/audio — keep raster photos only,
+      // since those are what render cleanly as slide backgrounds.
+      .filter((x): x is { pg: typeof x.pg; ii: NonNullable<typeof x.ii> } => !!x.ii && IMAGE_EXT_RE.test(x.ii.url))
+      .map(({ pg, ii }) => {
+        const artist = stripHtml(ii.extmetadata?.Artist?.value || '') || 'Wikimedia Commons';
+        const desc = stripHtml(ii.extmetadata?.ImageDescription?.value || '');
+        return {
+          id: `wikimedia:${pg.pageid}`,
+          provider: 'wikimedia' as const,
+          thumbUrl: ii.thumburl || ii.url,
+          fullUrl: ii.url,
+          width: ii.width || 0,
+          height: ii.height || 0,
+          alt: desc || pg.title.replace(/^File:/, '').replace(IMAGE_EXT_RE, '') || trimmed,
+          photographer: artist,
+          photographerUrl: ii.descriptionurl || '',
+          photoUrl: ii.descriptionurl || '',
+        };
+      });
   }
 
   if (provider === 'pixabay') {
