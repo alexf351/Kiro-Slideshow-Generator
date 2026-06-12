@@ -419,6 +419,7 @@ export default function App() {
   const [videoPace, setVideoPace] = useState<number>(2.5);
   // PDF export (repurpose the deck as an IG / LinkedIn carousel).
   const [pdfBusy, setPdfBusy] = useState<string | null>(null);
+  const [genDeckBusy, setGenDeckBusy] = useState(false);
   // Named drafts (multiple in-progress projects).
   const [drafts, setDrafts] = useState<Draft[]>(() => listDrafts());
   // The draft currently loaded for editing (enables one-tap "Update").
@@ -1141,6 +1142,32 @@ export default function App() {
       source: { provider: 'upload' },
     });
     setSlideBgs((prev) => ({ ...prev, [slideKey]: { type: 'media', mediaId: item.id } }));
+  }
+
+  // Generate ONE background and apply it to every slide — a cohesive AI deck
+  // from a single prompt + a single API call.
+  async function handleGenerateDeckBg() {
+    if (!openaiKey) { ui.notify('Add an OpenAI API key in Settings to generate backgrounds.', { type: 'error' }); return; }
+    if (slideMetas.length === 0) { ui.notify('Render a post first.', { type: 'info' }); return; }
+    const desc = await ui.prompt({ title: 'Generate deck background', message: 'Describe one background to use across all slides.', placeholder: 'e.g. dark moody gradient with soft bokeh', confirmLabel: 'Generate' });
+    if (!desc || !desc.trim()) return;
+    setGenDeckBusy(true);
+    try {
+      const { generateImage, buildBackgroundPrompt } = await import('./openaiImage');
+      const blob = await generateImage({ apiKey: openaiKey, prompt: buildBackgroundPrompt(desc.trim()), quality: 'medium' });
+      const item = await addStockItem({ blob, mimeType: blob.type || 'image/png', name: `ai-deck-${desc.trim().slice(0, 24)}`, source: { provider: 'upload' } });
+      setSlideBgs((prev) => {
+        const next = { ...prev };
+        slideMetas.forEach((m) => { next[m.key] = { type: 'media', mediaId: item.id }; });
+        return next;
+      });
+      setTimeout(() => void handleRender({ switchView: false }), 80);
+      ui.notify('Deck background generated.', { type: 'success' });
+    } catch (e) {
+      ui.notify(`Generation failed: ${(e as Error).message}`, { type: 'error' });
+    } finally {
+      setGenDeckBusy(false);
+    }
   }
 
   // Generate a brand-new background for a slide from a text description (OpenAI).
@@ -2307,6 +2334,18 @@ export default function App() {
           </section>
 
           <Group open={!!openGroups.bg} onToggle={() => toggleGroup('bg')} title="Backgrounds" hint="per slide">
+            {openaiKey && (
+              <button
+                type="button"
+                onClick={() => void handleGenerateDeckBg()}
+                disabled={genDeckBusy}
+                className="w-full mb-4 py-2.5 rounded-lg text-[11px] font-bold uppercase tracking-[0.1em]
+                           border border-[#A78BFA]/30 bg-[#A78BFA]/[0.08] text-[#C4B5FD]
+                           disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#A78BFA]/[0.16] transition-all"
+              >
+                {genDeckBusy ? '✨ Generating…' : '✨ Generate one AI background for the whole deck'}
+              </button>
+            )}
             {/* Quick gradient background — no photo or API key needed. */}
             <div className="mb-4">
               <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-gray-400 mb-2">Gradient background (all slides)</div>
