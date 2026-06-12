@@ -224,6 +224,12 @@ const eq = (n, a, b) => ok(n + ` (got ${JSON.stringify(a)})`, JSON.stringify(a) 
   ok('sched month rollover', scheduleDates(1, new Date(2026, 0, 31, 10), 18)[0] instanceof Date);
   const tom = planFromTomorrow(2, new Date(2026, 5, 15, 23, 0));
   ok('plan tomorrow', tom[0].getDate() === 16 && tom[1].getDate() === 17 && tom[0].getHours() === 18);
+  // planAroundExisting skips days already taken.
+  const { planAroundExisting } = await load('schedulePlan.ts');
+  const now2 = new Date(2026, 5, 15, 10);
+  ok('plan free days', (() => { const r = planAroundExisting(3, [], now2); return r[0].getDate() === 16 && r[1].getDate() === 17 && r[2].getDate() === 18; })());
+  ok('plan skips taken', (() => { const r = planAroundExisting(2, [new Date(2026, 5, 16, 9)], now2); return r[0].getDate() === 17 && r[1].getDate() === 18 && r[0].getHours() === 18; })());
+  ok('plan zero empty', planAroundExisting(0, [], now2).length === 0);
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

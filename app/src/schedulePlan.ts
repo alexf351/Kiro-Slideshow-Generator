@@ -35,3 +35,24 @@ export function planFromTomorrow(n: number, now: Date = new Date(), hour = 18, p
   const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
   return scheduleDates(n, start, hour, perDay);
 }
+
+// Local-day key so two timestamps on the same calendar day collapse.
+function dayKey(d: Date): string {
+  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+}
+
+// Spread `n` posts onto the next FREE days from tomorrow, skipping any day
+// that's already taken by an existing scheduled draft — so auto-scheduling a
+// batch doesn't double-book days the creator already planned.
+export function planAroundExisting(n: number, taken: Date[], now: Date = new Date(), hour = 18): Date[] {
+  const takenKeys = new Set((taken || []).map(dayKey));
+  const h = Math.max(0, Math.min(23, Math.floor(hour)));
+  const out: Date[] = [];
+  let offset = 1;
+  while (out.length < Math.max(0, n) && offset <= 400) {
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + offset, h, 0, 0, 0);
+    if (!takenKeys.has(dayKey(d))) out.push(d);
+    offset++;
+  }
+  return out;
+}

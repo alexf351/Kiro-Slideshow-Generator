@@ -3836,13 +3836,15 @@ export default function App() {
               <button
                 type="button"
                 onClick={async () => {
-                  const { planFromTomorrow } = await import('./schedulePlan');
+                  const { planAroundExisting } = await import('./schedulePlan');
                   const unsched = drafts.filter((d) => !d.posted && !d.scheduledFor);
-                  const dates = planFromTomorrow(unsched.length);
+                  // Don't double-book days that already hold a scheduled draft.
+                  const taken = drafts.filter((d) => d.scheduledFor).map((d) => new Date(d.scheduledFor!));
+                  const dates = planAroundExisting(unsched.length, taken);
                   let next = drafts;
                   unsched.forEach((d, i) => { next = setDraftSchedule(d.id, dates[i].getTime()); });
                   setDrafts(next);
-                  ui.notify(`Scheduled ${unsched.length} draft${unsched.length === 1 ? '' : 's'} across the next ${unsched.length} day${unsched.length === 1 ? '' : 's'} at 6pm. Export to calendar below.`, { type: 'success' });
+                  ui.notify(`Scheduled ${unsched.length} draft${unsched.length === 1 ? '' : 's'} on the next free day${unsched.length === 1 ? '' : 's'} at 6pm. Export to calendar below.`, { type: 'success' });
                 }}
                 className="w-full mb-2 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-[0.12em] text-gray-400 hover:text-[#34D399] border border-white/[0.08] hover:border-[#34D399]/30"
                 title="Auto-assign each unscheduled draft to a day (one per day from tomorrow, 6pm)"
