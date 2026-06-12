@@ -421,6 +421,14 @@ export default function App() {
   const [pdfBusy, setPdfBusy] = useState<string | null>(null);
   // Named drafts (multiple in-progress projects).
   const [drafts, setDrafts] = useState<Draft[]>(() => listDrafts());
+  // Opt-in "swipe →" cue on non-final slides (completion-rate booster).
+  const [swipeHint, setSwipeHintState] = useState<boolean>(() => {
+    try { return localStorage.getItem('kiro_swipe_hint') === '1'; } catch { return false; }
+  });
+  function setSwipeHint(v: boolean) {
+    setSwipeHintState(v);
+    try { localStorage.setItem('kiro_swipe_hint', v ? '1' : '0'); } catch {}
+  }
   // Pinned/favorite formats (sorted to the top of the picker).
   const [favFormats, setFavFormats] = useState<string[]>(() => {
     try { return JSON.parse(localStorage.getItem('kiro_fav_formats') || '[]') as string[]; } catch { return []; }
@@ -762,7 +770,7 @@ export default function App() {
     // Sidebar preset always wins over whatever's in the pasted JSON — the
     // dropdown is the explicit user choice, the JSON field is just a hint
     // about which format the JSON was authored for.
-    const slides: Record<string, unknown> = { ...parsed, mascot: mascotKey(mascot, variant), platform, preset };
+    const slides: Record<string, unknown> = { ...parsed, mascot: mascotKey(mascot, variant), platform, preset, swipeHint };
 
     // Creator handle: the HUD "Creator handle" field is the single source
     // of truth, so a blank field reliably removes the handle (overriding
@@ -2660,6 +2668,21 @@ export default function App() {
                 <span className="block text-[10px] text-gray-500 mt-0.5 leading-relaxed">
                   Strip hook + CTA text from the render so you can type them natively in TikTok's editor.
                   Algorithm reads native text better than baked-in image text.
+                </span>
+              </span>
+            </label>
+
+            <label className="flex items-start gap-3 mb-4 p-3 rounded-xl border border-white/[0.06] bg-white/[0.02] cursor-pointer hover:border-white/[0.12] transition-colors">
+              <input
+                type="checkbox"
+                checked={swipeHint}
+                onChange={(e) => { setSwipeHint(e.target.checked); setTimeout(() => void handleRender({ switchView: false }), 40); }}
+                className="mt-0.5 w-4 h-4 accent-[#00E5FF] cursor-pointer"
+              />
+              <span className="flex-1">
+                <span className="block text-[12px] font-bold text-gray-200">"Swipe →" cue</span>
+                <span className="block text-[10px] text-gray-500 mt-0.5 leading-relaxed">
+                  Adds a small "swipe →" pill to every slide except the last — nudges viewers to keep swiping, which lifts completion rate.
                 </span>
               </span>
             </label>
