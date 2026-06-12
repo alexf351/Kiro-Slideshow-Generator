@@ -405,6 +405,10 @@ export default function App() {
     try { return localStorage.getItem('kiro_tiktok_token') || ''; } catch { return ''; }
   });
   const [ttStatus, setTtStatus] = useState<{ kind: 'idle' | 'connecting' | 'sending' | 'ok' | 'err'; msg?: string }>({ kind: 'idle' });
+  // Phone handoff: QR to a hosted gallery of the exported slides.
+  const [phoneBusy, setPhoneBusy] = useState<string | null>(null);
+  const [phoneQr, setPhoneQr] = useState<{ img: string; url: string } | null>(null);
+  const [phoneErr, setPhoneErr] = useState<string | null>(null);
   // Which collapsible sidebar groups are expanded. Everything outside the
   // core Format → Content → Caption spine is collapsed by default so the
   // panel reads as a simple "make a post" funnel instead of a wall of
@@ -1178,6 +1182,36 @@ export default function App() {
       setTtStatus({ kind: 'ok', msg: 'Sent! Open TikTok → notifications/inbox to finish posting.' });
     } catch (e) {
       setTtStatus({ kind: 'err', msg: (e as Error).message });
+    }
+  }
+
+  // Capture → upload → publish a mobile gallery page → show a QR so the user
+  // opens it on their phone and long-presses each slide to save to Photos.
+  async function handlePhoneHandoff() {
+    setPhoneErr(null);
+    setPhoneBusy('Capturing slides…');
+    try {
+      const slides = await captureTikTokSlides();
+      if (!slides.length) throw new Error('No slides captured. Hit Render first, then try again.');
+      const blobUrls: string[] = [];
+      for (let i = 0; i < slides.length; i++) {
+        setPhoneBusy(`Uploading slide ${i + 1} / ${slides.length}…`);
+        const up = await fetch('/api/tiktok/upload', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dataUrl: slides[i] }) });
+        const ud = await up.json();
+        if (!up.ok) throw new Error(ud.error || 'Slide upload failed.');
+        blobUrls.push(ud.blobUrl);
+      }
+      setPhoneBusy('Building your phone page…');
+      const gr = await fetch('/api/gallery', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ images: blobUrls, caption }) });
+      const gd = await gr.json();
+      if (!gr.ok) throw new Error(gd.error || 'Could not publish the gallery.');
+      const QRCode = (await import('qrcode')).default;
+      const img = await QRCode.toDataURL(gd.url, { width: 460, margin: 2, color: { dark: '#0a0e1a', light: '#ffffff' } });
+      setPhoneQr({ img, url: gd.url });
+    } catch (e) {
+      setPhoneErr((e as Error).message);
+    } finally {
+      setPhoneBusy(null);
     }
   }
 
@@ -2135,6 +2169,17 @@ export default function App() {
                   : ttStatus.kind === 'connecting' ? 'Connecting…'
                   : ttToken ? 'Send to TikTok inbox' : 'Connect TikTok & send'}
               </button>
+              <button
+                type="button"
+                onClick={handlePhoneHandoff}
+                disabled={!!phoneBusy}
+                className="w-full py-3 rounded-xl text-[12px] font-bold uppercase tracking-[0.12em]
+                           border border-white/[0.12] bg-white/[0.03] text-gray-200
+                           disabled:opacity-60 disabled:cursor-not-allowed hover:border-[#00E5FF]/40 hover:text-[#00E5FF] transition-all"
+              >
+                {phoneBusy || '📲 Send to phone (QR)'}
+              </button>
+              {phoneErr && <div className="text-[11px] text-red-400 leading-relaxed">{phoneErr}</div>}
               {ttToken && (
                 <button
                   type="button"
@@ -2412,6 +2457,40 @@ export default function App() {
 
       <CommandPalette open={paletteOpen} commands={commands} onClose={() => setPaletteOpen(false)} />
       {showOnboarding && <Onboarding onClose={() => setShowOnboarding(false)} />}
+
+      {phoneQr && (
+        <div
+          className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-6"
+          onClick={() => setPhoneQr(null)}
+        >
+          <div
+            className="bg-[#0d1320] border border-white/10 rounded-2xl p-6 max-w-sm w-full text-center shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="text-sm font-bold text-gray-100 mb-1">Scan with your phone</div>
+            <p className="text-[12px] text-gray-500 leading-relaxed mb-4">
+              Open the camera, scan this, then long-press each slide to save it to Photos. The caption is on the page too.
+            </p>
+            <img src={phoneQr.img} alt="QR code" className="w-56 h-56 mx-auto rounded-xl bg-white p-2" />
+            <div className="mt-4 flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={() => { navigator.clipboard?.writeText(phoneQr.url).catch(() => {}); ui.notify('Link copied.', { type: 'success' }); }}
+                className="w-full py-2.5 rounded-lg text-[11px] font-bold uppercase tracking-[0.12em] border border-white/[0.12] bg-white/[0.03] text-gray-300 hover:text-[#00E5FF] hover:border-[#00E5FF]/40"
+              >
+                Copy link instead
+              </button>
+              <button
+                type="button"
+                onClick={() => setPhoneQr(null)}
+                className="w-full py-2.5 rounded-lg text-[11px] font-bold uppercase tracking-[0.12em] text-gray-500 hover:text-gray-300"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

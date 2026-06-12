@@ -53,6 +53,14 @@ Redeploy.
 3. The slides are captured, uploaded, and pushed to your TikTok inbox.
 4. Open TikTok → your inbox/notifications → finish the photo post.
 
+## Bonus: "Send to phone (QR)"
+
+The same **Publish to TikTok** panel has a **📲 Send to phone (QR)** button. It
+captures the slides, hosts them on a tiny mobile gallery page (Vercel Blob),
+and shows a QR. Scan it with your phone, long-press each slide to save to
+Photos, and the caption is on the page to copy. This only needs **Vercel Blob**
+(step 2) — no TikTok app required.
+
 ## How it flows
 
 ```
