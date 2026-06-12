@@ -20,6 +20,7 @@ import { exportBackup, importBackup, downloadBlob, timestampSlug } from './backu
 import { suggestHashtags, parseHashtags } from './insights';
 import { findSimilarHooks } from './similarity';
 import { buildIcs, scheduledCount } from './ics';
+import { postsToCsv } from './csv';
 import { listSets, saveSet, deleteSet, formatTags, type HashtagSet } from './hashtagSets';
 import { encodePost, decodePost } from './postShare';
 import { useUI } from './ui';
@@ -3450,6 +3451,19 @@ export default function App() {
                   Import backup
                 </button>
               </div>
+              <button
+                type="button"
+                onClick={async () => {
+                  const posts = await listPosts();
+                  if (posts.length === 0) { ui.notify('No posts to export yet — save a post to history first.', { type: 'info' }); return; }
+                  downloadBlob(new Blob([postsToCsv(posts)], { type: 'text/csv' }), `iro-performance-${timestampSlug()}.csv`);
+                  ui.notify(`Exported ${posts.length} post${posts.length === 1 ? '' : 's'} to CSV.`, { type: 'success' });
+                }}
+                className="w-full mt-2 py-2 rounded-lg text-[11px] font-bold uppercase tracking-[0.14em] bg-white/[0.04] text-gray-300 hover:bg-white/[0.08] border border-white/10"
+                title="Download your post history + stats + scores as a spreadsheet (CSV)"
+              >
+                ⤓ Export performance CSV
+              </button>
             </div>
 
             <label className="flex flex-col gap-1.5 mb-3">
