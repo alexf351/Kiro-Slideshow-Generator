@@ -85,9 +85,12 @@ export function buildIcs(drafts: Draft[], opts: IcsOptions = {}): string | null 
     const end = start + durationMinutes * 60_000;
     const title = eventTitle(d);
     const caption = (d.state?.caption || '').trim();
-    const desc = caption
-      ? `Caption:\n${caption}\n\n— scheduled in iro studio`
-      : 'Scheduled in iro studio';
+    const sound = (d.state?.audioNote || '').trim();
+    const parts: string[] = [];
+    if (caption) parts.push(`Caption:\n${caption}`);
+    if (sound) parts.push(`🎵 Sound: ${sound}`);
+    parts.push('— scheduled in iro studio');
+    const desc = parts.join('\n\n');
     lines.push('BEGIN:VEVENT');
     // Stable UID so re-importing an updated export updates the event in
     // place rather than duplicating it.
