@@ -26,6 +26,7 @@ export const PRESET_KEYS = [
   'before_after',
   'countdown',
   'definition',
+  'qa',
 ] as const;
 
 export type PresetKey = (typeof PRESET_KEYS)[number];
@@ -745,6 +746,35 @@ learn it properly: search "Iro AI" on the App Store.
 
 #ai #glossary #aitok #learnai #tech`;
 
+const QA_JSON = `{
+  "preset": "qa",
+  "hook": {
+    "headline": "your <strong>AI questions</strong>,<br/>answered",
+    "subline": "the ones you were too shy to ask"
+  },
+  "items": [
+    { "q": "Do I need to learn to code first?", "a": "No. Start by describing what you want in plain English — the building teaches you the rest." },
+    { "q": "Which AI tool should I actually use?", "a": "Whichever you'll open daily. A tool you use beats the \\"best\\" one you don't." },
+    { "q": "Isn't it too late to start?", "a": "Six months of 5-min-a-day puts you ahead of 95% of people still just talking about it." }
+  ],
+  "cta": {
+    "headline": "Got more questions?<br/><strong>We answer them daily.</strong>",
+    "instructionAbove": "search:",
+    "searchTerm": "Iro AI",
+    "instructionBelow": "on the App Store.",
+    "slogan": "5 minutes a day."
+  },
+  "attribution": ""
+}`;
+
+const QA_CAPTION = `answering your most-asked AI questions 🙋 part 1
+
+drop yours below and i'll do a part 2 👇
+
+want the full answers? search "Iro AI" on the App Store.
+
+#ai #qa #aitok #learnai #askmeanything`;
+
 export const PRESETS: Record<PresetKey, PresetMeta> = {
   prompt_pack: {
     key: 'prompt_pack',
@@ -925,5 +955,14 @@ export const PRESETS: Record<PresetKey, PresetMeta> = {
     defaultJson: DEFINITION_JSON,
     defaultCaption: DEFINITION_CAPTION,
     accent: '#b8861b', // dictionary gold
+  },
+  qa: {
+    key: 'qa',
+    label: 'Q&A',
+    pitch: 'AMA / FAQ — an Instagram-style question sticker + your answer per slide.',
+    status: 'ready',
+    defaultJson: QA_JSON,
+    defaultCaption: QA_CAPTION,
+    accent: '#A78BFA', // sticker violet
   },
 };
