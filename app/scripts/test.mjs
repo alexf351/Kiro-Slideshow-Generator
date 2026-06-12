@@ -197,5 +197,18 @@ const eq = (n, a, b) => ok(n + ` (got ${JSON.stringify(a)})`, JSON.stringify(a) 
   ok('design isCustom watermark true', isCustomDesign({ ...DEFAULT_DESIGN, watermark: '@me' }));
 }
 
+// ---- recentFormats (variety coaching) ----
+{
+  const { recentFormatStreak, wouldFatigueStreak } = await load('recentFormats.ts');
+  const p = (preset) => ({ preset });
+  ok('streak empty null', recentFormatStreak([]) === null);
+  ok('streak no-preset null', recentFormatStreak([p('')]) === null);
+  eq('streak leading run', recentFormatStreak([p('tweet'), p('tweet'), p('reddit')]), { preset: 'tweet', count: 2 });
+  eq('streak single', recentFormatStreak([p('news'), p('tweet')]), { preset: 'news', count: 1 });
+  ok('fatigue 3rd in a row', wouldFatigueStreak([p('tweet'), p('tweet')], 'tweet'));
+  ok('fatigue not 2nd', !wouldFatigueStreak([p('tweet')], 'tweet'));
+  ok('fatigue different format ok', !wouldFatigueStreak([p('tweet'), p('tweet')], 'reddit'));
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

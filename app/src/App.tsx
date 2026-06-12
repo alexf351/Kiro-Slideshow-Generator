@@ -19,6 +19,7 @@ import { listDrafts, saveDraft, deleteDraft, setDraftSchedule, setDraftPosted, c
 import { exportBackup, importBackup, downloadBlob, timestampSlug } from './backup';
 import { suggestHashtags, parseHashtags } from './insights';
 import { findSimilarHooks } from './similarity';
+import { wouldFatigueStreak } from './recentFormats';
 import { buildIcs, scheduledCount } from './ics';
 import { postsToCsv } from './csv';
 import { scoreHook, HOOK_TIER_COLOR, HOOK_TIER_TEXT } from './hookScore';
@@ -2207,9 +2208,11 @@ export default function App() {
     // of something the account already posted, so warn before saving a hook
     // that strongly matches one already in history. Best-effort — a read
     // failure must never block the save.
+    let history: Awaited<ReturnType<typeof listPosts>> = [];
+    try { history = await listPosts(); } catch { /* history unavailable */ }
     try {
       if (caption.trim()) {
-        const matches = findSimilarHooks(caption, await listPosts());
+        const matches = findSimilarHooks(caption, history);
         if (matches.length > 0) {
           const top = matches[0];
           const when = new Date(top.post.postedAt).toLocaleDateString();
@@ -2221,7 +2224,7 @@ export default function App() {
           if (!ok) return;
         }
       }
-    } catch { /* history unavailable — don't block saving */ }
+    } catch { /* best-effort — never block saving */ }
     setSaveStatus({ kind: 'saving' });
     try {
       const thumb = await captureThumbnail();
@@ -2247,6 +2250,10 @@ export default function App() {
       setSaveStatus({ kind: 'ok' });
       setPendingPrediction(null);
       void loadFormatPerf();
+      // Gentle variety nudge — this makes 3+ of the same format in a row.
+      if (wouldFatigueStreak(history, preset)) {
+        ui.notify(`Saved — but that’s 3+ ${PRESETS[preset].label}s in a row. Mixing formats keeps your feed (and the algorithm) fresh.`, { type: 'info' });
+      }
       setTimeout(() => setSaveStatus({ kind: 'idle' }), 2500);
     } catch (e) {
       setSaveStatus({ kind: 'err', msg: (e as Error).message || 'save failed' });
