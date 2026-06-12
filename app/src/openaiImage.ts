@@ -11,6 +11,33 @@
 const ENDPOINT = 'https://api.openai.com/v1/images/edits';
 const GEN_ENDPOINT = 'https://api.openai.com/v1/images/generations';
 
+// Fetch with retry on transient throttling/overload (429 / 529 / 5xx) and
+// network blips. The caller still handles a final non-ok response.
+async function imageFetchRetry(url: string, init: RequestInit): Promise<Response> {
+  const maxAttempts = 3;
+  let last: Response | null = null;
+  for (let a = 0; a < maxAttempts; a++) {
+    let res: Response;
+    try {
+      res = await fetch(url, init);
+    } catch (e) {
+      if (a < maxAttempts - 1) { await new Promise((r) => setTimeout(r, 1500 * (a + 1))); continue; }
+      throw new OpenAIImageError(`Network error contacting OpenAI: ${(e as Error).message}`);
+    }
+    if (res.ok) return res;
+    const retryable = res.status === 429 || res.status === 529 || res.status >= 500;
+    if (retryable && a < maxAttempts - 1) {
+      last = res;
+      const ra = Number(res.headers.get('retry-after'));
+      const wait = isFinite(ra) && ra > 0 ? Math.min(ra * 1000, 15000) : Math.min(1500 * 2 ** a + Math.random() * 300, 10000);
+      await new Promise((r) => setTimeout(r, wait));
+      continue;
+    }
+    return res;
+  }
+  return last as Response;
+}
+
 export type OpenAIImageQuality = 'low' | 'medium' | 'high';
 
 export type EditOptions = {
@@ -40,7 +67,7 @@ export async function editImage(opts: EditOptions): Promise<Blob> {
   form.append('size', opts.size || '1024x1536');
   form.append('quality', opts.quality || 'medium');
 
-  const res = await fetch(ENDPOINT, {
+  const res = await imageFetchRetry(ENDPOINT, {
     method: 'POST',
     headers: { Authorization: `Bearer ${opts.apiKey}` },
     body: form,
@@ -108,7 +135,7 @@ export async function generateImage(opts: {
   quality?: OpenAIImageQuality;
 }): Promise<Blob> {
   if (!opts.apiKey) throw new OpenAIImageError('Missing OpenAI API key. Add one in Settings.');
-  const gen = (body: Record<string, unknown>) => fetch(GEN_ENDPOINT, {
+  const gen = (body: Record<string, unknown>) => imageFetchRetry(GEN_ENDPOINT, {
     method: 'POST',
     headers: { Authorization: `Bearer ${opts.apiKey}`, 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
