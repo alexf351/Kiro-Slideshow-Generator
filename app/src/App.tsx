@@ -24,6 +24,7 @@ import { postsToCsv } from './csv';
 import { scoreHook, HOOK_TIER_COLOR, HOOK_TIER_TEXT } from './hookScore';
 import { lintHashtags, HASHTAG_TIER_COLOR, HASHTAG_TIER_TEXT } from './hashtagLint';
 import { checkEngagement } from './captionSignals';
+import { computeReadiness, READINESS_COLOR, READINESS_TEXT } from './postReadiness';
 import { makeZip, dataUrlToBytes } from './zip';
 import { analyzeDeck } from './deckBalance';
 import { listSets, saveSet, deleteSet, formatTags, type HashtagSet } from './hashtagSets';
@@ -517,6 +518,30 @@ export default function App() {
       return analyzeDeck(contentArr);
     } catch { return null; }
   }, [jsonText]);
+  // Composite post-readiness verdict synthesizing the quality signals + the
+  // single highest-impact fix. Consumes the same helpers the widgets use.
+  const readiness = useMemo(() => {
+    let parsed: Record<string, unknown> | null = null;
+    try { parsed = JSON.parse(stripJsonWrappers(jsonText.trim())) as Record<string, unknown>; } catch { /* invalid */ }
+    const contentArr = parsed ? CONTENT_KEYS.map((k) => parsed![k]).find((v) => Array.isArray(v)) as unknown[] | undefined : undefined;
+    const slideCount = (contentArr ? contentArr.length : 0) + (parsed && parsed.hook ? 1 : 0) + (parsed && parsed.cta ? 1 : 0);
+    const hs = scoreHook(caption.split('\n')[0] || '');
+    const hl = lintHashtags(caption);
+    return computeReadiness({
+      hookScore: hs.score,
+      hookTips: hs.tips,
+      hashtagTier: hl.tier,
+      hashtagCount: hl.count,
+      hashtagTips: hl.tips,
+      invitesComment: checkEngagement(caption).invites,
+      deckBalanced: deckBalance ? deckBalance.balanced : true,
+      deckTip: deckBalance ? deckBalance.tip : null,
+      validJson: !!parsed,
+      hasCta: !!(parsed && parsed.cta),
+      slideCount,
+      captionLen: caption.length,
+    });
+  }, [jsonText, caption, deckBalance]);
   // "Fill from topic" — AI populates the current template from a typed topic.
   const [topic, setTopic] = useState('');
   const [topicBusy, setTopicBusy] = useState(false);
@@ -3516,6 +3541,23 @@ export default function App() {
           <Group open={!!openGroups.tiktok} onToggle={() => toggleGroup('tiktok')} title="Publish to TikTok" accent="#ff0050" hint={ttToken ? 'connected' : 'send to inbox'}>
             {/* Pre-publish quality checklist */}
             <div className="mb-4 p-3 rounded-xl border border-white/[0.08] bg-white/[0.02]">
+              {/* Composite readiness verdict — one number + the next fix. */}
+              <div className="mb-3">
+                <div className="flex items-center gap-2.5 mb-1.5">
+                  <span
+                    className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-[0.1em]"
+                    style={{ color: READINESS_COLOR[readiness.tier], backgroundColor: READINESS_COLOR[readiness.tier] + '1f', border: `1px solid ${READINESS_COLOR[readiness.tier]}40` }}
+                  >
+                    {READINESS_TEXT[readiness.tier]} · {readiness.score}
+                  </span>
+                  <div className="h-1 flex-1 rounded-full bg-white/[0.06] overflow-hidden">
+                    <div className="h-full rounded-full transition-all duration-300" style={{ width: `${readiness.score}%`, backgroundColor: READINESS_COLOR[readiness.tier] }} />
+                  </div>
+                </div>
+                {readiness.topFix && (
+                  <div className="text-[11px] text-gray-400 leading-snug">Next: {readiness.topFix}</div>
+                )}
+              </div>
               <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-gray-400 mb-2">
                 Pre-publish check · {prePublishChecks.filter((c) => c.ok).length}/{prePublishChecks.length}
               </div>
