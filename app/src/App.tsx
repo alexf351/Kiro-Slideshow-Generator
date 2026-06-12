@@ -470,6 +470,7 @@ export default function App() {
   // "Fill from topic" — AI populates the current template from a typed topic.
   const [topic, setTopic] = useState('');
   const [topicBusy, setTopicBusy] = useState(false);
+  const [fullPostBusy, setFullPostBusy] = useState<string | null>(null);
   const [remixTarget, setRemixTarget] = useState<PresetKey>('tier_list');
   const [remixBusy, setRemixBusy] = useState(false);
   const [improveBusy, setImproveBusy] = useState<string | null>(null);
@@ -1459,6 +1460,39 @@ export default function App() {
   }
 
   // Fill the current template's JSON from a one-line topic, via Claude.
+  // Topic → complete ready-to-post post: AI picks the best format, fills it,
+  // and writes a caption — all in one tap.
+  async function handleFullPost() {
+    const t = topic.trim();
+    if (!t) return;
+    if (!anthropicKey) { ui.notify('Add an Anthropic API key in Settings to use this.', { type: 'error' }); return; }
+    if (!isExampleJson(jsonText) && !(await ui.confirm({ message: 'Generate a full post? This replaces your current content and caption.', confirmLabel: 'Generate' }))) return;
+    try {
+      const { pickFormat, generateFromTopic } = await import('./fillFromTopic');
+      const { generateCaption, composeCaption } = await import('./captionAI');
+      setFullPostBusy('Picking format…');
+      const formats = PRESET_KEYS.map((k) => ({ key: k, label: PRESETS[k].label, pitch: PRESETS[k].pitch }));
+      const picked = await pickFormat({ topic: t, formats, apiKey: anthropicKey, model: claudeModel });
+      const target = (PRESET_KEYS as readonly string[]).includes(picked) ? (picked as PresetKey) : preset;
+      setPreset(target);
+      setFullPostBusy(`Writing the ${PRESETS[target].label}…`);
+      const filled = await generateFromTopic({ topic: t, preset: target, exampleJson: PRESETS[target].defaultJson, apiKey: anthropicKey, model: claudeModel });
+      setJsonText(filled);
+      setActiveDraftName('');
+      setFullPostBusy('Writing the caption…');
+      try {
+        const { caption: body, hashtags } = await generateCaption({ json: filled, preset: target, apiKey: anthropicKey, model: claudeModel, tone: captionTone === 'Auto' ? undefined : captionTone });
+        setCaption(composeCaption(body, hashtags));
+      } catch { /* caption is best-effort; content still lands */ }
+      setTimeout(() => void handleRender({ switchView: false }), 80);
+      ui.notify(`Full post ready (${PRESETS[target].label}).`, { type: 'success' });
+    } catch (e) {
+      ui.notify(`Full post failed: ${(e as Error).message}`, { type: 'error' });
+    } finally {
+      setFullPostBusy(null);
+    }
+  }
+
   async function handleFillFromTopic() {
     const t = topic.trim();
     if (!t) return;
@@ -2316,6 +2350,18 @@ export default function App() {
                 {topicBusy ? '…' : 'Generate'}
               </button>
             </div>
+            {topic.trim() && (
+              <button
+                type="button"
+                onClick={() => void handleFullPost()}
+                disabled={!!fullPostBusy}
+                className="w-full mb-4 py-2 rounded-lg text-[11px] font-bold uppercase tracking-[0.1em]
+                           border border-[#A78BFA]/30 bg-[#A78BFA]/[0.08] text-[#C4B5FD]
+                           disabled:opacity-60 disabled:cursor-not-allowed hover:bg-[#A78BFA]/[0.16] transition-all"
+              >
+                {fullPostBusy || '✨ Full post (auto-pick format + fill + caption)'}
+              </button>
+            )}
 
             {/* One-tap AI rewrites of the current content. */}
             <div className="flex items-center gap-1.5 mb-4 flex-wrap">
