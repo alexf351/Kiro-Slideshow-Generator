@@ -34,6 +34,19 @@ export const HOOK_FORMULAS: string[] = [
   'i ranked every {thing} so you don’t have to',
   'the only {thing} guide you’ll ever need',
   'how i went from {before} to {after}',
+  'no one is talking about {thing} and it’s costing you {cost}',
+  'the {number}-second trick that {outcome}',
+  'i quit {thing} — best decision i ever made',
+  'if you {do this}, watch this before you {do that}',
+  'your {thing} is mid. here’s why',
+  'the {thing} {audience} are gatekeeping',
+  'rating {things} so you don’t waste your {time/money}',
+  'everyone’s doing {thing} wrong (including past me)',
+  'the {thing} that broke my brain',
+  'watch this if you’ve ever {felt/done this}',
+  '{thing}: expectation vs reality',
+  'normalize {behavior}',
+  'tell me you {trait} without telling me you {trait}',
 ];
 
 // A shuffled subset of `n` formulas — gives the "show me a few, shuffle for
