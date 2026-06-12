@@ -14,10 +14,23 @@ import { pathToFileURL } from 'node:url';
 import esbuild from 'esbuild';
 
 const dir = mkdtempSync(join(tmpdir(), 'iro-test-'));
+
+// Vite resolves `import x from './f.md?raw'` to the file's text; esbuild has
+// no loader for that. Since the pure functions under test never use the raw
+// content, stub any `?raw` import as an empty default export so modules that
+// transitively pull one in (e.g. tiktokClone's spec/engine) still bundle.
+const rawStub = {
+  name: 'raw-stub',
+  setup(build) {
+    build.onResolve({ filter: /\?raw$/ }, (a) => ({ path: a.path, namespace: 'raw-stub' }));
+    build.onLoad({ filter: /.*/, namespace: 'raw-stub' }, () => ({ contents: 'export default ""', loader: 'js' }));
+  },
+};
+
 async function load(rel) {
-  const out = esbuild.buildSync({
+  const out = await esbuild.build({
     entryPoints: [new URL(`../src/${rel}`, import.meta.url).pathname],
-    bundle: true, platform: 'node', format: 'esm', write: false,
+    bundle: true, platform: 'node', format: 'esm', write: false, plugins: [rawStub],
   });
   const file = join(dir, rel.replace(/[\/.]/g, '_') + '.mjs');
   writeFileSync(file, out.outputFiles[0].text);
@@ -230,6 +243,23 @@ const eq = (n, a, b) => ok(n + ` (got ${JSON.stringify(a)})`, JSON.stringify(a) 
   ok('plan free days', (() => { const r = planAroundExisting(3, [], now2); return r[0].getDate() === 16 && r[1].getDate() === 17 && r[2].getDate() === 18; })());
   ok('plan skips taken', (() => { const r = planAroundExisting(2, [new Date(2026, 5, 16, 9)], now2); return r[0].getDate() === 17 && r[1].getDate() === 18 && r[0].getHours() === 18; })());
   ok('plan zero empty', planAroundExisting(0, [], now2).length === 0);
+}
+
+// ---- predict (manual AI-response parsing — fragile, was untested) ----
+{
+  const { applyPredictManualResponse } = await load('predict.ts');
+  // markdown fence + surrounding commentary + out-of-range score -> clamped.
+  const r = applyPredictManualResponse('Here you go:\n```json\n{"predictedScore": 142, "confidence": "high", "strengths": ["clear hook"], "risks": "nope"}\n```\nhope that helps');
+  ok('predict score clamped+rounded', r.predictedScore === 100);
+  ok('predict confidence kept', r.confidence === 'high');
+  ok('predict strengths array', Array.isArray(r.strengths) && r.strengths[0] === 'clear hook');
+  ok('predict non-array -> []', Array.isArray(r.risks) && r.risks.length === 0);
+  // curly quotes normalized; bad confidence -> medium; non-finite score -> 0.
+  const r2 = applyPredictManualResponse('{“predictedScore”: “N/A”, “confidence”: “wild”}');
+  ok('predict curly quotes parsed', r2.predictedScore === 0 && r2.confidence === 'medium');
+  // garbage throws a helpful error.
+  let threw = false; try { applyPredictManualResponse('no json here at all'); } catch { threw = true; }
+  ok('predict garbage throws', threw);
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);
