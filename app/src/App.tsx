@@ -3968,7 +3968,12 @@ export default function App() {
                       className="flex-1 text-left min-w-0"
                       title={`Load "${d.name}"`}
                     >
-                      <div className={'text-[12px] font-bold truncate ' + (d.posted ? 'text-gray-400 line-through' : 'text-gray-200')}>{d.name}</div>
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <div className={'text-[12px] font-bold truncate ' + (d.posted ? 'text-gray-400 line-through' : 'text-gray-200')}>{d.name}</div>
+                        {(() => { const m = PRESETS[d.state?.preset as PresetKey]; return m ? (
+                          <span className="shrink-0 text-[8px] font-bold uppercase tracking-[0.1em] px-1 py-0.5 rounded" style={{ color: m.accent, backgroundColor: m.accent + '22' }}>{m.label}</span>
+                        ) : null; })()}
+                      </div>
                       <div className="text-[10px] text-gray-500">
                         {d.scheduledFor ? (() => {
                           const todayEnd = new Date(); todayEnd.setHours(23, 59, 59, 999);
