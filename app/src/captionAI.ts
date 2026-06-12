@@ -164,6 +164,34 @@ export function splitForFirstComment(caption: string): { body: string; hashtags:
   return { body, hashtags: tags.join(' ') };
 }
 
+// Build the "posting.txt" that ships inside the slide-image ZIP — a one-stop
+// cheat sheet for actually posting the carousel: the caption to paste, the
+// hashtags split out for the first comment (the reach tactic), and a short
+// checklist. Pure + exported so it's unit-testable. `slideCount` is the
+// number of slide images in the pack.
+export function buildPostingNotes(caption: string, formatLabel: string, slideCount: number): string {
+  const { body, hashtags } = splitForFirstComment(caption);
+  const lines: string[] = [];
+  lines.push('=== IRO POST PACK ===');
+  lines.push(`Format: ${formatLabel}`);
+  lines.push(`Slides: ${slideCount}  (slide-01 … slide-${String(slideCount).padStart(2, '0')})`);
+  lines.push('');
+  lines.push('--- CAPTION (paste as the post caption) ---');
+  lines.push(body || '(no caption)');
+  lines.push('');
+  if (hashtags) {
+    lines.push('--- FIRST COMMENT (paste as comment #1 for cleaner reach) ---');
+    lines.push(hashtags);
+    lines.push('');
+  }
+  lines.push('--- CHECKLIST ---');
+  lines.push('[ ] Add a trending sound');
+  lines.push('[ ] Cover = slide 1 (your hook)');
+  lines.push('[ ] Upload slides in order (slide-01 first)');
+  if (hashtags) lines.push('[ ] Post, then immediately drop the first comment');
+  return lines.join('\n') + '\n';
+}
+
 // Replace just the first (hook) line of a caption, preserving the rest of the
 // body and any trailing hashtags. Pure + exported so the apply step is
 // unit-testable. If the caption is empty, the new hook becomes the caption.

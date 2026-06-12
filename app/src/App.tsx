@@ -1683,9 +1683,10 @@ export default function App() {
         name: `slide-${pad(i + 1)}.jpg`,
         data: dataUrlToBytes(dataUrl),
       }));
-      if (caption.trim()) {
-        entries.push({ name: 'caption.txt', data: new TextEncoder().encode(caption) });
-      }
+      // A one-stop posting cheat sheet: caption to paste, hashtags split out
+      // for the first comment, and a checklist.
+      const { buildPostingNotes } = await import('./captionAI');
+      entries.push({ name: 'posting.txt', data: new TextEncoder().encode(buildPostingNotes(caption, PRESETS[preset].label, slides.length)) });
       const blob = makeZip(entries);
       downloadBlob(blob, `iro_${preset}_${timestampSlug()}.zip`);
       ui.notify(`Downloaded ${slides.length} slide image${slides.length === 1 ? '' : 's'}.`, { type: 'success' });
