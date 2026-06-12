@@ -291,6 +291,10 @@ const CLONING_INSTRUCTIONS = [
   '- receipts — social-proof testimonials, one gold-star review per slide with a quote + ' +
     'reviewer name (ONLY when the source is reviews / testimonials / "what people are saying"). ' +
     'reviews:[{stars:1-5, text, name}].',
+  '- tweet — "screenshot of a tweet" cards, one X/Twitter post per slide: avatar, name, ' +
+    'verified check, @handle, the tweet text, faux engagement counts (ONLY when the source is ' +
+    'tweets / X posts / quote-tweet style content). tweets:[{name, handle, text, verified, ' +
+    'replies, retweets, likes}].',
   '- output_vs_hype — one slide per tool/brand, each with a logo and two bars (Output vs Hype) ' +
     'scaled 0–100 (ONLY when the source is a per-item bar-chart comparison, e.g. "X vs Y" rankings).',
   '- curated_list — aesthetic photo + cream heading + a recommendation card per slide ("things I ' +

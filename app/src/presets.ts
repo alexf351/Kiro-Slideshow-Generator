@@ -13,6 +13,7 @@ export const PRESET_KEYS = [
   'product_demo',
   'checklist',
   'receipts',
+  'tweet',
   'handwritten_pack',
   'app_stack',
   'output_vs_hype',
@@ -169,6 +170,27 @@ const RECEIPTS_JSON = `{
     "searchTerm": "Iro AI",
     "instructionBelow": "on the App Store.",
     "slogan": "your turn."
+  },
+  "attribution": ""
+}`;
+
+const TWEET_JSON = `{
+  "preset": "tweet",
+  "hook": {
+    "headline": "tweets that <strong>get it</strong>",
+    "subline": "(swipe — they're all right)"
+  },
+  "tweets": [
+    { "name": "maya", "handle": "mayabuilds", "verified": true, "text": "i stopped consuming AI content and started building with it. changed everything in 2 weeks.", "replies": "1.2K", "retweets": "8.4K", "likes": "62K" },
+    { "name": "devon", "handle": "devon_ai", "verified": false, "text": "nobody is ready for what AI agents do to the 9-5 this year", "replies": "340", "retweets": "2.1K", "likes": "19K" },
+    { "name": "priya", "handle": "priyacodes", "verified": true, "text": "the gap isn't access to AI anymore. it's knowing what to actually ask it.", "replies": "880", "retweets": "5.7K", "likes": "41K" }
+  ],
+  "cta": {
+    "headline": "learn to build.",
+    "instructionAbove": "search",
+    "searchTerm": "Iro AI",
+    "instructionBelow": "on the App Store.",
+    "slogan": "stop scrolling. start shipping."
   },
   "attribution": ""
 }`;
@@ -332,6 +354,13 @@ const CHECKLIST_CAPTION = `save this if any of these is you ⤴️
 iro is for you. search "Iro AI" on the App Store.
 
 #aitok #aichecklist #fyp #learningai #productivity`;
+
+const TWEET_CAPTION = `saving these for the next time someone says AI is just hype 📌
+
+which tweet hit hardest? tell me below ⤵️
+search "Iro AI" on the App Store to actually learn it.
+
+#aitok #ai #tech #buildinpublic #fyp`;
 
 const RECEIPTS_CAPTION = `the reviews keep coming in and we're not okay 🥹
 
@@ -963,6 +992,15 @@ export const PRESETS: Record<PresetKey, PresetMeta> = {
     defaultJson: RECEIPTS_JSON,
     defaultCaption: RECEIPTS_CAPTION,
     accent: '#FFC857', // gold star
+  },
+  tweet: {
+    key: 'tweet',
+    label: 'Tweet',
+    pitch: '“Screenshot of a tweet” cards — one X post per slide, avatar + verified check.',
+    status: 'ready',
+    defaultJson: TWEET_JSON,
+    defaultCaption: TWEET_CAPTION,
+    accent: '#1D9BF0', // X blue
   },
   handwritten_pack: {
     key: 'handwritten_pack',

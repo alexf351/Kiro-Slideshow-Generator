@@ -691,6 +691,119 @@
   }
 
   /* ============================================================
+     PRESET: tweet
+     "Screenshot of a tweet" — one X post per slide on a dark card.
+     Solid fills + plain glyphs so html2canvas captures faithfully.
+     ============================================================ */
+  .preset-tweet .frame {
+    padding: 160px 90px 200px 90px;
+    display: flex; flex-direction: column;
+    justify-content: center; align-items: center; text-align: center;
+  }
+  .preset-tweet .bg-photo-scrim { display: none; }
+  .preset-tweet .bg-solid {
+    background:
+      radial-gradient(ellipse 100% 60% at 50% 30%, rgba(29,155,240,0.10) 0%, transparent 60%),
+      linear-gradient(180deg, #0a1119 0%, #05080d 100%);
+  }
+  .preset-tweet .tw-hook {
+    font-family: 'Inter', sans-serif;
+    font-size: 140px; font-weight: 900; line-height: 1.0;
+    letter-spacing: -0.025em; color: #fff; max-width: 940px;
+    text-shadow: 0 4px 24px rgba(0,0,0,0.6);
+  }
+  .preset-tweet .tw-hook strong { color: #1D9BF0; }
+  .preset-tweet .tw-subline {
+    margin-top: 56px;
+    font-family: 'Inter', sans-serif;
+    font-size: 50px; font-weight: 500; font-style: italic;
+    color: rgba(255,255,255,0.78);
+  }
+  .preset-tweet .tw-card {
+    width: 900px;
+    background: #15202b;
+    border: 2px solid rgba(255,255,255,0.12);
+    border-radius: 44px;
+    padding: 72px 70px;
+    text-align: left;
+    box-shadow: 0 30px 80px rgba(0,0,0,0.5);
+  }
+  .preset-tweet .tw-head { display: flex; align-items: center; margin-bottom: 48px; }
+  .preset-tweet .tw-avatar {
+    width: 130px; height: 130px; border-radius: 50%;
+    background: #1D9BF0; color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Inter', sans-serif; font-size: 70px; font-weight: 900;
+    margin-right: 36px; flex-shrink: 0;
+  }
+  .preset-tweet .tw-id { display: flex; flex-direction: column; justify-content: center; }
+  .preset-tweet .tw-nameline { display: flex; align-items: center; gap: 16px; }
+  .preset-tweet .tw-name {
+    font-family: 'Inter', sans-serif; font-size: 58px; font-weight: 800; color: #fff;
+  }
+  .preset-tweet .tw-check {
+    width: 56px; height: 56px; border-radius: 50%;
+    background: #1D9BF0; color: #fff;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 34px; font-weight: 900;
+  }
+  .preset-tweet .tw-handle {
+    font-family: 'Inter', sans-serif; font-size: 46px; font-weight: 500;
+    color: rgba(255,255,255,0.5); margin-top: 6px;
+  }
+  .preset-tweet .tw-text {
+    font-family: 'Inter', sans-serif; font-size: 80px; font-weight: 500;
+    line-height: 1.25; color: #fff; letter-spacing: -0.01em;
+  }
+  .preset-tweet .tw-text strong { font-weight: 800; }
+  .preset-tweet .tw-stats {
+    display: flex; gap: 80px; margin-top: 60px;
+    padding-top: 44px; border-top: 2px solid rgba(255,255,255,0.10);
+  }
+  .preset-tweet .tw-stat {
+    display: flex; align-items: center; gap: 16px;
+    font-family: 'Inter', sans-serif; font-size: 44px; font-weight: 600;
+    color: rgba(255,255,255,0.55);
+  }
+  .preset-tweet .tw-stat-icon { font-size: 44px; }
+  .preset-tweet .tw-cta-headline {
+    font-family: 'Inter', sans-serif;
+    font-size: 132px; font-weight: 900; line-height: 1.0;
+    letter-spacing: -0.025em; color: #fff;
+    margin-bottom: 64px; max-width: 1000px;
+    text-shadow: 0 4px 24px rgba(0,0,0,0.6);
+  }
+  .preset-tweet .tw-cta-headline strong { color: #1D9BF0; font-weight: 900; }
+  .preset-tweet .tw-cta-search-row {
+    display: flex; align-items: baseline; justify-content: center; gap: 28px;
+    margin-bottom: 28px;
+  }
+  .preset-tweet .tw-cta-instruction {
+    font-family: 'Inter', sans-serif;
+    font-size: 50px; font-weight: 500; color: rgba(255,255,255,0.85);
+  }
+  .preset-tweet .tw-cta-search {
+    font-family: 'Inter', sans-serif;
+    font-size: 130px; font-weight: 900;
+    letter-spacing: -0.02em; color: #00E5FF;
+    border-bottom: 6px solid #00E5FF; padding-bottom: 6px;
+    text-shadow: 0 0 24px rgba(0,229,255,0.35);
+  }
+  .preset-tweet .tw-cta-slogan {
+    margin-top: 60px;
+    font-family: 'Inter', sans-serif;
+    font-size: 50px; font-weight: 600; font-style: italic;
+    color: rgba(255,255,255,0.85);
+  }
+  .preset-tweet .tw-attribution {
+    position: absolute;
+    bottom: 80px; left: 0; right: 0; text-align: center;
+    font-family: 'Inter', sans-serif;
+    font-size: 32px; font-weight: 700; letter-spacing: 0.20em;
+    color: rgba(255,255,255,0.5);
+  }
+
+  /* ============================================================
      PRESET: tier_list
      "I ranked every X" — one tier per slide, big colored grade
      badge + the items in that tier. Classic S/A/B/C/D/F palette.
@@ -2969,6 +3082,30 @@ const PRESETS = {
       return out;
     },
   },
+  tweet: {
+    label: 'Tweet',
+    slideClass: 'preset-tweet',
+    showCounter: false,
+    fallbackBg: 'photo',
+    buildSlides(S) {
+      const out = [];
+      out.push({
+        html: buildTweetHook(S.hook),
+        bg: (S.hook && S.hook.bg) || S.background,
+      });
+      (S.tweets || S.items || []).forEach((t) => {
+        out.push({
+          html: buildTweetItem(t),
+          bg: (t && t.bg) || S.background,
+        });
+      });
+      out.push({
+        html: buildTweetCTA(S.cta, S.attribution),
+        bg: (S.cta && S.cta.bg) || S.background,
+      });
+      return out;
+    },
+  },
   tier_list: {
     label: 'Tier List',
     slideClass: 'preset-tier-list',
@@ -3827,6 +3964,57 @@ function buildReceiptCTA(c, attribution) {
   const below = c.instructionBelow ? `<div class="rcpt-cta-instruction">${c.instructionBelow}</div>` : '';
   const slogan = c.slogan ? `<div class="rcpt-cta-slogan">${c.slogan}</div>` : '';
   const attr = attribution ? `<div class="rcpt-attribution">${attribution}</div>` : '';
+  return `${headline}${searchRow}${below}${slogan}${attr}`;
+}
+
+// ============================================================
+// PRESET: tweet builders
+// "Screenshot of a tweet" cards — one X/Twitter post per slide: avatar,
+// name (+ optional verified check), @handle, the tweet text, and a faux
+// engagement row. tweets:[{ name, handle, text, verified, likes, retweets,
+// replies }]. Solid fills + plain glyphs for clean html2canvas capture.
+// ============================================================
+function buildTweetAvatar(t) {
+  const name = (t && t.name) || '';
+  const initial = String(name).trim().charAt(0).toUpperCase() || '@';
+  return `<div class="tw-avatar">${initial}</div>`;
+}
+
+function buildTweetHook(h) {
+  if (!h) return '';
+  const headline = h.headline ? `<div class="tw-hook">${h.headline}</div>` : '';
+  const subline = h.subline ? `<div class="tw-subline">${h.subline}</div>` : '';
+  return `${headline}${subline}`;
+}
+
+function buildTweetItem(t) {
+  if (!t) return '';
+  const check = (t.verified === false) ? '' : '<span class="tw-check">✓</span>';
+  const name = `<span class="tw-name">${(t && t.name) || ''}</span>`;
+  const handle = t.handle ? `<div class="tw-handle">@${String(t.handle).replace(/^@/, '')}</div>` : '';
+  const head = `<div class="tw-head">${buildTweetAvatar(t)}<div class="tw-id"><div class="tw-nameline">${name}${check}</div>${handle}</div></div>`;
+  const text = t.text ? `<div class="tw-text">${t.text}</div>` : '';
+  // Optional faux engagement counts — render the row only if any given.
+  const has = t.replies != null || t.retweets != null || t.likes != null;
+  const stat = (glyph, val) => `<div class="tw-stat"><span class="tw-stat-icon">${glyph}</span>${val != null ? val : ''}</div>`;
+  const stats = has
+    ? `<div class="tw-stats">${stat('💬', t.replies)}${stat('🔁', t.retweets)}${stat('♥', t.likes)}</div>`
+    : '';
+  return `<div class="tw-card">${head}${text}${stats}</div>`;
+}
+
+function buildTweetCTA(c, attribution) {
+  if (!c) return '';
+  const headline = c.headline ? `<div class="tw-cta-headline">${c.headline}</div>` : '';
+  let searchRow = '';
+  if (c.instructionAbove || c.searchTerm) {
+    const above = c.instructionAbove ? `<span class="tw-cta-instruction">${c.instructionAbove}</span>` : '';
+    const term = c.searchTerm ? `<span class="tw-cta-search">${c.searchTerm}</span>` : '';
+    searchRow = `<div class="tw-cta-search-row">${above}${term}</div>`;
+  }
+  const below = c.instructionBelow ? `<div class="tw-cta-instruction">${c.instructionBelow}</div>` : '';
+  const slogan = c.slogan ? `<div class="tw-cta-slogan">${c.slogan}</div>` : '';
+  const attr = attribution ? `<div class="tw-attribution">${attribution}</div>` : '';
   return `${headline}${searchRow}${below}${slogan}${attr}`;
 }
 
