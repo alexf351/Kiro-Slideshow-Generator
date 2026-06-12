@@ -30,17 +30,28 @@ function summariseSlides(json: string): string {
   return out.join('\n').slice(0, 3000);
 }
 
+// Optional voice for the AI caption.
+const TONE_GUIDE: Record<string, string> = {
+  Funny: 'Lean into humor — a joke, a bit, or a self-aware punchline.',
+  Educational: 'Clear and value-dense; make the reader feel they learned something.',
+  Aesthetic: 'Soft, lowercase, dreamy/minimal — that "quiet aesthetic" creator vibe.',
+  Hype: 'High-energy and bold; create urgency and FOMO (no caps-lock spam).',
+  Relatable: 'Open with a "POV/me when" relatable confession the audience sees themselves in.',
+};
+
 export async function generateCaption(opts: {
   json: string;
   preset: string;
   apiKey: string;
   model: ClaudeModelId;
   examples?: string[]; // a few of the user's past captions, for voice
+  tone?: string;       // optional tone label (see TONE_GUIDE)
 }): Promise<{ caption: string; hashtags: string[] }> {
   const content = summariseSlides(opts.json);
   const voice = opts.examples && opts.examples.length
     ? `\n\nMatch the voice of these past captions:\n${opts.examples.slice(0, 4).map((c) => `- ${c.slice(0, 200)}`).join('\n')}`
     : '';
+  const toneLine = opts.tone && TONE_GUIDE[opts.tone] ? `\n- Tone: ${TONE_GUIDE[opts.tone]}` : '';
 
   const system = `You write TikTok captions for short educational/AI slideshow posts (the brand is "Iro AI", an app that teaches people to actually build with AI).
 Rules:
@@ -48,7 +59,7 @@ Rules:
 - Lead with a hook or a relatable line. No "In this post we will".
 - End with a soft nudge to search "Iro AI" on the App Store ONLY if it fits naturally.
 - Then 4-7 relevant lowercase hashtags (mix of broad + niche). Include #aitok where it fits.
-- No emojis spam (0-2 max). No hashtag walls inside the body.${voice}`;
+- No emojis spam (0-2 max). No hashtag walls inside the body.${toneLine}${voice}`;
 
   const res = await callClaude({
     apiKey: opts.apiKey,
