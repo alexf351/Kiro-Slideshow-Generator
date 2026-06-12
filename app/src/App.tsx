@@ -440,6 +440,7 @@ export default function App() {
   const [topic, setTopic] = useState('');
   const [topicBusy, setTopicBusy] = useState(false);
   const [improveBusy, setImproveBusy] = useState<string | null>(null);
+  const [rewritingIndex, setRewritingIndex] = useState<number | null>(null);
   // Saved hashtag sets (reusable niche blocks).
   const [hashtagSets, setHashtagSets] = useState<HashtagSet[]>(() => listSets());
   // Batch generate — one draft per topic line.
@@ -1397,6 +1398,31 @@ export default function App() {
     }
   }
 
+  // Rewrite a single content item (slide) with AI — wired into QuickEdit.
+  async function handleRewriteItem(index: number) {
+    if (!anthropicKey) { ui.notify('Add an Anthropic API key in Settings to use this.', { type: 'error' }); return; }
+    const parsed = parseJson(true);
+    if (!parsed) { ui.notify('Fix the JSON first.', { type: 'error' }); return; }
+    const key = CONTENT_KEYS.find((k) => Array.isArray((parsed as Record<string, unknown>)[k]));
+    if (!key) return;
+    const arr = ((parsed as Record<string, unknown>)[key] as Record<string, unknown>[]).slice();
+    if (!arr[index]) return;
+    setRewritingIndex(index);
+    try {
+      const { rewriteItem } = await import('./fillFromTopic');
+      const revised = JSON.parse(await rewriteItem({ itemJson: JSON.stringify(arr[index]), preset, apiKey: anthropicKey, model: claudeModel }));
+      arr[index] = revised;
+      (parsed as Record<string, unknown>)[key] = arr;
+      setJsonText(JSON.stringify(parsed, null, 2));
+      setTimeout(() => void handleRender({ switchView: false }), 80);
+      ui.notify(`Slide ${index + 1} rewritten.`, { type: 'success' });
+    } catch (e) {
+      ui.notify(`Rewrite failed: ${(e as Error).message}`, { type: 'error' });
+    } finally {
+      setRewritingIndex(null);
+    }
+  }
+
   // Batch-generate a draft per topic line — for spinning up a week of content
   // in one go. Reuses fill-from-topic + the drafts store.
   async function handleBatchGenerate() {
@@ -2091,7 +2117,7 @@ export default function App() {
                   onRemoveTool={shiftToolBgsAfterRemove}
                 />
               ) : (
-                <QuickEdit jsonText={jsonText} onChange={setJsonText} />
+                <QuickEdit jsonText={jsonText} onChange={setJsonText} onRewriteItem={(i) => void handleRewriteItem(i)} rewritingIndex={rewritingIndex} />
               )
             ) : (
             <textarea

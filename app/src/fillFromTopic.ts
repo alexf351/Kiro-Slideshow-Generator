@@ -62,6 +62,32 @@ function prettyModelJson(raw: string): string {
   return JSON.stringify(parsed, null, 2);
 }
 
+// Rewrite a single slide/item's content (keeping its keys). Powers the
+// per-slide ✨ button in Quick edit.
+export async function rewriteItem(opts: {
+  itemJson: string;
+  preset: string;
+  apiKey: string;
+  model: ClaudeModelId;
+}): Promise<string> {
+  const system = `You revise ONE slide of an "Iro AI" TikTok slideshow (format: ${opts.preset}). You receive a single JSON object for that slide. Return a NEW object with the SAME keys, rewriting the values to be punchier, clearer and more scroll-stopping. Keep inline <strong> tags where present. Return ONLY the object via the tool.`;
+  const res = await callClaude({
+    apiKey: opts.apiKey,
+    model: opts.model,
+    maxTokens: 900,
+    system: [{ type: 'text', text: system }],
+    messages: [{ role: 'user', content: opts.itemJson }],
+    tools: [{
+      name: 'slides',
+      description: 'Return the revised slide object as a JSON string.',
+      input_schema: { type: 'object', properties: { json: { type: 'string' } }, required: ['json'] },
+    }],
+    toolChoice: { type: 'tool', name: 'slides' },
+  });
+  const out = extractToolUse<{ json: string }>(res, 'slides');
+  return prettyModelJson((out && out.json) ? out.json.trim() : '');
+}
+
 // Rewrite the current post's content per an instruction (e.g. "make it
 // punchier"), keeping the exact JSON structure. Distinct from
 // generateFromTopic, which fills a blank format from a topic.

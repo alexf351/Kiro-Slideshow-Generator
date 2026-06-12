@@ -15,6 +15,9 @@ import { useMemo, useRef } from 'react';
 type Props = {
   jsonText: string;
   onChange: (nextJsonText: string) => void;
+  // Optional AI rewrite of a single content item (wired from App).
+  onRewriteItem?: (index: number) => void;
+  rewritingIndex?: number | null;
 };
 
 type Parsed = Record<string, unknown>;
@@ -80,7 +83,7 @@ function isLong(field: string): boolean {
   return ['prompt', 'text', 'sub', 'slogan', 'supporting', 'subline', 'bottom', 'top'].includes(field);
 }
 
-export default function QuickEdit({ jsonText, onChange }: Props) {
+export default function QuickEdit({ jsonText, onChange, onRewriteItem, rewritingIndex }: Props) {
   const parsed = useMemo(() => tryParse(jsonText), [jsonText]);
 
   if (!parsed) {
@@ -247,6 +250,12 @@ export default function QuickEdit({ jsonText, onChange }: Props) {
                       className="px-1.5 py-0.5 text-[11px] rounded text-gray-400 hover:text-gray-200 disabled:opacity-30">↑</button>
                     <button type="button" onClick={() => moveItem(i, 1)} disabled={i === items.length - 1} aria-label={`Move slide ${i + 1} down`} title="Move down"
                       className="px-1.5 py-0.5 text-[11px] rounded text-gray-400 hover:text-gray-200 disabled:opacity-30">↓</button>
+                    {onRewriteItem && (
+                      <button type="button" onClick={() => onRewriteItem(i)} disabled={rewritingIndex != null}
+                        aria-label={`Rewrite slide ${i + 1} with AI`} title="Rewrite this slide with AI"
+                        className="px-1.5 py-0.5 text-[11px] rounded text-[#A78BFA] hover:text-[#C4B5FD] disabled:opacity-40">
+                        {rewritingIndex === i ? '…' : '✨'}</button>
+                    )}
                     <button type="button" onClick={() => duplicateItem(i)} aria-label={`Duplicate slide ${i + 1}`} title="Duplicate slide"
                       className="px-1.5 py-0.5 text-[11px] rounded text-gray-400 hover:text-[#00E5FF]">⎘</button>
                     <button type="button" onClick={() => removeItem(i)} aria-label={`Remove slide ${i + 1}`} title="Remove slide"
