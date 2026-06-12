@@ -115,6 +115,7 @@ type Persisted = {
   preset: PresetKey;
   pexelsKey: string;
   unsplashKey: string;
+  pixabayKey: string;
   anthropicKey: string;
   claudeModel: ClaudeModelId;
   openaiKey: string;
@@ -154,6 +155,7 @@ function loadPersisted(): Persisted {
         preset: PRESET_KEYS.includes(p.preset as PresetKey) ? (p.preset as PresetKey) : 'prompt_pack',
         pexelsKey: typeof p.pexelsKey === 'string' ? p.pexelsKey : '',
         unsplashKey: typeof p.unsplashKey === 'string' ? p.unsplashKey : '',
+        pixabayKey: typeof p.pixabayKey === 'string' ? p.pixabayKey : '',
         anthropicKey: typeof p.anthropicKey === 'string' ? p.anthropicKey : '',
         claudeModel: CLAUDE_MODEL_IDS.includes(p.claudeModel as ClaudeModelId)
           ? (p.claudeModel as ClaudeModelId)
@@ -177,6 +179,7 @@ function loadPersisted(): Persisted {
     preset: 'prompt_pack',
     pexelsKey: '',
     unsplashKey: '',
+    pixabayKey: '',
     anthropicKey: '',
     claudeModel: 'claude-opus-4-7',
     openaiKey: '',
@@ -385,6 +388,7 @@ export default function App() {
   const [caption, setCaption] = useState<string>(initial.caption);
   const [preset, setPreset] = useState<PresetKey>(initial.preset);
   const [pexelsKey, setPexelsKey] = useState<string>(initial.pexelsKey);
+  const [pixabayKey, setPixabayKey] = useState<string>(initial.pixabayKey);
   const [unsplashKey, setUnsplashKey] = useState<string>(initial.unsplashKey);
   const [anthropicKey, setAnthropicKey] = useState<string>(initial.anthropicKey);
   const [claudeModel, setClaudeModel] = useState<ClaudeModelId>(initial.claudeModel);
@@ -512,6 +516,7 @@ export default function App() {
           caption,
           preset,
           pexelsKey,
+          pixabayKey,
           unsplashKey,
           anthropicKey,
           claudeModel,
@@ -533,6 +538,7 @@ export default function App() {
     caption,
     preset,
     pexelsKey,
+    pixabayKey,
     unsplashKey,
     anthropicKey,
     claudeModel,
@@ -2057,6 +2063,7 @@ export default function App() {
               },
               { label: 'Pexels API key', value: pexelsKey, setter: setPexelsKey, href: 'https://www.pexels.com/api/', note: 'Free.' },
               { label: 'Unsplash access key', value: unsplashKey, setter: setUnsplashKey, href: 'https://unsplash.com/developers', note: 'Free.' },
+              { label: 'Pixabay API key', value: pixabayKey, setter: setPixabayKey, href: 'https://pixabay.com/api/docs/', note: 'Free. (Openverse needs no key at all.)' },
             ] as const).map(({ label, value, setter, href, note }) => {
               const set = !!value;
               return (
@@ -2178,7 +2185,7 @@ export default function App() {
           (mobileView === 'library' ? 'block ' : 'hidden ') +
           (mainView === 'library' ? 'md:block' : 'md:hidden')
         }>
-          <Library pickMode={pickRequest} pexelsKey={pexelsKey} unsplashKey={unsplashKey} />
+          <Library pickMode={pickRequest} pexelsKey={pexelsKey} unsplashKey={unsplashKey} pixabayKey={pixabayKey} />
         </div>
         <div className={
           'absolute inset-0 ' +
