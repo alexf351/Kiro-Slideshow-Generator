@@ -1432,7 +1432,7 @@ export default function App() {
         const url = URL.createObjectURL(m.blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `iro_${timestampSlug()}.${ext}`;
+        a.download = `iro_${preset}_${timestampSlug()}.${ext}`;
         document.body.appendChild(a); a.click(); a.remove();
         setTimeout(() => URL.revokeObjectURL(url), 4000);
         ui.notify('Video downloaded.', { type: 'success' });
@@ -1459,7 +1459,7 @@ export default function App() {
         if (i > 0) doc.addPage([1080, 1920], 'portrait');
         doc.addImage(dataUrl, 'JPEG', 0, 0, 1080, 1920);
       });
-      doc.save(`iro_${timestampSlug()}.pdf`);
+      doc.save(`iro_${preset}_${timestampSlug()}.pdf`);
       ui.notify('PDF downloaded.', { type: 'success' });
     } catch (e) {
       ui.notify(`PDF export failed: ${(e as Error).message}`, { type: 'error' });

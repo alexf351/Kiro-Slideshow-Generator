@@ -5538,7 +5538,8 @@ async function captureAllSlidesAsFiles(label) {
       });
       // Filenames are zero-padded so iOS Photos sorts them in slide order
       // when the user taps "Save X Images" from the share sheet.
-      const filename = `iro_${stamp}_slide_${String(i+1).padStart(2,'0')}.png`;
+      const fmtSlug = (SLIDES.preset ? String(SLIDES.preset).replace(/[^a-z0-9_]/gi, '') + '_' : '');
+      const filename = `iro_${fmtSlug}${stamp}_slide_${String(i+1).padStart(2,'0')}.png`;
       const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
       files.push(new File([blob], filename, { type: 'image/png' }));
     }
