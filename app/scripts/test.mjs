@@ -364,5 +364,18 @@ const eq = (n, a, b) => ok(n + ` (got ${JSON.stringify(a)})`, JSON.stringify(a) 
   ok('share missing json -> null', decodePost('IRO1:' + btoa('{"preset":"x"}')) === null);
 }
 
+// ---- viralLibrary (Discover patterns integrity) ----
+{
+  const { VIRAL_PATTERNS, VIRAL_MECHANICS } = await load('viralLibrary.ts');
+  const { PRESET_KEYS } = await load('presets.ts');
+  const keys = new Set(PRESET_KEYS);
+  const mechs = new Set(VIRAL_MECHANICS);
+  ok('viral has patterns', VIRAL_PATTERNS.length >= 12);
+  ok('viral unique ids', new Set(VIRAL_PATTERNS.map((p) => p.id)).size === VIRAL_PATTERNS.length);
+  ok('viral presets all real', VIRAL_PATTERNS.every((p) => keys.has(p.preset)));
+  ok('viral mechanics valid', VIRAL_PATTERNS.every((p) => mechs.has(p.mechanic)));
+  ok('viral fields present', VIRAL_PATTERNS.every((p) => p.title && p.hook && p.example && p.why && p.adapt));
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

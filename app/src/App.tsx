@@ -3,6 +3,8 @@ import engineHtml from '../../kiro_slideshow_engine_v3.html?raw';
 import Library from './Library';
 import Analytics from './Analytics';
 import Patterns from './Patterns';
+import Discover from './Discover';
+import type { ViralPattern } from './viralLibrary';
 import Propose from './Propose';
 import { addStockItem, blobToDataUrl, getItem } from './mediaBank';
 import { addPost, listPosts, type CloneAnalysisSnapshot, type PostPrediction } from './posts';
@@ -43,8 +45,8 @@ import { buildIroEditPrompt, editImage, OpenAIImageError, type OpenAIImageQualit
 type Mascot = 'bronze' | 'silver' | 'gold' | 'platinum' | 'diamond' | 'iridescent';
 type Platform = 'claude' | 'chatgpt';
 type Status = { kind: 'idle' } | { kind: 'rendering' } | { kind: 'ok'; at: number } | { kind: 'err'; msg: string };
-type MobileView = 'edit' | 'library' | 'patterns' | 'analytics' | 'preview';
-type MainView = 'preview' | 'library' | 'patterns' | 'analytics';
+type MobileView = 'edit' | 'library' | 'patterns' | 'analytics' | 'discover' | 'preview';
+type MainView = 'preview' | 'library' | 'patterns' | 'analytics' | 'discover';
 
 // Per-slide background. Either a media-bank item id (resolved to a data URL at
 // render time) or a pasted URL we hand straight through to the engine.
@@ -2455,6 +2457,24 @@ export default function App() {
     iframeRef.current?.contentWindow?.postMessage({ type: 'clearOverlays' }, '*');
   }
 
+  // "Adapt" a viral pattern from Discover: switch to its format, load that
+  // format's example as a structure to riff on, and seed the topic field so
+  // one tap of "Full post" spins up the creator's own version in this shape.
+  async function handleAdaptPattern(p: ViralPattern) {
+    const dirty = !isExampleJson(jsonText) || !isExampleCaption(caption);
+    if (dirty && !(await ui.confirm({ message: `Adapt "${p.title}"? This loads the ${PRESETS[p.preset].label} structure and replaces your current content.`, confirmLabel: 'Adapt' }))) return;
+    setPreset(p.preset);
+    setJsonText(PRESETS[p.preset].defaultJson);
+    setCaption(PRESETS[p.preset].defaultCaption);
+    setTopic(p.adapt);
+    setActiveDraftName('');
+    iframeRef.current?.contentWindow?.postMessage({ type: 'clearOverlays' }, '*');
+    setMainView('preview');
+    setMobileView('edit');
+    setTimeout(() => void handleRender({ switchView: false }), 80);
+    ui.notify(`Loaded the ${PRESETS[p.preset].label} shape. Tweak the topic and hit “Full post” to generate your version.`, { type: 'success' });
+  }
+
   // Command palette entries, rebuilt when the bits they reference change.
   const commands = useMemo<Command[]>(() => {
     const goto = (main: MainView, mobile: MobileView): (() => void) => () => {
@@ -2500,6 +2520,7 @@ export default function App() {
       { id: 'send-tiktok', section: 'Export', label: 'Send to TikTok inbox', keywords: 'publish post', run: () => void sendToTikTok() },
       { id: 'go-edit', section: 'Go to', label: 'Edit', run: goto('preview', 'edit') },
       { id: 'go-preview', section: 'Go to', label: 'Preview', run: goto('preview', 'preview') },
+      { id: 'go-discover', section: 'Go to', label: 'Discover viral slideshows', keywords: 'inspiration viral patterns adapt ideas trending', run: goto('discover', 'discover') },
       { id: 'go-lib', section: 'Go to', label: 'Media Bank', keywords: 'library photos', run: goto('library', 'library') },
       { id: 'go-patterns', section: 'Go to', label: 'Patterns', run: goto('patterns', 'patterns') },
       { id: 'go-stats', section: 'Go to', label: 'Performance', keywords: 'analytics stats scores', run: goto('analytics', 'analytics') },
@@ -2679,6 +2700,7 @@ export default function App() {
       {/* Mobile-only tab bar; hidden on md+ where the sidebar is always visible. */}
       <nav className="md:hidden flex shrink-0 bg-gradient-to-b from-[#0a0e1a] to-[#080b16] border-b border-white/[0.05]">
         {mobileTabBtn('edit', 'Edit')}
+        {mobileTabBtn('discover', 'Discover')}
         {mobileTabBtn('library', 'Lib')}
         {mobileTabBtn('patterns', 'Patterns')}
         {mobileTabBtn('analytics', 'Stats')}
@@ -3736,7 +3758,16 @@ export default function App() {
             </div>
           </section>
 
-          <Group open={!!openGroups.more} onToggle={() => toggleGroup('more')} title="Workspace" accent="#FFC857" hint="Media · Patterns · Analytics · options">
+          <Group open={!!openGroups.more} onToggle={() => toggleGroup('more')} title="Workspace" accent="#FFC857" hint="Discover · Media · Patterns · Analytics">
+            <button
+              type="button"
+              onClick={() => { setMainView('discover'); setMobileView('discover'); }}
+              className="w-full mb-3 py-3 rounded-xl text-[11px] md:text-xs font-bold uppercase tracking-[0.12em]
+                         border border-[#00E5FF]/30 bg-[#00E5FF]/[0.08] text-[#00E5FF]
+                         hover:bg-[#00E5FF]/[0.16] transition-all"
+            >
+              🔥 Discover viral slideshows
+            </button>
             <div className="grid grid-cols-3 gap-2 mb-4">
               <button
                 type="button"
@@ -4492,6 +4523,13 @@ export default function App() {
             onModelChange={setClaudeModel}
             onUseHook={handleUseHook}
           />
+        </div>
+        <div className={
+          'absolute inset-0 ' +
+          (mobileView === 'discover' ? 'block ' : 'hidden ') +
+          (mainView === 'discover' ? 'md:block' : 'md:hidden')
+        }>
+          <Discover onAdapt={handleAdaptPattern} />
         </div>
         <div className={
           'absolute inset-0 flex flex-col ' +
