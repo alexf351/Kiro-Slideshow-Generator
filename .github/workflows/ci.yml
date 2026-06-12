@@ -1,0 +1,32 @@
+name: CI
+
+# Runs the same gate as a local build on every push and PR: the preset
+# integrity checks, the pure-logic test suite, the TypeScript type-check, and
+# the production Vite build. A regression in any of these fails the check
+# before it can be merged.
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      # `npm run build` runs check-presets -> test -> tsc -> vite build,
+      # so this one step exercises every gate.
+      - name: Check, test & build
+        run: npm run build
