@@ -17,7 +17,8 @@ import { GRADIENTS, SOLID_BGS } from './gradients';
 import { coerceDesign, DEFAULT_DESIGN, designPayload, ASPECT_KEYS, ASPECTS, type BrandDesign } from './design';
 import { listDrafts, saveDraft, deleteDraft, type Draft } from './drafts';
 import { exportBackup, importBackup, downloadBlob, timestampSlug } from './backup';
-import { suggestHashtags } from './insights';
+import { suggestHashtags, parseHashtags } from './insights';
+import { listSets, saveSet, deleteSet, formatTags, type HashtagSet } from './hashtagSets';
 import { useUI } from './ui';
 import CommandPalette, { type Command } from './CommandPalette';
 import Onboarding, { shouldOnboard } from './Onboarding';
@@ -438,6 +439,8 @@ export default function App() {
   const [topic, setTopic] = useState('');
   const [topicBusy, setTopicBusy] = useState(false);
   const [improveBusy, setImproveBusy] = useState<string | null>(null);
+  // Saved hashtag sets (reusable niche blocks).
+  const [hashtagSets, setHashtagSets] = useState<HashtagSet[]>(() => listSets());
   // Batch generate — one draft per topic line.
   const [batchTopics, setBatchTopics] = useState('');
   const [batchBusy, setBatchBusy] = useState<string | null>(null);
@@ -992,6 +995,26 @@ export default function App() {
     }
     const add = tags.map((t) => '#' + t).join(' ');
     setCaption((prev) => (prev.trim() ? prev.trimEnd() + '\n\n' + add : add));
+  }
+
+  // ---- Saved hashtag sets ----
+  async function handleSaveHashtagSet() {
+    const tags = parseHashtags(caption);
+    if (!tags.length) { ui.notify('Add some #hashtags to the caption first.', { type: 'info' }); return; }
+    const name = await ui.prompt({ title: 'Save hashtag set', message: `Name this set of ${tags.length} tags.`, placeholder: 'e.g. AI niche', confirmLabel: 'Save' });
+    if (!name || !name.trim()) return;
+    setHashtagSets(saveSet(name, tags));
+    ui.notify('Hashtag set saved.', { type: 'success' });
+  }
+  function handleInsertHashtagSet(s: HashtagSet) {
+    const add = formatTags(s.tags);
+    setCaption((prev) => {
+      const has = new Set(parseHashtags(prev).map((t) => t.toLowerCase()));
+      const fresh = s.tags.filter((t) => !has.has(t.toLowerCase()));
+      if (!fresh.length) return prev;
+      const block = formatTags(fresh);
+      return prev.trim() ? prev.trimEnd() + (/#\w/.test(prev) ? ' ' : '\n\n') + block : add;
+    });
   }
 
   // Write a fresh caption + hashtags with Claude from the current slide
@@ -2410,6 +2433,38 @@ export default function App() {
                   {translateBusy ? '🌐 …' : '🌐 Translate'}
                 </button>
               </span>
+            </div>
+
+            {/* Saved hashtag sets — reusable niche blocks. */}
+            <div className="mt-2.5 flex items-center gap-1.5 flex-wrap">
+              <span className="text-[10px] uppercase tracking-[0.12em] text-gray-600 mr-0.5">Tag sets</span>
+              {hashtagSets.map((s) => (
+                <span key={s.id} className="inline-flex items-center rounded-md border border-white/[0.10] bg-white/[0.03] overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => handleInsertHashtagSet(s)}
+                    title={formatTags(s.tags)}
+                    className="px-2 py-1 text-[11px] font-semibold text-gray-300 hover:text-[#00E5FF]"
+                  >
+                    {s.name}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setHashtagSets(deleteSet(s.id))}
+                    aria-label={`Delete ${s.name}`}
+                    className="px-1.5 py-1 text-[11px] text-gray-600 hover:text-red-400 border-l border-white/[0.08]"
+                  >
+                    ✕
+                  </button>
+                </span>
+              ))}
+              <button
+                type="button"
+                onClick={handleSaveHashtagSet}
+                className="px-2 py-1 rounded-md text-[11px] font-bold text-gray-500 hover:text-[#00E5FF] border border-dashed border-white/[0.14]"
+              >
+                + Save tags
+              </button>
             </div>
           </section>
 
