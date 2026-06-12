@@ -4486,6 +4486,14 @@ function initToolbar() {
   alignBtn.id = 'tov-align-btn'; tb.appendChild(alignBtn);
   tb.appendChild(tovSep());
 
+  // One-tap style presets — bundle color + stroke + bg in a single tap.
+  TEXT_STYLE_PRESETS.forEach(function (p) {
+    var b = tovTool(p.label, function () { applyTextStyle(p.style); });
+    b.classList.add('tov-style-preset');
+    tb.appendChild(b);
+  });
+  tb.appendChild(tovSep());
+
   var sw = document.createElement('div');
   sw.className = 'tov-swatches'; sw.id = 'tov-color-swatches';
   TEXT_COLORS.forEach(function (col) {
@@ -4533,6 +4541,23 @@ function initToolbar() {
         if (file) { e.preventDefault(); addImageOverlayFromFile(file); return; }
       }
     }
+  });
+}
+
+// One-tap text styles for the overlay editor (color + stroke + bg bundles).
+var TEXT_STYLE_PRESETS = [
+  { label: 'Clean', style: { color: '#ffffff', stroke: { on: false, color: '#000000' }, bg: { on: false, color: '#000000' } } },
+  { label: 'Outline', style: { color: '#ffffff', stroke: { on: true, color: '#000000' }, bg: { on: false, color: '#000000' } } },
+  { label: 'Box', style: { color: '#ffffff', stroke: { on: false, color: '#000000' }, bg: { on: true, color: '#000000' } } },
+  { label: 'Highlight', style: { color: '#000000', stroke: { on: false, color: '#000000' }, bg: { on: true, color: '#ffd60a' } } },
+  { label: 'Pop', style: { color: '#ffd60a', stroke: { on: true, color: '#000000' }, bg: { on: false, color: '#000000' } } },
+];
+
+function applyTextStyle(style) {
+  withSel(function (ov) {
+    ov.color = style.color;
+    ov.stroke = { on: style.stroke.on, color: style.stroke.color };
+    ov.bg = { on: style.bg.on, color: style.bg.color };
   });
 }
 
