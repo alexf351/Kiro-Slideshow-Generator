@@ -44,6 +44,12 @@ function write(drafts: Draft[]): void {
 
 // Set (or clear, with null) a draft's planned post date.
 // Mark a draft posted (or not) — checks it off the posting plan.
+// Remove all drafts already marked posted — tidies the posting plan.
+export function clearPostedDrafts(): Draft[] {
+  write(listDrafts().filter((d) => !d.posted));
+  return listDrafts();
+}
+
 export function setDraftPosted(id: string, posted: boolean): Draft[] {
   const drafts = listDrafts();
   const d = drafts.find((x) => x.id === id);

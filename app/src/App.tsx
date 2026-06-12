@@ -15,7 +15,7 @@ import HypeEditor from './HypeEditor';
 import CropAdjust, { DEFAULT_CROP, type CropValue } from './CropAdjust';
 import { GRADIENTS, SOLID_BGS } from './gradients';
 import { coerceDesign, DEFAULT_DESIGN, designPayload, ASPECT_KEYS, ASPECTS, type BrandDesign } from './design';
-import { listDrafts, saveDraft, deleteDraft, setDraftSchedule, setDraftPosted, type Draft } from './drafts';
+import { listDrafts, saveDraft, deleteDraft, setDraftSchedule, setDraftPosted, clearPostedDrafts, type Draft } from './drafts';
 import { exportBackup, importBackup, downloadBlob, timestampSlug } from './backup';
 import { suggestHashtags, parseHashtags } from './insights';
 import { listSets, saveSet, deleteSet, formatTags, type HashtagSet } from './hashtagSets';
@@ -2904,6 +2904,15 @@ export default function App() {
                 ↙ Import code
               </button>
             </div>
+            {drafts.some((d) => d.posted) && (
+              <button
+                type="button"
+                onClick={async () => { if (await ui.confirm({ message: `Clear ${drafts.filter((d) => d.posted).length} posted draft(s)?`, confirmLabel: 'Clear' })) setDrafts(clearPostedDrafts()); }}
+                className="w-full mb-2 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-[0.12em] text-gray-500 hover:text-red-400 border border-white/[0.08]"
+              >
+                Clear {drafts.filter((d) => d.posted).length} posted
+              </button>
+            )}
             {drafts.length === 0 ? (
               <div className="text-[11px] text-gray-600 text-center py-2">No drafts yet.</div>
             ) : (
