@@ -1731,6 +1731,27 @@ export default function App() {
   }
 
   // Capture → upload each slide → push to the account's TikTok inbox.
+  // Upload one captured slide to /api/tiktok/upload, retrying transient
+  // failures so a single network blip doesn't sink a multi-slide send.
+  async function uploadSlide(dataUrl: string): Promise<{ mediaUrl?: string; blobUrl?: string }> {
+    const { isTransientStatus, backoffMs } = await import('./netRetry');
+    const max = 3;
+    for (let a = 0; a < max; a++) {
+      let res: Response;
+      try {
+        res = await fetch('/api/tiktok/upload', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dataUrl }) });
+      } catch (e) {
+        if (a < max - 1) { await new Promise((r) => setTimeout(r, backoffMs(a))); continue; }
+        throw e;
+      }
+      if (res.ok) return await res.json();
+      if (isTransientStatus(res.status) && a < max - 1) { await new Promise((r) => setTimeout(r, backoffMs(a))); continue; }
+      const d = await res.json().catch(() => ({}));
+      throw new Error((d as { error?: string }).error || `Slide upload failed (${res.status}).`);
+    }
+    throw new Error('Slide upload failed after several retries.');
+  }
+
   async function sendToTikTok() {
     let token = ttToken;
     if (!token) { const ok = await connectTikTok(); if (!ok) return; token = (localStorage.getItem('kiro_tiktok_token') || ''); if (!token) return; }
@@ -1741,9 +1762,8 @@ export default function App() {
       const mediaUrls: string[] = [];
       for (let i = 0; i < slides.length; i++) {
         setTtStatus({ kind: 'sending', msg: `Uploading slide ${i + 1} / ${slides.length}…` });
-        const up = await fetch('/api/tiktok/upload', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dataUrl: slides[i] }) });
-        const ud = await up.json();
-        if (!up.ok) throw new Error(ud.error || 'Slide upload failed.');
+        const ud = await uploadSlide(slides[i]);
+        if (!ud.mediaUrl) throw new Error('Slide upload returned no media URL.');
         mediaUrls.push(ud.mediaUrl);
       }
       setTtStatus({ kind: 'sending', msg: 'Sending to your TikTok inbox…' });
@@ -1770,9 +1790,8 @@ export default function App() {
       const blobUrls: string[] = [];
       for (let i = 0; i < slides.length; i++) {
         setPhoneBusy(`Uploading slide ${i + 1} / ${slides.length}…`);
-        const up = await fetch('/api/tiktok/upload', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dataUrl: slides[i] }) });
-        const ud = await up.json();
-        if (!up.ok) throw new Error(ud.error || 'Slide upload failed.');
+        const ud = await uploadSlide(slides[i]);
+        if (!ud.blobUrl) throw new Error('Slide upload returned no URL.');
         blobUrls.push(ud.blobUrl);
       }
       setPhoneBusy('Building your phone page…');

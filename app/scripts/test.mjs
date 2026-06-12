@@ -274,5 +274,17 @@ const eq = (n, a, b) => ok(n + ` (got ${JSON.stringify(a)})`, JSON.stringify(a) 
   ok('self fields coerced', sa.hookText === 'hi' && sa.niche === 'ai' && sa.voiceTone === '');
 }
 
+// ---- netRetry (upload retry policy) ----
+{
+  const { isTransientStatus, backoffMs } = await load('netRetry.ts');
+  ok('retry network 0', isTransientStatus(0));
+  ok('retry 429/503/500', isTransientStatus(429) && isTransientStatus(503) && isTransientStatus(500));
+  ok('retry 408', isTransientStatus(408));
+  ok('no retry 400/401/404', !isTransientStatus(400) && !isTransientStatus(401) && !isTransientStatus(404));
+  ok('no retry 200', !isTransientStatus(200));
+  ok('backoff grows', backoffMs(0) === 500 && backoffMs(1) === 1000 && backoffMs(2) === 2000);
+  ok('backoff capped', backoffMs(20) === 8000);
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
