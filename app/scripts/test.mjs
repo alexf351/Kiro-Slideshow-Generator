@@ -295,5 +295,25 @@ const eq = (n, a, b) => ok(n + ` (got ${JSON.stringify(a)})`, JSON.stringify(a) 
   eq('copy case-insensitive', uniqueCopyName('A', ['a (copy)']), 'A (copy 2)');
 }
 
+// ---- hooks (Hook Library — mine past winning hooks) ----
+{
+  const { extractHooks, distinctValues } = await load('hooks.ts');
+  const stat = (views) => ({ views, likes: Math.round(views * 0.1), comments: 0, shares: Math.round(views * 0.02), saves: Math.round(views * 0.03), photoViews: 0 });
+  const posts = [
+    { id: 'a', caption: 'hook from caption\n#x', stats: stat(9000), hookStyle: 'question', niche: 'ai', preset: 'tweet', postedAt: 1, tiktokUrl: '' },
+    { id: 'b', caption: 'ignored', selfAnalysis: { hookText: 'vision hook' }, stats: stat(1000), niche: 'ai', preset: 'reddit', postedAt: 2, tiktokUrl: '' },
+    { id: 'c', caption: 'json fallback', jsonSnapshot: JSON.stringify({ hook: { headline: '<strong>JSON</strong> hook' } }), stats: stat(500), niche: 'tech', preset: 'notes', postedAt: 3, tiktokUrl: '' },
+    { id: 'd', caption: 'no stats so excluded', stats: stat(0), postedAt: 4, tiktokUrl: '' },
+  ];
+  const hooks = extractHooks(posts);
+  ok('hooks excludes unscored', hooks.length === 3 && !hooks.some((h) => h.id === 'd'));
+  ok('hooks caption fallback', hooks.find((h) => h.id === 'a').hook === 'hook from caption');
+  ok('hooks vision source', hooks.find((h) => h.id === 'b').hook === 'vision hook');
+  ok('hooks json strips html', hooks.find((h) => h.id === 'c').hook === 'JSON hook');
+  ok('hooks ranked best-first', hooks[0].score >= hooks[hooks.length - 1].score);
+  // distinctValues dedups + sorts.
+  eq('hooks distinct niches', distinctValues(hooks, 'niche'), ['ai', 'tech']);
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
