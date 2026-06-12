@@ -194,6 +194,32 @@ export function buildPostingNotes(caption: string, formatLabel: string, slideCou
   return lines.join('\n') + '\n';
 }
 
+// One-tap caption cleanup: drop duplicate hashtags (case-insensitive, keeping
+// the first occurrence), collapse runs of blank lines to a single blank line,
+// strip trailing whitespace, and squeeze double spaces. Captions accumulate
+// this cruft from successive AI ops + manual edits. Pure + unit-tested.
+export function tidyCaption(caption: string): string {
+  let s = (caption || '').replace(/\r\n/g, '\n');
+  // Drop a hashtag the second time it appears (keep the first), replacing the
+  // later one with nothing — the whitespace tidy below closes the gap.
+  const seen = new Set<string>();
+  s = s.replace(/#[\p{L}0-9_]+/gu, (tag) => {
+    const k = tag.toLowerCase();
+    if (seen.has(k)) return '';
+    seen.add(k);
+    return tag;
+  });
+  // Whitespace tidy: collapse blank-line runs, trailing spaces, double spaces.
+  s = s
+    .replace(/[ \t]{2,}/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    .split('\n')
+    .map((l) => l.replace(/[ \t]+$/, ''))
+    .join('\n')
+    .trim();
+  return s;
+}
+
 // Replace just the first (hook) line of a caption, preserving the rest of the
 // body and any trailing hashtags. Pure + exported so the apply step is
 // unit-testable. If the caption is empty, the new hook becomes the caption.

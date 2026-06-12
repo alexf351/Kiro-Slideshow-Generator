@@ -1305,6 +1305,16 @@ export default function App() {
     setCaption((prev) => (prev.trim() ? prev.trimEnd() + '\n\n' + add : add));
   }
 
+  // One-tap caption cleanup: dedup hashtags, drop stray blank lines/spaces.
+  async function handleTidyCaption() {
+    if (!caption.trim()) return;
+    const { tidyCaption } = await import('./captionAI');
+    const cleaned = tidyCaption(caption);
+    if (cleaned === caption) { ui.notify('Caption is already tidy.', { type: 'info' }); return; }
+    setCaption(cleaned);
+    ui.notify('Tidied — removed duplicate tags & extra spacing.', { type: 'success' });
+  }
+
   // Move the trailing hashtag block out of the caption and onto the clipboard
   // so it can be pasted as the first comment — a common reach tactic (the
   // algorithm favors captions that aren't a wall of tags).
@@ -2343,6 +2353,7 @@ export default function App() {
       { id: 'save', section: 'Actions', label: 'Save to history', keywords: 'post track', run: () => void handleSaveToHistory() },
       { id: 'hashtags', section: 'Actions', label: 'Suggest hashtags', keywords: 'tags caption', run: () => void handleSuggestHashtags() },
       { id: 'copycap', section: 'Actions', label: 'Copy caption', run: () => { if (caption) void navigator.clipboard?.writeText(caption); } },
+      { id: 'tidycap', section: 'Actions', label: 'Tidy caption', keywords: 'clean dedupe hashtags whitespace', run: () => void handleTidyCaption() },
       { id: 'tags-to-comment', section: 'Actions', label: 'Move hashtags to first comment', keywords: 'hashtags comment reach clean caption', run: () => void handleHashtagsToComment() },
       { id: 'loaddefault', section: 'Actions', label: `Load ${PRESETS[preset].label} example post`, keywords: 'reset template default', run: () => { setJsonText(PRESETS[preset].defaultJson); setCaption(PRESETS[preset].defaultCaption); } },
       { id: 'toggle-edit', section: 'Actions', label: `Switch editor to ${editMode === 'quick' ? 'JSON' : 'Quick edit'}`, run: () => setEditMode((m) => (m === 'quick' ? 'json' : 'quick')) },
@@ -3473,6 +3484,15 @@ export default function App() {
                 className="text-[11px] font-bold uppercase tracking-[0.14em] text-gray-500 hover:text-[#00E5FF] disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 Copy caption
+              </button>
+              <button
+                type="button"
+                disabled={!caption.trim()}
+                onClick={() => void handleTidyCaption()}
+                title="Remove duplicate hashtags + stray blank lines/spaces"
+                className="text-[11px] font-bold uppercase tracking-[0.14em] text-gray-500 hover:text-[#00E5FF] disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                ✦ Tidy
               </button>
               <button
                 type="button"
