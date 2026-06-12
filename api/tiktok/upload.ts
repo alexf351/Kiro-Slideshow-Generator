@@ -7,7 +7,7 @@
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { put } from '@vercel/blob';
-import { originFromRequest } from '../../lib/tiktok.js';
+import { originFromRequest, resolveBlobToken } from '../../lib/tiktok.js';
 
 const MAX_BYTES = 8 * 1024 * 1024;
 
@@ -18,7 +18,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     res.status(405).json({ error: 'POST only' });
     return;
   }
-  if (!process.env.BLOB_READ_WRITE_TOKEN) {
+  const blobToken = resolveBlobToken();
+  if (!blobToken) {
     res.status(501).json({ error: 'Vercel Blob is not enabled on this project (no BLOB_READ_WRITE_TOKEN).' });
     return;
   }
@@ -39,7 +40,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     const id = `tiktok/${Date.now()}-${Math.random().toString(36).slice(2, 10)}.${ext}`;
     // addRandomSuffix:false keeps the pathname predictable; access public so
     // the media proxy can stream it back.
-    const blob = await put(id, buf, { access: 'public', contentType, addRandomSuffix: false });
+    const blob = await put(id, buf, { access: 'public', contentType, addRandomSuffix: false, token: blobToken });
     const mediaUrl = `${originFromRequest(req)}/api/tiktok/media?src=${encodeURIComponent(blob.url)}`;
     res.status(200).json({ mediaUrl, blobUrl: blob.url });
   } catch (e) {

@@ -32,6 +32,20 @@ export function clientSecret(): string {
   return process.env.TIKTOK_CLIENT_SECRET || '';
 }
 
+// The Vercel Blob read-write token. A single connected store injects
+// BLOB_READ_WRITE_TOKEN, but a store created with a custom env-var prefix is
+// named <PREFIX>_READ_WRITE_TOKEN instead — so the bare name check can come up
+// empty even though Blob is correctly connected. Resolve either: the exact
+// name first, then any var ending in _READ_WRITE_TOKEN (which is specific to
+// Blob). Returns '' when Blob truly isn't connected.
+export function resolveBlobToken(): string {
+  if (process.env.BLOB_READ_WRITE_TOKEN) return process.env.BLOB_READ_WRITE_TOKEN;
+  for (const [k, v] of Object.entries(process.env)) {
+    if (v && k.endsWith('_READ_WRITE_TOKEN')) return v;
+  }
+  return '';
+}
+
 // The publicly-reachable origin of this deployment, e.g.
 // https://kiro-slideshow-generator.vercel.app — derived from the request so
 // it works on previews and the production domain alike.
