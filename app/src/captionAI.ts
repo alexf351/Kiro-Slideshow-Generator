@@ -149,6 +149,21 @@ Rules:
   return cleaned;
 }
 
+// Split a caption into its body and the trailing hashtag block, for the
+// common TikTok tactic of keeping the caption clean and dropping the
+// hashtags into the first comment (the algorithm reads a wall of in-caption
+// tags as spam). Only the CONTIGUOUS run of hashtags at the very END is
+// moved — inline tags inside the body are left alone. Pure + exported so the
+// split is unit-testable.
+export function splitForFirstComment(caption: string): { body: string; hashtags: string } {
+  const m = caption.match(/(\s*(?:#[\p{L}0-9_]+\s*)+)$/u);
+  if (!m) return { body: caption, hashtags: '' };
+  const tags = m[0].match(/#[\p{L}0-9_]+/gu) || [];
+  if (tags.length === 0) return { body: caption, hashtags: '' };
+  const body = caption.slice(0, m.index).replace(/\s+$/, '');
+  return { body, hashtags: tags.join(' ') };
+}
+
 // Replace just the first (hook) line of a caption, preserving the rest of the
 // body and any trailing hashtags. Pure + exported so the apply step is
 // unit-testable. If the caption is empty, the new hook becomes the caption.

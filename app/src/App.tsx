@@ -1155,6 +1155,22 @@ export default function App() {
     setCaption((prev) => (prev.trim() ? prev.trimEnd() + '\n\n' + add : add));
   }
 
+  // Move the trailing hashtag block out of the caption and onto the clipboard
+  // so it can be pasted as the first comment — a common reach tactic (the
+  // algorithm favors captions that aren't a wall of tags).
+  async function handleHashtagsToComment() {
+    const { splitForFirstComment } = await import('./captionAI');
+    const { body, hashtags } = splitForFirstComment(caption);
+    if (!hashtags) { ui.notify('No trailing hashtags to move.', { type: 'info' }); return; }
+    setCaption(body);
+    try {
+      await navigator.clipboard?.writeText(hashtags);
+      ui.notify('Hashtags copied — paste them as your first comment. Caption is now clean.', { type: 'success' });
+    } catch {
+      ui.notify('Caption cleaned. Copy the hashtags from your notes to post as the first comment.', { type: 'info' });
+    }
+  }
+
   const [aiTagsBusy, setAiTagsBusy] = useState(false);
   async function handleAiHashtags() {
     if (!anthropicKey) { ui.notify('Add an Anthropic API key in Settings to use this.', { type: 'error' }); return; }
@@ -2130,6 +2146,7 @@ export default function App() {
       { id: 'save', section: 'Actions', label: 'Save to history', keywords: 'post track', run: () => void handleSaveToHistory() },
       { id: 'hashtags', section: 'Actions', label: 'Suggest hashtags', keywords: 'tags caption', run: () => void handleSuggestHashtags() },
       { id: 'copycap', section: 'Actions', label: 'Copy caption', run: () => { if (caption) void navigator.clipboard?.writeText(caption); } },
+      { id: 'tags-to-comment', section: 'Actions', label: 'Move hashtags to first comment', keywords: 'hashtags comment reach clean caption', run: () => void handleHashtagsToComment() },
       { id: 'loaddefault', section: 'Actions', label: `Load ${PRESETS[preset].label} example post`, keywords: 'reset template default', run: () => { setJsonText(PRESETS[preset].defaultJson); setCaption(PRESETS[preset].defaultCaption); } },
       { id: 'toggle-edit', section: 'Actions', label: `Switch editor to ${editMode === 'quick' ? 'JSON' : 'Quick edit'}`, run: () => setEditMode((m) => (m === 'quick' ? 'json' : 'quick')) },
       { id: 'export-backup', section: 'Actions', label: 'Export backup', keywords: 'download save data', run: () => void handleExportBackup() },
@@ -3168,6 +3185,14 @@ export default function App() {
                 className="text-[11px] font-bold uppercase tracking-[0.14em] text-gray-500 hover:text-[#00E5FF]"
               >
                 ＃ Suggest hashtags
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleHashtagsToComment()}
+                title="Move the trailing hashtags out of the caption and copy them to paste as your first comment (cleaner caption = better reach)"
+                className="text-[11px] font-bold uppercase tracking-[0.14em] text-gray-500 hover:text-[#00E5FF]"
+              >
+                ↘ # to 1st comment
               </button>
               <button
                 type="button"
