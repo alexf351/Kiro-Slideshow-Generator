@@ -48,14 +48,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
   };
 
   try {
-    const r = await fetch(TIKTOK_POST_INIT, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        'Content-Type': 'application/json; charset=UTF-8',
-      },
-      body: JSON.stringify(payload),
-    });
+    // Retry TikTok throttling/overload (429 / 5xx) with a short backoff.
+    let r: Response | null = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      r = await fetch(TIKTOK_POST_INIT, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json; charset=UTF-8',
+        },
+        body: JSON.stringify(payload),
+      });
+      if (r.ok || (r.status !== 429 && r.status < 500) || attempt === 2) break;
+      const ra = Number(r.headers.get('retry-after'));
+      await new Promise((res2) => setTimeout(res2, isFinite(ra) && ra > 0 ? Math.min(ra * 1000, 8000) : 1000 * (attempt + 1)));
+    }
+    if (!r) { res.status(500).json({ error: 'Post failed: no response.' }); return; }
     const data = (await r.json()) as { data?: { publish_id?: string }; error?: { code?: string; message?: string } };
     const errCode = data.error?.code;
     if (!r.ok || (errCode && errCode !== 'ok')) {
