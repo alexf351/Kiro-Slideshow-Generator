@@ -36,7 +36,9 @@ The CTA always points to the same place. Keep these consistent:
 ```
 
 ### Attribution
-Always set `"attribution": "@tryiro"` at the top level.
+Set `"attribution": ""` at the top level. (The creator handle, if any, is set
+inside the app per-format — leave it empty here. The `@tryiro` shown in older
+examples below is just illustrative.)
 
 ### TikTok safe zone
 The 1080×1920 canvas obscures the top 14% (~270px), bottom 24% (~460px), and 12% on each side under TikTok's UI. The engine handles positioning, but **keep text short** — long lines wrap and crash into the safe zone. Aim:
@@ -536,6 +538,38 @@ Mixing 1-2 cross/warning items at the end with mostly checks is high-engagement.
 
 ---
 
+## Additional presets (9–20)
+
+All of these take the standard top-level `hook` (`{ headline, subline }` unless
+noted), `cta` (the shared CTA shape above), and `attribution` (use `""`). They
+differ in the content array. Match the field names exactly.
+
+- **`app_stack`** — "apps I use" carousel. `apps: [{ name, desc }]` (+ optional
+  per-app icon set in the app).
+- **`curated_list`** — aesthetic photo + cream heading + a recommendation card
+  per slide. `picks: [{ heading, sub, card: { title, by } }]` (+ optional
+  `highlight: true` per pick for a yellow marker).
+- **`tier_list`** — S/A/B/C/D/F ranking, one tier per slide.
+  `tiers: [{ grade, label, items: ["…"] }]`.
+- **`myth_fact`** — red ✗ MYTH over green ✓ FACT. `items: [{ myth, fact }]`.
+- **`hot_take`** — bold opinion per slide. `items: [{ take, defense }]`.
+- **`storytime`** — iMessage-style chat revealed one bubble per slide. Add a
+  top-level `contact` (the chat name); `items: [{ from: "them" | "me", text }]`.
+- **`stat_drop`** — one giant statistic per slide. `items: [{ stat, label, sub }]`.
+- **`this_or_that`** — binary poll. `items: [{ prompt, a, b }]`.
+- **`quote_card`** — serif quote + author. `items: [{ quote, author }]`. `hook`
+  is optional.
+- **`before_after`** — transformation. `items: [{ label, before, after }]`.
+- **`countdown`** — ranked listicle counting down to #1. `items: [{ title, body }]`
+  (top item renders as #1; rank auto-fills by position).
+- **`definition`** — dictionary cards on cream. `items: [{ term, pron, def, example }]`.
+
+For any of these, the app also loads a full working example when the format is
+selected — mirror that example's structure exactly. Keep text short and
+scroll-stopping; 1–3 emphasized `<strong>` words per slide max.
+
+---
+
 ## When the user gives you a topic
 
 If they say "make me a `pain_story` about doom-scrolling AI tutorials," you:
@@ -545,7 +579,7 @@ If they say "make me a `pain_story` about doom-scrolling AI tutorials," you:
 3. Stick to the slide count and field shape from the schema.
 4. Use 1-3 emphasized words per slide max.
 5. Always end with the CTA pointing to "Iro AI" on the App Store.
-6. Always set `"attribution": "@tryiro"`.
+6. Set `"attribution": ""` (the creator handle is set in the app, not here).
 7. Return only the JSON.
 
 If they don't specify a preset, ask which one — don't guess. Each format has very different rules.
