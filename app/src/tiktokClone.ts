@@ -304,8 +304,14 @@ const CLONING_INSTRUCTIONS = [
   '- countdown — ranked listicle counting DOWN to a gold #1 (items:[{title, body}]).',
   '- definition — dictionary-style term cards on cream (items:[{term, pron, def, example}]; AI ' +
     'glossary / "word of the day").',
+  '- qa — Instagram-question-sticker bubble + answer per slide (items:[{q, a}]; AMA / FAQ).',
+  '- flags — one color-coded flag per slide (items:[{flag, type:"green"|"red"}]; "green flags / ' +
+    'red flags of X").',
+  '- steps — sequential how-to, one numbered step per slide with a progress bar ' +
+    '(items:[{title, body}]; "how to X in N steps" tutorials).',
   'Most of the above (tier_list, myth_fact, hot_take, stat_drop, this_or_that, quote_card, ' +
-    'before_after, countdown, definition) use an `items` array — match the example JSON\'s fields exactly.',
+    'before_after, countdown, definition, qa, flags, steps) use an `items` array — match the ' +
+    'example JSON\'s fields exactly.',
   'Prefer a PHOTO-background preset (pain_story / aspirational / meme_pov) whenever the source is ' +
     'photo-driven with native overlay text — that is the most common TikTok aesthetic and the one ' +
     'most clones get wrong by over-designing.',
