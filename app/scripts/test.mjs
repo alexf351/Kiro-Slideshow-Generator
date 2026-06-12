@@ -180,5 +180,22 @@ const eq = (n, a, b) => ok(n + ` (got ${JSON.stringify(a)})`, JSON.stringify(a) 
   ok('insights suggest excludes present', !suggestHashtags('already #good here', posts).includes('good'));
 }
 
+// ---- design (brand-kit coercion / payload — guards the engine CSS vars) ----
+{
+  const { coerceDesign, designPayload, isCustomDesign, DEFAULT_DESIGN } = await load('design.ts');
+  eq('design coerce empty=default', coerceDesign(null), DEFAULT_DESIGN);
+  ok('design bad hex -> fallback', coerceDesign({ accent: '#F4', bg: 'red' }).accent === DEFAULT_DESIGN.accent && coerceDesign({ bg: 'red' }).bg === DEFAULT_DESIGN.bg);
+  ok('design good hex kept', coerceDesign({ accent: '#ABCDEF' }).accent === '#ABCDEF');
+  ok('design bad aspect -> 9:16', coerceDesign({ aspect: 'banana' }).aspect === '9:16');
+  ok('design good aspect kept', coerceDesign({ aspect: '4:5' }).aspect === '4:5');
+  ok('design bad watermarkPos -> br', coerceDesign({ watermarkPos: 'xx' }).watermarkPos === 'br');
+  // designPayload maps aspect -> pixel dims and re-validates colors.
+  const p = designPayload({ aspect: '1:1', accent: '#nothex', bg: '#112233', watermark: '', watermarkPos: 'tl' });
+  ok('payload dims', p.pageW === 1080 && p.pageH === 1080);
+  ok('payload bad accent fixed', p.accent === DEFAULT_DESIGN.accent && p.bg === '#112233');
+  ok('design isCustom default false', !isCustomDesign(DEFAULT_DESIGN));
+  ok('design isCustom watermark true', isCustomDesign({ ...DEFAULT_DESIGN, watermark: '@me' }));
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
