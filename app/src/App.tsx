@@ -1181,6 +1181,33 @@ export default function App() {
     }
   }
 
+  // AI hook variations — generate alternative opening lines to A/B test the
+  // single highest-leverage line. Results show as clickable chips below the
+  // hook meter; tapping one swaps it into the caption's first line.
+  const [hookVarsBusy, setHookVarsBusy] = useState(false);
+  const [hookVars, setHookVars] = useState<string[] | null>(null);
+  async function handleHookVariations() {
+    if (!anthropicKey) { ui.notify('Add an Anthropic API key in Settings to use this.', { type: 'error' }); return; }
+    setHookVarsBusy(true);
+    setHookVars(null);
+    try {
+      const { generateHookVariations } = await import('./captionAI');
+      const currentHook = (caption.split('\n').find((l) => l.trim()) || '').trim();
+      const hooks = await generateHookVariations({ json: jsonText, currentHook, preset, apiKey: anthropicKey, model: claudeModel });
+      setHookVars(hooks);
+    } catch (e) {
+      ui.notify(`Failed: ${(e as Error).message}`, { type: 'error' });
+    } finally {
+      setHookVarsBusy(false);
+    }
+  }
+  async function applyHookVariation(hook: string) {
+    const { replaceFirstLine } = await import('./captionAI');
+    setCaption((c) => replaceFirstLine(c, hook));
+    setHookVars(null);
+    ui.notify('Hook swapped in.', { type: 'success' });
+  }
+
   async function handleTranslateCaption() {
     if (!caption.trim()) { ui.notify('Write a caption first.', { type: 'info' }); return; }
     if (!anthropicKey) { ui.notify('Add an Anthropic API key in Settings to translate.', { type: 'error' }); return; }
@@ -2062,6 +2089,7 @@ export default function App() {
       { id: 'ai-improve-spicier', section: 'AI', label: 'Improve: make it spicier', keywords: 'rewrite bold controversial', run: () => void handleImprovePost('Spicier', 'Make it bolder and more opinionated/controversial (still true and on-brand).') },
       { id: 'ai-improve-shorter', section: 'AI', label: 'Improve: make it shorter', keywords: 'rewrite trim', run: () => void handleImprovePost('Shorter', 'Cut each piece of text to the essential words; keep it skimmable.') },
       { id: 'ai-punch', section: 'AI', label: 'Punch up the caption', keywords: 'sharpen rewrite caption', run: () => void handlePunchUpCaption() },
+      { id: 'ai-hooks', section: 'AI', label: 'Generate hook variations', keywords: 'hook first line ab test alternatives', run: () => void handleHookVariations() },
       { id: 'ai-ideas', section: 'AI', label: 'Brainstorm post ideas', keywords: 'topics batch niche', run: () => void handleGenerateIdeas() },
       ...(aiUndo ? [{ id: 'ai-undo', section: 'AI', label: 'Undo last AI change', keywords: 'revert', run: handleUndoAi }] : []),
       { id: 'save-draft', section: 'Actions', label: 'Save as draft', hint: '⌘S', keywords: 'project', run: () => void handleSaveDraft() },
@@ -2985,9 +3013,41 @@ export default function App() {
                       Tip: {hs.tips[0]}
                     </span>
                   )}
+                  <button
+                    type="button"
+                    onClick={() => void handleHookVariations()}
+                    disabled={hookVarsBusy}
+                    title="AI: generate alternative hooks to A/B test"
+                    className="shrink-0 text-[10px] font-bold uppercase tracking-[0.1em] text-[#A78BFA] hover:text-[#C4B5FD] disabled:opacity-50"
+                  >
+                    {hookVarsBusy ? '✨ …' : '✨ Variations'}
+                  </button>
                 </div>
               );
             })()}
+            {/* AI hook variations — tap one to swap it into the first line. */}
+            {hookVars && hookVars.length > 0 && (
+              <div className="mt-2 flex flex-col gap-1.5 p-2.5 rounded-lg border border-[#A78BFA]/25 bg-[#A78BFA]/[0.06]">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#C4B5FD]">Tap a hook to use it</span>
+                  <button type="button" onClick={() => setHookVars(null)} className="text-[10px] text-gray-500 hover:text-gray-300" aria-label="Dismiss hook variations">✕</button>
+                </div>
+                {hookVars.map((h, i) => {
+                  const vs = scoreHook(h);
+                  return (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => void applyHookVariation(h)}
+                      className="flex items-center gap-2 text-left text-[12px] text-gray-200 rounded-md px-2 py-1.5 bg-white/[0.03] hover:bg-white/[0.07] border border-white/[0.06]"
+                    >
+                      <span className="shrink-0 w-7 text-center text-[10px] font-bold tabular-nums" style={{ color: HOOK_TIER_COLOR[vs.tier] }}>{vs.score}</span>
+                      <span className="leading-snug">{h}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
             {/* Hashtag-mix linter — grades count + broad/niche balance, the
                strategy "Suggest hashtags" can't see. Only shown once the
                caption has any tags. */}

@@ -91,6 +91,77 @@ Rules:
   return { caption: out.caption.trim(), hashtags: tags };
 }
 
+// Generate several alternative opening hooks (first lines) for the current
+// post so the creator can A/B test the single highest-leverage line. Fed the
+// slide content + the current hook for relevance; returns distinct, punchy
+// candidates that each use a different angle (question / number / curiosity /
+// stakes). The hook-strength meter then scores whichever the user picks.
+export async function generateHookVariations(opts: {
+  json: string;
+  currentHook: string;
+  preset: string;
+  apiKey: string;
+  model: ClaudeModelId;
+  n?: number;
+}): Promise<string[]> {
+  const n = Math.max(3, Math.min(8, opts.n ?? 5));
+  const content = summariseSlides(opts.json);
+  const system = `You write scroll-stopping opening lines (hooks) for TikTok photo carousels about "Iro AI" (an app that teaches people to actually build with AI).
+A hook is the FIRST line of the caption / the first slide — it decides whether anyone swipes.
+Rules:
+- Each hook is ONE short line (ideally 3-12 words), lowercase-leaning, native and casual.
+- Make the ${n} hooks genuinely DIFFERENT from each other in angle: a question, a specific number, a curiosity gap, a bold/contrarian claim, a relatable confession.
+- No hashtags, no emojis, no quotes around them. Just the lines.
+- Ground them in the actual slide content; don't invent unrelated claims.`;
+  const res = await callClaude({
+    apiKey: opts.apiKey,
+    model: opts.model,
+    maxTokens: 600,
+    system: [{ type: 'text', text: system }],
+    messages: [{
+      role: 'user',
+      content: `Format: ${opts.preset}\n\nCurrent hook:\n${opts.currentHook || '(none yet)'}\n\nSlide content:\n${content}\n\nGive me ${n} alternative hooks.`,
+    }],
+    tools: [{
+      name: 'hooks',
+      description: 'Return the alternative opening hooks.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          hooks: { type: 'array', items: { type: 'string' }, description: `${n} distinct one-line hooks, no hashtags or emojis.` },
+        },
+        required: ['hooks'],
+      },
+    }],
+    toolChoice: { type: 'tool', name: 'hooks' },
+  });
+  const out = extractToolUse<{ hooks: string[] }>(res, 'hooks');
+  if (!out || !Array.isArray(out.hooks)) throw new Error('Claude did not return hooks.');
+  // Clean: strip stray quotes/leading bullets, drop blanks + dupes.
+  const seen = new Set<string>();
+  const cleaned: string[] = [];
+  for (const raw of out.hooks) {
+    const h = String(raw ?? '').replace(/^[\s\-*•\d.)]+/, '').replace(/^["“']|["”']$/g, '').trim();
+    const key = h.toLowerCase();
+    if (h && !seen.has(key)) { seen.add(key); cleaned.push(h); }
+  }
+  if (cleaned.length === 0) throw new Error('No usable hooks returned.');
+  return cleaned;
+}
+
+// Replace just the first (hook) line of a caption, preserving the rest of the
+// body and any trailing hashtags. Pure + exported so the apply step is
+// unit-testable. If the caption is empty, the new hook becomes the caption.
+export function replaceFirstLine(caption: string, newHook: string): string {
+  if (!caption.trim()) return newHook;
+  const lines = caption.split('\n');
+  // Find the first non-empty line (the hook) and swap it in place.
+  const idx = lines.findIndex((l) => l.trim().length > 0);
+  if (idx === -1) return newHook;
+  lines[idx] = newHook;
+  return lines.join('\n');
+}
+
 // Translate a caption into another language for reaching a different
 // audience, keeping it native (not a stiff literal translation) and leaving
 // #hashtags and @handles intact.
