@@ -486,6 +486,17 @@ export default function App() {
   const [topic, setTopic] = useState('');
   const [topicBusy, setTopicBusy] = useState(false);
   const [fullPostBusy, setFullPostBusy] = useState<string | null>(null);
+  // Snapshot of content before the last AI op, for one-tap undo.
+  const [aiUndo, setAiUndo] = useState<{ jsonText: string; caption: string } | null>(null);
+  function snapshotForAi() { setAiUndo({ jsonText, caption }); }
+  function handleUndoAi() {
+    if (!aiUndo) return;
+    setJsonText(aiUndo.jsonText);
+    setCaption(aiUndo.caption);
+    setAiUndo(null);
+    setTimeout(() => void handleRender({ switchView: false }), 60);
+    ui.notify('Reverted the last AI change.', { type: 'success' });
+  }
   const [remixTarget, setRemixTarget] = useState<PresetKey>(() => { const v = loadPref('remixTarget'); return (PRESET_KEYS as readonly string[]).includes(v) ? (v as PresetKey) : 'tier_list'; });
   const [remixBusy, setRemixBusy] = useState(false);
   const [improveBusy, setImproveBusy] = useState<string | null>(null);
@@ -1511,6 +1522,7 @@ export default function App() {
     if (!t) return;
     if (!anthropicKey) { ui.notify('Add an Anthropic API key in Settings to use this.', { type: 'error' }); return; }
     if (!isExampleJson(jsonText) && !(await ui.confirm({ message: 'Generate a full post? This replaces your current content and caption.', confirmLabel: 'Generate' }))) return;
+    snapshotForAi();
     try {
       const { pickFormat, generateFromTopic } = await import('./fillFromTopic');
       const { generateCaption, composeCaption } = await import('./captionAI');
@@ -1542,6 +1554,7 @@ export default function App() {
     if (!t) return;
     if (!anthropicKey) { ui.notify('Add an Anthropic API key in Settings to use this.', { type: 'error' }); return; }
     if (!isExampleJson(jsonText) && !(await ui.confirm({ message: 'Replace the current content with an AI-filled version?', confirmLabel: 'Generate' }))) return;
+    snapshotForAi();
     setTopicBusy(true);
     try {
       const { generateFromTopic } = await import('./fillFromTopic');
@@ -1565,6 +1578,7 @@ export default function App() {
     const content = buildScript();
     if (!content.trim()) { ui.notify('Render a post first, then remix it.', { type: 'info' }); return; }
     if (!(await ui.confirm({ message: `Remix this post's content into the ${PRESETS[remixTarget].label} format? This replaces the current content.`, confirmLabel: 'Remix' }))) return;
+    snapshotForAi();
     setRemixBusy(true);
     try {
       const { generateFromTopic } = await import('./fillFromTopic');
@@ -1589,6 +1603,7 @@ export default function App() {
     if (!anthropicKey) { ui.notify('Add an Anthropic API key in Settings to use this.', { type: 'error' }); return; }
     const parsedNow = parseJson(true);
     if (!parsedNow) { ui.notify('Fix the JSON first.', { type: 'error' }); return; }
+    snapshotForAi();
     setImproveBusy(label);
     try {
       const { improvePost } = await import('./fillFromTopic');
@@ -1612,6 +1627,7 @@ export default function App() {
     if (!key) return;
     const arr = ((parsed as Record<string, unknown>)[key] as Record<string, unknown>[]).slice();
     if (!arr[index]) return;
+    snapshotForAi();
     setRewritingIndex(index);
     try {
       const { rewriteItem } = await import('./fillFromTopic');
@@ -2487,6 +2503,17 @@ export default function App() {
                 {remixBusy ? '…' : 'Remix'}
               </button>
             </div>
+
+            {aiUndo && (
+              <button
+                type="button"
+                onClick={handleUndoAi}
+                className="mb-4 px-2.5 py-1 rounded-md text-[11px] font-bold uppercase tracking-[0.1em]
+                           border border-white/[0.14] bg-white/[0.03] text-gray-300 hover:text-[#00E5FF] hover:border-[#00E5FF]/40 transition-all"
+              >
+                ↩ Undo AI change
+              </button>
+            )}
 
             {editMode === 'quick' ? (
               preset === 'output_vs_hype' ? (
