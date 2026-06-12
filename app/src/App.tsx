@@ -610,6 +610,9 @@ export default function App() {
     });
   }
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  // Modifier-key label for the shortcuts sheet — ⌘ on Apple, Ctrl elsewhere.
+  const mod = useMemo(() => (typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘' : 'Ctrl'), []);
   const [showOnboarding, setShowOnboarding] = useState(shouldOnboard);
   // Number of slides the engine actually rendered — drives the navigator.
   const [slideCount, setSlideCount] = useState(0);
@@ -2044,6 +2047,15 @@ export default function App() {
       } else if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) {
         e.preventDefault();
         setPaletteOpen((o) => !o);
+      } else if (e.key === '?' && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        // Open the shortcuts cheat-sheet — but not while the user is typing
+        // (a '?' in the caption / JSON must reach the field).
+        const el = e.target as HTMLElement | null;
+        const tag = el?.tagName;
+        const typing = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el?.isContentEditable;
+        if (!typing) { e.preventDefault(); setShortcutsOpen((o) => !o); }
+      } else if (e.key === 'Escape') {
+        setShortcutsOpen(false);
       }
     };
     window.addEventListener('keydown', onKey);
@@ -2115,6 +2127,7 @@ export default function App() {
       { id: 'export-pdf', section: 'Export', label: 'Export as PDF', keywords: 'carousel instagram linkedin', run: () => void handleExportPdf() },
       { id: 'export-images', section: 'Export', label: 'Download slides (.zip)', keywords: 'images jpg photos manual upload zip', run: () => void handleDownloadImages() },
       { id: 'toggle-safezone', section: 'Actions', label: 'Toggle TikTok safe zone guide', keywords: 'crop margins overlay preview', run: () => setSafeZone((v) => !v) },
+      { id: 'shortcuts', section: 'Actions', label: 'Keyboard shortcuts', keywords: 'help keys hotkeys cheat sheet', run: () => setShortcutsOpen(true) },
       { id: 'send-tiktok', section: 'Export', label: 'Send to TikTok inbox', keywords: 'publish post', run: () => void sendToTikTok() },
       { id: 'go-edit', section: 'Go to', label: 'Edit', run: goto('preview', 'edit') },
       { id: 'go-preview', section: 'Go to', label: 'Preview', run: goto('preview', 'preview') },
@@ -3905,6 +3918,44 @@ export default function App() {
       </main>
 
       <CommandPalette open={paletteOpen} commands={commands} onClose={() => setPaletteOpen(false)} />
+      {shortcutsOpen && (
+        <div
+          className="fixed inset-0 z-[120] bg-black/70 backdrop-blur-sm flex items-center justify-center p-6"
+          onClick={() => setShortcutsOpen(false)}
+        >
+          <div
+            className="w-full max-w-sm rounded-2xl border border-white/10 bg-[#0d1320] p-6 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-sm font-bold text-gray-100">Keyboard shortcuts</h2>
+              <button type="button" onClick={() => setShortcutsOpen(false)} className="text-gray-500 hover:text-gray-300 text-sm" aria-label="Close">✕</button>
+            </div>
+            <div className="flex flex-col gap-2.5">
+              {([
+                ['Command palette', [mod, 'K']],
+                ['Render preview', [mod, '⏎']],
+                ['Save draft', [mod, 'S']],
+                ['Toggle safe zone', ['Safe zone btn']],
+                ['This help', ['?']],
+                ['Close dialogs', ['Esc']],
+              ] as [string, string[]][]).map(([label, keys]) => (
+                <div key={label} className="flex items-center justify-between gap-4">
+                  <span className="text-[12px] text-gray-400">{label}</span>
+                  <span className="flex items-center gap-1">
+                    {keys.map((k) => (
+                      <kbd key={k} className="text-[11px] font-mono bg-white/[0.07] text-gray-200 rounded px-1.5 py-0.5 border border-white/10">{k}</kbd>
+                    ))}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <p className="mt-4 text-[11px] text-gray-600 leading-relaxed">
+              Tip: most actions are also in the command palette ({mod} K).
+            </p>
+          </div>
+        </div>
+      )}
       {showOnboarding && <Onboarding onClose={() => setShowOnboarding(false)} />}
 
       {phoneQr && (
