@@ -329,6 +329,13 @@ const eq = (n, a, b) => ok(n + ` (got ${JSON.stringify(a)})`, JSON.stringify(a) 
   ok('strip removes pixabay (regression)', !('pixabayKey' in out));
   ok('strip keeps non-secrets', out.accent === '#00E5FF' && out.mascot === 'platinum' && !!out.design);
   ok('strip does not mutate input', 'anthropicKey' in settings);
+
+  // mergeArrays: restore dedup (drafts by id current-wins, favorites union).
+  const { mergeArrays } = await load('backup.ts');
+  const merged = mergeArrays([{ id: 'a', v: 1 }], [{ id: 'a', v: 2 }, { id: 'b', v: 3 }]);
+  ok('merge dedups by id, current wins', merged.length === 2 && merged.find((x) => x.id === 'a').v === 1 && !!merged.find((x) => x.id === 'b'));
+  eq('merge unions plain values', mergeArrays(['fyp', 'ai'], ['ai', 'tech']), ['fyp', 'ai', 'tech']);
+  eq('merge empty incoming keeps current', mergeArrays([{ id: 'a' }], []), [{ id: 'a' }]);
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);
