@@ -62,6 +62,35 @@ function prettyModelJson(raw: string): string {
   return JSON.stringify(parsed, null, 2);
 }
 
+// Brainstorm post-topic ideas for a niche — feeds the batch generator.
+export async function generateIdeas(opts: {
+  niche: string;
+  count: number;
+  apiKey: string;
+  model: ClaudeModelId;
+}): Promise<string[]> {
+  const system = `You brainstorm TikTok slideshow post ideas for "Iro AI" (an app that teaches people to actually build with AI). Given a NICHE/theme, return ${opts.count} short, specific, scroll-stopping post topics — one line each, ~4-9 words, no numbering. Vary the angles across the set (listicle, myth-busting, storytime, hot take, tutorial, before/after, tier list). Make them feel native to TikTok, not corporate.`;
+  const res = await callClaude({
+    apiKey: opts.apiKey,
+    model: opts.model,
+    maxTokens: 700,
+    system: [{ type: 'text', text: system }],
+    messages: [{ role: 'user', content: `NICHE: ${opts.niche}\n\nGive me the ideas.` }],
+    tools: [{
+      name: 'ideas',
+      description: 'Return the list of post topic ideas.',
+      input_schema: {
+        type: 'object',
+        properties: { topics: { type: 'array', items: { type: 'string' }, description: 'Each a short post topic.' } },
+        required: ['topics'],
+      },
+    }],
+    toolChoice: { type: 'tool', name: 'ideas' },
+  });
+  const out = extractToolUse<{ topics: string[] }>(res, 'ideas');
+  return (out && Array.isArray(out.topics) ? out.topics : []).map((t) => String(t).replace(/^[\s\d.)-]+/, '').trim()).filter(Boolean);
+}
+
 // Rewrite a single slide/item's content (keeping its keys). Powers the
 // per-slide ✨ button in Quick edit.
 export async function rewriteItem(opts: {
