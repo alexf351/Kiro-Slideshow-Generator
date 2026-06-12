@@ -290,6 +290,22 @@ const CLONING_INSTRUCTIONS = [
     'checklist — "if you…" qualifier list.',
   '- output_vs_hype — one slide per tool/brand, each with a logo and two bars (Output vs Hype) ' +
     'scaled 0–100 (ONLY when the source is a per-item bar-chart comparison, e.g. "X vs Y" rankings).',
+  '- curated_list — aesthetic photo + cream heading + a recommendation card per slide ("things I ' +
+    'recommend" / book/app/podcast picks).',
+  '- tier_list — S/A/B/C/D/F ranking, one colored tier per slide ("I ranked every X").',
+  '- myth_fact — red ✗ MYTH card over a green ✓ FACT card per slide (debunking misconceptions).',
+  '- hot_take — bold full-bleed opinion per slide on a fiery gradient ("unpopular opinion" / hot takes).',
+  '- storytime — iMessage-style chat that reveals one bubble per slide (text-message storytime; ' +
+    'items:[{from:"them"|"me", text}] + a top-level "contact").',
+  '- stat_drop — one giant glowing statistic + label per slide ("the numbers don\'t lie").',
+  '- this_or_that — a prompt + two option panels split by a VS badge ("comment your pick" polls).',
+  '- quote_card — centered serif quote + author on a gold gradient (quote/wisdom carousels).',
+  '- before_after — a muted BEFORE card → arrow → glowing AFTER card per slide (transformations).',
+  '- countdown — ranked listicle counting DOWN to a gold #1 (items:[{title, body}]).',
+  '- definition — dictionary-style term cards on cream (items:[{term, pron, def, example}]; AI ' +
+    'glossary / "word of the day").',
+  'Most of the above (tier_list, myth_fact, hot_take, stat_drop, this_or_that, quote_card, ' +
+    'before_after, countdown, definition) use an `items` array — match the example JSON\'s fields exactly.',
   'Prefer a PHOTO-background preset (pain_story / aspirational / meme_pov) whenever the source is ' +
     'photo-driven with native overlay text — that is the most common TikTok aesthetic and the one ' +
     'most clones get wrong by over-designing.',
