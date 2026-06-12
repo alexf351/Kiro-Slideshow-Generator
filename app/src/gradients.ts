@@ -30,3 +30,27 @@ export const GRADIENTS: Gradient[] = [
   { name: 'Midnight', css: 'linear-gradient(180deg, #2a3656 0%, #070b14 100%)' },
   { name: 'Charcoal', css: 'linear-gradient(180deg, #2e333c 0%, #0a0c10 100%)' },
 ];
+
+// Flat solid backgrounds (encoded as flat gradients so they go through the
+// same engine path with no extra support). Kept rich/dark so the formats'
+// light slide text stays readable.
+const solid = (hex: string): string => `linear-gradient(180deg, ${hex} 0%, ${hex} 100%)`;
+
+export const SOLID_BGS: { name: string; hex: string; css: string }[] = [
+  { name: 'Black', hex: '#0a0a0c' },
+  { name: 'Ink', hex: '#10131c' },
+  { name: 'Navy', hex: '#101b3a' },
+  { name: 'Royal', hex: '#1b3a8c' },
+  { name: 'Teal', hex: '#0e3b3a' },
+  { name: 'Forest', hex: '#123524' },
+  { name: 'Olive', hex: '#2c2f17' },
+  { name: 'Mustard', hex: '#7a5a14' },
+  { name: 'Rust', hex: '#7a2f16' },
+  { name: 'Brick', hex: '#5e1620' },
+  { name: 'Wine', hex: '#3f1028' },
+  { name: 'Plum', hex: '#2e1140' },
+  { name: 'Indigo', hex: '#241b52' },
+  { name: 'Slate', hex: '#222831' },
+  { name: 'Espresso', hex: '#241712' },
+  { name: 'Pine', hex: '#0d2a24' },
+].map((s) => ({ ...s, css: solid(s.hex) }));

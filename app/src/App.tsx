@@ -13,7 +13,7 @@ import DesignPanel from './DesignPanel';
 import QuickEdit from './QuickEdit';
 import HypeEditor from './HypeEditor';
 import CropAdjust, { DEFAULT_CROP, type CropValue } from './CropAdjust';
-import { GRADIENTS } from './gradients';
+import { GRADIENTS, SOLID_BGS } from './gradients';
 import { coerceDesign, DEFAULT_DESIGN, designPayload, ASPECT_KEYS, ASPECTS, type BrandDesign } from './design';
 import { listDrafts, saveDraft, deleteDraft, type Draft } from './drafts';
 import { exportBackup, importBackup, downloadBlob, timestampSlug } from './backup';
@@ -2062,6 +2062,26 @@ export default function App() {
                         (active ? 'border-[#00E5FF] ring-2 ring-[#00E5FF]/40' : 'border-white/15 hover:border-white/40')
                       }
                       style={g.css ? { background: g.css } : { background: 'repeating-linear-gradient(45deg, #1a1f2e, #1a1f2e 4px, #0d1018 4px, #0d1018 8px)' }}
+                    />
+                  );
+                })}
+              </div>
+              <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-gray-400 mt-3 mb-2">Solid color</div>
+              <div className="grid grid-cols-8 gap-1.5">
+                {SOLID_BGS.map((s) => {
+                  const active = s.css === currentBgGradient;
+                  return (
+                    <button
+                      key={s.name}
+                      type="button"
+                      onClick={() => applyGlobalGradient(s.css)}
+                      title={s.name}
+                      aria-label={s.name}
+                      className={
+                        'aspect-square rounded-md border transition-all ' +
+                        (active ? 'border-[#00E5FF] ring-2 ring-[#00E5FF]/40' : 'border-white/15 hover:border-white/40')
+                      }
+                      style={{ background: s.hex }}
                     />
                   );
                 })}
