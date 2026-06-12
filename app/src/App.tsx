@@ -1031,6 +1031,28 @@ export default function App() {
     setCaption((prev) => (prev.trim() ? prev.trimEnd() + '\n\n' + add : add));
   }
 
+  const [aiTagsBusy, setAiTagsBusy] = useState(false);
+  async function handleAiHashtags() {
+    if (!anthropicKey) { ui.notify('Add an Anthropic API key in Settings to use this.', { type: 'error' }); return; }
+    setAiTagsBusy(true);
+    try {
+      const { generateHashtagsAI } = await import('./captionAI');
+      const fresh = await generateHashtagsAI({ json: jsonText, preset, apiKey: anthropicKey, model: claudeModel });
+      if (!fresh.length) { ui.notify('No hashtags returned.', { type: 'info' }); return; }
+      setCaption((prev) => {
+        const has = new Set(parseHashtags(prev).map((t) => t.toLowerCase()));
+        const add = fresh.filter((t) => !has.has(t.toLowerCase()));
+        if (!add.length) { ui.notify('Those tags are already in the caption.', { type: 'info' }); return prev; }
+        const block = add.map((t) => '#' + t).join(' ');
+        return prev.trim() ? prev.trimEnd() + (/#\w/.test(prev) ? ' ' : '\n\n') + block : block;
+      });
+    } catch (e) {
+      ui.notify(`Hashtag generation failed: ${(e as Error).message}`, { type: 'error' });
+    } finally {
+      setAiTagsBusy(false);
+    }
+  }
+
   // ---- Saved hashtag sets ----
   async function handleSaveHashtagSet() {
     const tags = parseHashtags(caption);
@@ -2661,6 +2683,14 @@ export default function App() {
                 className="text-[11px] font-bold uppercase tracking-[0.14em] text-gray-500 hover:text-[#00E5FF]"
               >
                 ＃ Suggest hashtags
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleAiHashtags()}
+                disabled={aiTagsBusy}
+                className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#A78BFA] hover:text-[#C4B5FD] disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {aiTagsBusy ? '✨ …' : '✨ AI hashtags'}
               </button>
               <button
                 type="button"

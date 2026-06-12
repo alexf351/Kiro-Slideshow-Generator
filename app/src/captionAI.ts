@@ -118,6 +118,35 @@ export async function translateCaption(opts: {
 }
 
 // Join the caption body + hashtag line the way the textarea expects.
+// Generate fresh, relevant hashtags from the slide content WITHOUT touching
+// the caption body — for when you wrote your own caption and just want tags.
+export async function generateHashtagsAI(opts: {
+  json: string;
+  preset: string;
+  apiKey: string;
+  model: ClaudeModelId;
+  count?: number;
+}): Promise<string[]> {
+  const n = opts.count || 7;
+  const content = summariseSlides(opts.json);
+  const system = `You pick TikTok hashtags for short AI/education posts (brand: "Iro AI"). Return ${n} relevant, mostly-lowercase hashtags as a good mix of broad reach + specific niche tags. Include #aitok where it fits. No spaces in a tag, no duplicates, no # walls of generic spam.`;
+  const res = await callClaude({
+    apiKey: opts.apiKey,
+    model: opts.model,
+    maxTokens: 300,
+    system: [{ type: 'text', text: system }],
+    messages: [{ role: 'user', content: `Format: ${opts.preset}\n\nSlide content:\n${content}\n\nGive me the hashtags.` }],
+    tools: [{
+      name: 'hashtags',
+      description: 'Return the hashtag list (WITHOUT the # prefix).',
+      input_schema: { type: 'object', properties: { hashtags: { type: 'array', items: { type: 'string' } } }, required: ['hashtags'] },
+    }],
+    toolChoice: { type: 'tool', name: 'hashtags' },
+  });
+  const out = extractToolUse<{ hashtags: string[] }>(res, 'hashtags');
+  return (out && Array.isArray(out.hashtags) ? out.hashtags : []).map((t) => t.replace(/^#/, '').trim()).filter(Boolean);
+}
+
 export function composeCaption(caption: string, hashtags: string[]): string {
   if (!hashtags.length) return caption;
   return `${caption}\n\n${hashtags.map((t) => `#${t}`).join(' ')}`;
