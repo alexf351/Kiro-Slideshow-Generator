@@ -1633,11 +1633,11 @@ export default function App() {
     if (!isExampleJson(jsonText) && !(await ui.confirm({ message: 'Generate a full post? This replaces your current content and caption.', confirmLabel: 'Generate' }))) return;
     snapshotForAi();
     try {
-      const { pickFormat, generateFromTopic } = await import('./fillFromTopic');
+      const { pickFormat, generateFromTopic, buildPreferList } = await import('./fillFromTopic');
       const { generateCaption, composeCaption } = await import('./captionAI');
       setFullPostBusy('Picking format…');
       const formats = PRESET_KEYS.map((k) => ({ key: k, label: PRESETS[k].label, pitch: PRESETS[k].pitch }));
-      const picked = await pickFormat({ topic: t, formats, apiKey: anthropicKey, model: claudeModel, prefer: favFormats });
+      const picked = await pickFormat({ topic: t, formats, apiKey: anthropicKey, model: claudeModel, prefer: buildPreferList(favFormats, formatPerf) });
       const target = (PRESET_KEYS as readonly string[]).includes(picked) ? (picked as PresetKey) : preset;
       setPreset(target);
       setFullPostBusy(`Writing the ${PRESETS[target].label}…`);
@@ -1781,8 +1781,9 @@ export default function App() {
     if (!anthropicKey) { ui.notify('Add an Anthropic API key in Settings to use this.', { type: 'error' }); return; }
     setBatchBusy(`Generating 0 / ${lines.length}…`);
     try {
-      const { generateFromTopic, pickFormat } = await import('./fillFromTopic');
+      const { generateFromTopic, pickFormat, buildPreferList } = await import('./fillFromTopic');
       const caps = batchSmart ? await import('./captionAI') : null;
+      const preferList = buildPreferList(favFormats, formatPerf);
       const formats = PRESET_KEYS.map((k) => ({ key: k, label: PRESETS[k].label, pitch: PRESETS[k].pitch }));
       let made = 0; let failed = 0; let next = drafts;
       for (let i = 0; i < lines.length; i++) {
@@ -1792,7 +1793,7 @@ export default function App() {
           // (a varied, complete week). Otherwise the current format, no caption.
           let target = preset;
           if (batchSmart) {
-            const picked = await pickFormat({ topic: lines[i], formats, apiKey: anthropicKey, model: claudeModel, prefer: favFormats });
+            const picked = await pickFormat({ topic: lines[i], formats, apiKey: anthropicKey, model: claudeModel, prefer: preferList });
             if ((PRESET_KEYS as readonly string[]).includes(picked)) target = picked as PresetKey;
           }
           const filled = await generateFromTopic({ topic: lines[i], preset: target, exampleJson: PRESETS[target].defaultJson, apiKey: anthropicKey, model: claudeModel });

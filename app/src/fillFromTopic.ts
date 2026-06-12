@@ -6,6 +6,34 @@
 
 import { callClaude, extractToolUse, type ClaudeModelId } from './anthropic';
 
+// Build the list of formats to bias the AND auto-picker toward, combining the
+// creator's explicit pins (favorites, listed first) with the formats that
+// have actually performed well for this account. Pure + exported so the
+// merge logic is unit-testable. `perf` maps preset → { avgScore, count }
+// from the post-history rollup; a format qualifies as "proven" only with
+// enough scored posts and a solid average, so a single lucky post can't
+// hijack the recommendation.
+export function buildPreferList(
+  favFormats: string[],
+  perf: Record<string, { avgScore: number; count: number }>,
+  opts?: { minCount?: number; minScore?: number; max?: number },
+): string[] {
+  const minCount = opts?.minCount ?? 2;
+  const minScore = opts?.minScore ?? 55;
+  const max = opts?.max ?? 5;
+  const winners = Object.entries(perf || {})
+    .filter(([, v]) => v && v.count >= minCount && v.avgScore >= minScore)
+    .sort((a, b) => b[1].avgScore - a[1].avgScore)
+    .map(([k]) => k);
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const k of [...(favFormats || []), ...winners]) {
+    if (k && !seen.has(k)) { seen.add(k); out.push(k); }
+    if (out.length >= max) break;
+  }
+  return out;
+}
+
 // Pick the best-fitting format for a topic. `formats` is the list of
 // { key, label, pitch } the model can choose from. Returns a key (or '').
 export async function pickFormat(opts: {
