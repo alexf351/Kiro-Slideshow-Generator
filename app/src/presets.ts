@@ -27,6 +27,7 @@ export const PRESET_KEYS = [
   'countdown',
   'definition',
   'qa',
+  'flags',
 ] as const;
 
 export type PresetKey = (typeof PRESET_KEYS)[number];
@@ -775,6 +776,36 @@ want the full answers? search "Iro AI" on the App Store.
 
 #ai #qa #aitok #learnai #askmeanything`;
 
+const FLAGS_JSON = `{
+  "preset": "flags",
+  "hook": {
+    "headline": "<strong>green flags</strong> your AI<br/>habit is actually working",
+    "subline": "(and a few red ones)"
+  },
+  "items": [
+    { "type": "green", "flag": "You build small things instead of just saving tutorials." },
+    { "type": "green", "flag": "You can tell when the model is confidently wrong." },
+    { "type": "red", "flag": "You collect 50 tools but ship with none of them." },
+    { "type": "red", "flag": "You copy-paste outputs without ever editing them." }
+  ],
+  "cta": {
+    "headline": "Want more <strong>green flags</strong>?",
+    "instructionAbove": "search:",
+    "searchTerm": "Iro AI",
+    "instructionBelow": "on the App Store.",
+    "slogan": "5 minutes a day."
+  },
+  "attribution": ""
+}`;
+
+const FLAGS_CAPTION = `green flags 🟢 vs red flags 🚩 of actually using AI
+
+be honest — which one are you? 👀 comment below
+
+want to be all green flags? search "Iro AI" on the App Store.
+
+#ai #greenflags #redflags #aitok #productivity`;
+
 export const PRESETS: Record<PresetKey, PresetMeta> = {
   prompt_pack: {
     key: 'prompt_pack',
@@ -964,5 +995,14 @@ export const PRESETS: Record<PresetKey, PresetMeta> = {
     defaultJson: QA_JSON,
     defaultCaption: QA_CAPTION,
     accent: '#A78BFA', // sticker violet
+  },
+  flags: {
+    key: 'flags',
+    label: 'Green / Red Flags',
+    pitch: 'One color-coded flag per slide — "green flags / red flags of X". Comment-bait.',
+    status: 'ready',
+    defaultJson: FLAGS_JSON,
+    defaultCaption: FLAGS_CAPTION,
+    accent: '#34D399', // green flag
   },
 };
