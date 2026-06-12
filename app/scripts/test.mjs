@@ -141,5 +141,39 @@ const eq = (n, a, b) => ok(n + ` (got ${JSON.stringify(a)})`, JSON.stringify(a) 
   ok('ics null when none', buildIcs([{ id: 'x', name: 'n', savedAt: 1, state: { caption: 'h' } }]) === null);
 }
 
+// ---- scoring (the performance "ground truth") ----
+{
+  const { scorePost, hasStats, summarizeWhatWorks } = await load('scoring.ts');
+  const mk = (o) => ({ stats: { views: 0, likes: 0, comments: 0, shares: 0, saves: 0, photoViews: 0, ...o.stats }, ...o });
+  ok('score hasStats false on zero', !hasStats(mk({ stats: {} })));
+  ok('score hasStats true on views', hasStats(mk({ stats: { views: 100 } })));
+  // Relative basis kicks in with >=3 ranked posts; quality breaks the tie.
+  const hi = mk({ stats: { views: 1000, likes: 100, saves: 50, shares: 30, comments: 20 } });
+  const lo = mk({ stats: { views: 1000, likes: 1 } });
+  const pop = [hi, lo, mk({ stats: { views: 1000 } }), mk({ stats: { views: 1000 } })];
+  ok('score relative basis', scorePost(hi, pop).basis === 'relative');
+  ok('score quality wins tie', scorePost(hi, pop).score > scorePost(lo, pop).score);
+  ok('score saveRate', Math.abs(scorePost(hi, pop).saveRate - 0.05) < 1e-9);
+  ok('score absolute basis (sparse)', scorePost(hi, [hi]).basis === 'absolute');
+  // summarizeWhatWorks buckets scored posts by preset, best-first.
+  const s = summarizeWhatWorks([
+    mk({ preset: 'tweet', stats: { views: 5000, saves: 250, shares: 150, likes: 400 } }),
+    mk({ preset: 'reddit', stats: { views: 200, likes: 1 } }),
+    mk({ preset: 'tweet', stats: { views: 4000, saves: 180, shares: 120, likes: 300 } }),
+  ]);
+  ok('works scored count', s.scored === 3);
+  ok('works top preset is tweet', s.topPreset && s.topPreset.key === 'tweet' && s.topPreset.count === 2);
+}
+// ---- insights (hashtag intelligence) ----
+{
+  const { parseHashtags, topHashtags, suggestHashtags } = await load('insights.ts');
+  eq('insights parse dedup+lc', parseHashtags('great #AI #ai #FYP'), ['ai', 'fyp']);
+  const mk = (caption, views) => ({ caption, stats: { views, likes: Math.round(views * 0.1), comments: 0, shares: Math.round(views * 0.02), saves: Math.round(views * 0.03), photoViews: 0 } });
+  const posts = [mk('win #good #common', 9000), mk('flop #bad #common', 100), mk('win2 #good', 8000)];
+  const top = topHashtags(posts);
+  ok('insights ranks good over bad', top.findIndex((t) => t.tag === 'good') < top.findIndex((t) => t.tag === 'bad'));
+  ok('insights suggest excludes present', !suggestHashtags('already #good here', posts).includes('good'));
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
