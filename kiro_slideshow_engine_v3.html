@@ -848,6 +848,106 @@
   }
 
   /* ============================================================
+     PRESET: storytime
+     iMessage-style chat thread. Cumulative bubbles, newest at bottom.
+     ============================================================ */
+  .preset-storytime .frame {
+    padding: 130px 70px 180px 70px;
+    display: flex; flex-direction: column;
+    justify-content: center; align-items: center; text-align: center;
+  }
+  .preset-storytime .bg-photo-scrim { display: none; }
+  .preset-storytime .bg-solid {
+    background: linear-gradient(180deg, #1c1c1e 0%, #0a0a0b 100%);
+  }
+  .preset-storytime .st-hook {
+    font-family: 'Inter', sans-serif;
+    font-size: 140px; font-weight: 900; line-height: 1.0;
+    letter-spacing: -0.025em; color: #fff; max-width: 920px;
+    text-shadow: 0 4px 24px rgba(0,0,0,0.6);
+  }
+  .preset-storytime .st-hook strong { color: #34C759; }
+  .preset-storytime .st-subline {
+    margin-top: 50px;
+    font-family: 'Inter', sans-serif;
+    font-size: 52px; font-weight: 600; font-style: italic;
+    color: rgba(255,255,255,0.78);
+  }
+  /* The chat "phone" panel */
+  .preset-storytime .st-phone {
+    width: 100%; max-width: 880px;
+    background: #000; border-radius: 56px;
+    border: 2px solid rgba(255,255,255,0.10);
+    overflow: hidden; box-shadow: 0 30px 90px rgba(0,0,0,0.55);
+  }
+  .preset-storytime .st-header {
+    display: flex; flex-direction: column; align-items: center; gap: 16px;
+    padding: 46px 40px 30px;
+    background: rgba(28,28,30,0.92);
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+  .preset-storytime .st-avatar {
+    width: 130px; height: 130px; border-radius: 50%;
+    background: linear-gradient(160deg, #8E8E93, #5a5a60);
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Inter', sans-serif; font-size: 64px; font-weight: 700; color: #fff;
+  }
+  .preset-storytime .st-contact {
+    font-family: 'Inter', sans-serif; font-size: 40px; font-weight: 600; color: #fff;
+  }
+  .preset-storytime .st-thread {
+    display: flex; flex-direction: column; gap: 26px;
+    padding: 50px 44px 56px; min-height: 520px; justify-content: flex-end;
+  }
+  .preset-storytime .st-row { display: flex; }
+  .preset-storytime .st-row-them { justify-content: flex-start; }
+  .preset-storytime .st-row-me { justify-content: flex-end; }
+  .preset-storytime .st-bubble {
+    max-width: 78%;
+    font-family: 'Inter', sans-serif; font-size: 50px; font-weight: 500; line-height: 1.28;
+    padding: 30px 40px; border-radius: 44px; text-align: left;
+    word-break: break-word;
+  }
+  .preset-storytime .st-bubble-them {
+    background: #3a3a3c; color: #fff; border-bottom-left-radius: 14px;
+  }
+  .preset-storytime .st-bubble-me {
+    background: linear-gradient(180deg, #2aa3ff 0%, #1a7fff 100%); color: #fff;
+    border-bottom-right-radius: 14px;
+  }
+  .preset-storytime .st-bubble-new { box-shadow: 0 0 0 4px rgba(255,255,255,0.10); }
+  .preset-storytime .st-cta-headline {
+    font-family: 'Inter', sans-serif;
+    font-size: 132px; font-weight: 900; line-height: 1.0;
+    letter-spacing: -0.025em; color: #fff;
+    margin-bottom: 60px; max-width: 1000px;
+    text-shadow: 0 4px 24px rgba(0,0,0,0.6);
+  }
+  .preset-storytime .st-cta-headline strong { color: #34C759; font-weight: 900; }
+  .preset-storytime .st-cta-search-row {
+    display: flex; align-items: baseline; justify-content: center; gap: 28px; margin-bottom: 28px;
+  }
+  .preset-storytime .st-cta-instruction {
+    font-family: 'Inter', sans-serif; font-size: 50px; font-weight: 500; color: rgba(255,255,255,0.85);
+  }
+  .preset-storytime .st-cta-search {
+    font-family: 'Inter', sans-serif; font-size: 130px; font-weight: 900;
+    letter-spacing: -0.02em; color: #00E5FF;
+    border-bottom: 6px solid #00E5FF; padding-bottom: 6px;
+    text-shadow: 0 0 24px rgba(0,229,255,0.35);
+  }
+  .preset-storytime .st-cta-slogan {
+    margin-top: 56px;
+    font-family: 'Inter', sans-serif; font-size: 50px; font-weight: 600; font-style: italic;
+    color: rgba(255,255,255,0.85);
+  }
+  .preset-storytime .st-attribution {
+    position: absolute; bottom: 80px; left: 0; right: 0; text-align: center;
+    font-family: 'Inter', sans-serif; font-size: 32px; font-weight: 700;
+    letter-spacing: 0.20em; color: rgba(255,255,255,0.5);
+  }
+
+  /* ============================================================
      PRESET: app_stack
      "5 apps I use every day" carousel. Hook slide with centered
      headline over a photo, then one slide per app showing a large
@@ -1961,6 +2061,24 @@ const PRESETS = {
       return out;
     },
   },
+  storytime: {
+    label: 'Storytime',
+    slideClass: 'preset-storytime',
+    showCounter: false,
+    fallbackBg: 'photo',
+    buildSlides(S) {
+      const out = [];
+      out.push({ html: buildStoryHook(S.hook), bg: (S.hook && S.hook.bg) || S.background });
+      // Cumulative chat: each slide reveals one more message in the thread,
+      // so swiping plays the conversation forward.
+      const msgs = S.items || [];
+      msgs.forEach((_, i) => {
+        out.push({ html: buildStoryThread(msgs.slice(0, i + 1), S.contact), bg: S.background });
+      });
+      out.push({ html: buildStoryCTA(S.cta, S.attribution), bg: (S.cta && S.cta.bg) || S.background });
+      return out;
+    },
+  },
   handwritten_pack: {
     label: 'Handwritten Pack',
     slideClass: 'preset-handwritten-pack',
@@ -2681,6 +2799,50 @@ function buildHotCTA(c, attribution) {
   const below = c.instructionBelow ? `<div class="ht-cta-instruction">${c.instructionBelow}</div>` : '';
   const slogan = c.slogan ? `<div class="ht-cta-slogan">${c.slogan}</div>` : '';
   const attr = attribution ? `<div class="ht-attribution">${attribution}</div>` : '';
+  return `${headline}${searchRow}${below}${slogan}${attr}`;
+}
+
+// ============================================================
+// PRESET: storytime builders
+// iMessage-style chat. Cumulative: each slide adds the next bubble so
+// the conversation plays forward as you swipe. items:[{from:'them'|'me', text}].
+// ============================================================
+function buildStoryHook(h) {
+  if (!h) return '';
+  const headline = h.headline ? `<div class="st-hook">${h.headline}</div>` : '';
+  const subline = h.subline ? `<div class="st-subline">${h.subline}</div>` : '';
+  return `${headline}${subline}`;
+}
+
+function buildStoryThread(msgs, contact) {
+  const name = contact || 'Messages';
+  const initial = String(name).trim().charAt(0).toUpperCase() || 'M';
+  const header = `<div class="st-header">
+    <div class="st-avatar">${initial}</div>
+    <div class="st-contact">${name}</div>
+  </div>`;
+  const bubbles = (msgs || []).map((m, i) => {
+    const me = m && (m.from === 'me' || m.from === 'self' || m.me);
+    const last = i === msgs.length - 1;
+    return `<div class="st-row ${me ? 'st-row-me' : 'st-row-them'}">
+      <div class="st-bubble ${me ? 'st-bubble-me' : 'st-bubble-them'} ${last ? 'st-bubble-new' : ''}">${(m && m.text) || ''}</div>
+    </div>`;
+  }).join('');
+  return `<div class="st-phone">${header}<div class="st-thread">${bubbles}</div></div>`;
+}
+
+function buildStoryCTA(c, attribution) {
+  if (!c) return '';
+  const headline = c.headline ? `<div class="st-cta-headline">${c.headline}</div>` : '';
+  let searchRow = '';
+  if (c.instructionAbove || c.searchTerm) {
+    const above = c.instructionAbove ? `<span class="st-cta-instruction">${c.instructionAbove}</span>` : '';
+    const term = c.searchTerm ? `<span class="st-cta-search">${c.searchTerm}</span>` : '';
+    searchRow = `<div class="st-cta-search-row">${above}${term}</div>`;
+  }
+  const below = c.instructionBelow ? `<div class="st-cta-instruction">${c.instructionBelow}</div>` : '';
+  const slogan = c.slogan ? `<div class="st-cta-slogan">${c.slogan}</div>` : '';
+  const attr = attribution ? `<div class="st-attribution">${attribution}</div>` : '';
   return `${headline}${searchRow}${below}${slogan}${attr}`;
 }
 
