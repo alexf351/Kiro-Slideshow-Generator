@@ -8,6 +8,7 @@
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { put } from '@vercel/blob';
+import { resolveBlobToken } from '../lib/tiktok.js';
 
 export const config = { api: { bodyParser: { sizeLimit: '2mb' } } };
 
@@ -55,7 +56,8 @@ ${cap}
 
 export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
   if (req.method !== 'POST') { res.status(405).json({ error: 'POST only' }); return; }
-  if (!process.env.BLOB_READ_WRITE_TOKEN) {
+  const blobToken = resolveBlobToken();
+  if (!blobToken) {
     res.status(501).json({ error: 'Vercel Blob is not enabled on this project (no BLOB_READ_WRITE_TOKEN).' });
     return;
   }
@@ -75,7 +77,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
   try {
     const id = `gallery/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.html`;
     const blob = await put(id, galleryHtml(images, caption), {
-      access: 'public', contentType: 'text/html; charset=utf-8', addRandomSuffix: false,
+      access: 'public', contentType: 'text/html; charset=utf-8', addRandomSuffix: false, token: blobToken,
     });
     res.status(200).json({ url: blob.url });
   } catch (e) {
