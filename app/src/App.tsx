@@ -1473,7 +1473,7 @@ export default function App() {
       const { generateCaption, composeCaption } = await import('./captionAI');
       setFullPostBusy('Picking format…');
       const formats = PRESET_KEYS.map((k) => ({ key: k, label: PRESETS[k].label, pitch: PRESETS[k].pitch }));
-      const picked = await pickFormat({ topic: t, formats, apiKey: anthropicKey, model: claudeModel });
+      const picked = await pickFormat({ topic: t, formats, apiKey: anthropicKey, model: claudeModel, prefer: favFormats });
       const target = (PRESET_KEYS as readonly string[]).includes(picked) ? (picked as PresetKey) : preset;
       setPreset(target);
       setFullPostBusy(`Writing the ${PRESETS[target].label}…`);
@@ -1623,7 +1623,7 @@ export default function App() {
           // (a varied, complete week). Otherwise the current format, no caption.
           let target = preset;
           if (batchSmart) {
-            const picked = await pickFormat({ topic: lines[i], formats, apiKey: anthropicKey, model: claudeModel });
+            const picked = await pickFormat({ topic: lines[i], formats, apiKey: anthropicKey, model: claudeModel, prefer: favFormats });
             if ((PRESET_KEYS as readonly string[]).includes(picked)) target = picked as PresetKey;
           }
           const filled = await generateFromTopic({ topic: lines[i], preset: target, exampleJson: PRESETS[target].defaultJson, apiKey: anthropicKey, model: claudeModel });
