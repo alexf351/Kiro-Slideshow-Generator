@@ -1225,20 +1225,26 @@ export default function App() {
     ui.notify(`Filled ${done} background${done === 1 ? '' : 's'}${missed ? ` · ${missed} had no match` : ''}.`, { type: done ? 'success' : 'info' });
   }
 
-  // Copy attribution for the deck's stock photos (Unsplash requires it; the
-  // rest appreciate it). Resolves each media background to its stored source.
-  async function handleCopyCredits() {
+  // Resolve the deck's media backgrounds to a photo-credits line (or '').
+  // Shared by the copy-credits button and the post-pack builders.
+  async function gatherPhotoCredits(): Promise<string> {
     const ids = Object.values(slideBgs)
       .filter((b): b is { type: 'media'; mediaId: string } => !!b && (b as { type?: string }).type === 'media')
       .map((b) => b.mediaId);
-    if (!ids.length) { ui.notify('No stock/photo backgrounds to credit.', { type: 'info' }); return; }
+    if (!ids.length) return '';
     const sources: { provider?: string; photographer?: string }[] = [];
     for (const id of Array.from(new Set(ids))) {
       const item = await getItem(id);
       if (item?.source) sources.push(item.source);
     }
     const { formatPhotoCredits } = await import('./stockPhotos');
-    const credits = formatPhotoCredits(sources);
+    return formatPhotoCredits(sources);
+  }
+
+  // Copy attribution for the deck's stock photos (Unsplash requires it; the
+  // rest appreciate it).
+  async function handleCopyCredits() {
+    const credits = await gatherPhotoCredits();
     if (!credits) { ui.notify('No attributable photos (uploads/unknowns only).', { type: 'info' }); return; }
     try { await navigator.clipboard.writeText(credits); ui.notify('Photo credits copied — add to your caption or first comment.', { type: 'success' }); }
     catch { await ui.prompt({ title: 'Photo credits', message: 'Copy this:', defaultValue: credits, confirmLabel: 'Done' }); }
@@ -1905,7 +1911,8 @@ export default function App() {
       // A one-stop posting cheat sheet: caption to paste, hashtags split out
       // for the first comment, and a checklist.
       const { buildPostingNotes } = await import('./captionAI');
-      entries.push({ name: 'posting.txt', data: new TextEncoder().encode(buildPostingNotes(caption, PRESETS[preset].label, slides.length, audioNote)) });
+      const credits = await gatherPhotoCredits();
+      entries.push({ name: 'posting.txt', data: new TextEncoder().encode(buildPostingNotes(caption, PRESETS[preset].label, slides.length, audioNote, credits)) });
       const blob = makeZip(entries);
       downloadBlob(blob, `iro_${preset}_${timestampSlug()}.zip`);
       ui.notify(`Downloaded ${slides.length} slide image${slides.length === 1 ? '' : 's'}.`, { type: 'success' });
@@ -2168,7 +2175,7 @@ export default function App() {
   // posting.txt contains, for when you just want the text.
   async function handleCopyPostPack() {
     const { buildPostingNotes } = await import('./captionAI');
-    const text = buildPostingNotes(caption, PRESETS[preset].label, slideCount || 0, audioNote);
+    const text = buildPostingNotes(caption, PRESETS[preset].label, slideCount || 0, audioNote, await gatherPhotoCredits());
     try {
       await navigator.clipboard.writeText(text);
       ui.notify('Post pack copied — caption, first comment, sound + checklist.', { type: 'success' });

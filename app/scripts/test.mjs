@@ -145,6 +145,8 @@ const eq = (n, a, b) => ok(n + ` (got ${JSON.stringify(a)})`, JSON.stringify(a) 
   ok('cap split', sp.body === 'hook\n\nbody' && sp.hashtags === '#a #b');
   eq('cap tidy dedup', tidyCaption('hook\n\n#ai #aitools #ai #fyp'), 'hook\n\n#ai #aitools #fyp');
   ok('cap posting sound', buildPostingNotes('h #a', 'Tweet', 5, 'beat drop').includes('Sound: 🎵 beat drop'));
+  ok('cap posting credits', (() => { const t = buildPostingNotes('h #a', 'Tweet', 5, '', '📸 Photos: Maya (Unsplash)'); return t.includes('PHOTO CREDITS') && t.includes('Maya (Unsplash)') && t.includes('[ ] Add the photo credits'); })());
+  ok('cap posting no credits section', !buildPostingNotes('h #a', 'Tweet', 5).includes('PHOTO CREDITS'));
 }
 // ---- deckTranslate collect/apply ----
 {
