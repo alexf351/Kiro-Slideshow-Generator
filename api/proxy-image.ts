@@ -39,6 +39,39 @@ function isBlockedHost(hostname: string): boolean {
   return false;
 }
 
+// Fetch the upstream image, retrying transient failures. A fresh timeout is
+// used per attempt; network blips and upstream 5xx are retried, but an
+// AbortError (our own timeout) is surfaced immediately (no point waiting again).
+async function fetchUpstreamWithRetry(target: string): Promise<Response> {
+  const maxAttempts = 3;
+  let lastErr: Error | null = null;
+  for (let a = 0; a < maxAttempts; a++) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
+    try {
+      const upstream = await fetch(target, {
+        headers: {
+          'User-Agent':
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 ' +
+            '(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+          'Accept': 'image/avif,image/webp,image/png,image/jpeg,*/*;q=0.8',
+        },
+        signal: controller.signal,
+        redirect: 'follow',
+      });
+      clearTimeout(timeout);
+      if (upstream.ok || upstream.status < 500 || a === maxAttempts - 1) return upstream;
+      await new Promise((r) => setTimeout(r, 600 * (a + 1)));
+    } catch (e) {
+      clearTimeout(timeout);
+      if ((e as Error).name === 'AbortError' || a === maxAttempts - 1) throw e;
+      lastErr = e as Error;
+      await new Promise((r) => setTimeout(r, 600 * (a + 1)));
+    }
+  }
+  throw lastErr || new Error('Upstream fetch failed.');
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
   if (req.method !== 'GET') {
     res.status(405).json({ error: 'Use GET ?url=<image url>' });
@@ -67,20 +100,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     return;
   }
 
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
-
   try {
-    const upstream = await fetch(target, {
-      headers: {
-        'User-Agent':
-          'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 ' +
-          '(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-        'Accept': 'image/avif,image/webp,image/png,image/jpeg,*/*;q=0.8',
-      },
-      signal: controller.signal,
-      redirect: 'follow',
-    });
+    const upstream = await fetchUpstreamWithRetry(target);
 
     if (!upstream.ok) {
       res.status(502).json({ error: `Upstream returned ${upstream.status}.` });
@@ -115,7 +136,5 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     } else {
       res.status(500).json({ error: `Proxy failed: ${(e as Error).message}` });
     }
-  } finally {
-    clearTimeout(timeout);
   }
 }
