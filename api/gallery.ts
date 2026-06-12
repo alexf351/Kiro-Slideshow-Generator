@@ -8,7 +8,7 @@
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { put } from '@vercel/blob';
-import { resolveBlobToken } from '../lib/tiktok.js';
+import { resolveBlobToken, originFromRequest } from '../lib/tiktok.js';
 
 export const config = { api: { bodyParser: { sizeLimit: '2mb' } } };
 
@@ -54,8 +54,34 @@ ${cap}
 </body></html>`;
 }
 
+function isOwnBlobUrl(u: string): boolean {
+  try { return /\.blob\.vercel-storage\.com$/i.test(new URL(u).hostname); } catch { return false; }
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
-  if (req.method !== 'POST') { res.status(405).json({ error: 'POST only' }); return; }
+  // GET: render the gallery page itself. Vercel Blob refuses to serve HTML
+  // inline (forces a download as an anti-abuse measure), so we keep only the
+  // DATA in Blob and serve the actual page from our own domain — where we
+  // control Content-Type — reading the saved {images, caption} JSON.
+  if (req.method === 'GET') {
+    const src = typeof req.query.d === 'string' ? req.query.d : '';
+    if (!isOwnBlobUrl(src)) { res.status(400).send('Bad or missing gallery link.'); return; }
+    try {
+      const r = await fetch(src);
+      if (!r.ok) { res.status(404).send('This gallery was not found (it may have expired).'); return; }
+      const data = (await r.json()) as { images?: unknown; caption?: unknown };
+      const images = Array.isArray(data.images) ? (data.images as string[]).filter(isOwnBlobUrl) : [];
+      const caption = typeof data.caption === 'string' ? data.caption : '';
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.setHeader('Content-Disposition', 'inline');
+      res.status(200).send(galleryHtml(images, caption));
+    } catch {
+      res.status(500).send('Could not load this gallery.');
+    }
+    return;
+  }
+
+  if (req.method !== 'POST') { res.status(405).json({ error: 'GET or POST only' }); return; }
   const blobToken = resolveBlobToken();
   if (!blobToken) {
     res.status(501).json({ error: 'Vercel Blob is not enabled on this project (no BLOB_READ_WRITE_TOKEN).' });
@@ -69,17 +95,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
   }
   // Only allow our own blob URLs in the gallery.
   for (const u of images) {
-    try {
-      const h = new URL(u).hostname;
-      if (!/\.blob\.vercel-storage\.com$/i.test(h)) { res.status(400).json({ error: 'Images must be Vercel Blob URLs.' }); return; }
-    } catch { res.status(400).json({ error: 'Bad image URL.' }); return; }
+    if (!isOwnBlobUrl(u)) { res.status(400).json({ error: 'Images must be Vercel Blob URLs.' }); return; }
   }
   try {
-    const id = `gallery/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.html`;
-    const blob = await put(id, galleryHtml(images, caption), {
-      access: 'public', contentType: 'text/html; charset=utf-8', addRandomSuffix: false, token: blobToken,
+    // Store the DATA (not HTML) as JSON — Blob serves JSON fine; the GET above
+    // turns it into the page. Return a viewer URL on our own domain so the QR
+    // opens a real inline page on the phone.
+    const id = `gallery/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.json`;
+    const blob = await put(id, JSON.stringify({ images, caption }), {
+      access: 'public', contentType: 'application/json', addRandomSuffix: false, token: blobToken,
     });
-    res.status(200).json({ url: blob.url });
+    const viewer = `${originFromRequest(req)}/api/gallery?d=${encodeURIComponent(blob.url)}`;
+    res.status(200).json({ url: viewer });
   } catch (e) {
     res.status(500).json({ error: `Gallery publish failed: ${(e as Error).message}` });
   }
