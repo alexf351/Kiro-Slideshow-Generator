@@ -70,6 +70,7 @@ export function computeReadiness(i: ReadinessInput): Readiness {
   else if (!i.invitesComment) topFix = 'Ask a question so viewers comment — it drives reach.';
   else if (i.hashtagTier === 'weak') topFix = i.hashtagTips[0] || 'Tighten your hashtag mix.';
   else if (!i.deckBalanced) topFix = i.deckTip || 'Balance your slide lengths.';
+  else if (i.slideCount > 12) topFix = 'Trim toward ~10 slides — long carousels lose viewers before the end.';
   else if (i.hookScore < 70) topFix = i.hookTips[0] || 'Sharpen the hook a touch more.';
 
   return { score, tier: tierFor(score), topFix };

@@ -2,6 +2,8 @@
 // the three-step flow + the ⌘K palette, and gets out of the way. Tasteful,
 // skippable, no nagging.
 
+import { PRESET_KEYS } from './presets';
+
 const FLAG = 'iro_onboarded_v1';
 
 export function shouldOnboard(): boolean {
@@ -16,12 +18,12 @@ const STEPS: { n: string; title: string; body: string }[] = [
   {
     n: '1',
     title: 'Start from an idea',
-    body: 'Type a topic and hit “Full post” — AI picks the best of 24 formats, writes the slides, and drafts a caption. Or pick a format yourself and fill the Quick Edit fields (no JSON), clone a TikTok, or brainstorm + batch a whole week.',
+    body: `Type a topic and hit “Full post” — AI picks the best of ${PRESET_KEYS.length} formats, writes the slides, and drafts a caption. Or pick a format yourself and fill the Quick Edit fields (no JSON), clone a TikTok, or brainstorm + batch a whole week.`,
   },
   {
     n: '2',
     title: 'Make it yours',
-    body: 'Backgrounds from stock, built-in gradients, or AI-generated. Drag text & photos onto slides. Improve / rewrite with AI, then AI-write or punch up the caption with hashtags (any language).',
+    body: 'One-tap auto-fill relevant photo backgrounds (free), built-in gradients, or AI-generated. Drag text & photos onto slides. Improve / rewrite with AI, then AI-write or punch up the caption — with a live hook score + hashtag check (any language).',
   },
   {
     n: '3',
