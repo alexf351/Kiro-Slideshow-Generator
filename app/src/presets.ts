@@ -23,6 +23,7 @@ export const PRESET_KEYS = [
   'stat_drop',
   'this_or_that',
   'quote_card',
+  'before_after',
 ] as const;
 
 export type PresetKey = (typeof PRESET_KEYS)[number];
@@ -653,6 +654,35 @@ want to actually act on them? search "Iro AI" on the App Store.
 
 #quotes #ai #motivation #aitok #mindset`;
 
+const BEFORE_AFTER_JSON = `{
+  "preset": "before_after",
+  "hook": {
+    "headline": "what 30 days of <strong>AI</strong> did<br/>to my workflow",
+    "subline": "the before is embarrassing"
+  },
+  "items": [
+    { "label": "My mornings", "before": "2 hours buried in my inbox before any real work.", "after": "AI drafts every reply; I approve them in 15 minutes." },
+    { "label": "Writing", "before": "Staring at a blank doc, rewriting the same intro 6 times.", "after": "A solid first draft in one prompt, then I just edit." },
+    { "label": "Learning", "before": "Saving tutorials I never watched.", "after": "Building tiny tools and actually remembering it." }
+  ],
+  "cta": {
+    "headline": "Want this <strong>after</strong><br/>for yourself?",
+    "instructionAbove": "search:",
+    "searchTerm": "Iro AI",
+    "instructionBelow": "on the App Store.",
+    "slogan": "5 minutes a day.<br/><strong>start building.</strong>"
+  },
+  "attribution": ""
+}`;
+
+const BEFORE_AFTER_CAPTION = `30 days of actually using AI vs before 😮‍💨
+
+the difference is genuinely unfair. save this as your roadmap.
+
+want the after? search "Iro AI" on the App Store. 5 min a day.
+
+#beforeandafter #ai #productivity #aitok #glowup`;
+
 export const PRESETS: Record<PresetKey, PresetMeta> = {
   prompt_pack: {
     key: 'prompt_pack',
@@ -806,5 +836,14 @@ export const PRESETS: Record<PresetKey, PresetMeta> = {
     defaultJson: QUOTE_CARD_JSON,
     defaultCaption: QUOTE_CARD_CAPTION,
     accent: '#FFC857', // warm gold
+  },
+  before_after: {
+    key: 'before_after',
+    label: 'Before / After',
+    pitch: 'Transformation slides — a muted BEFORE card, arrow, then a glowing AFTER. Aspirational proof.',
+    status: 'ready',
+    defaultJson: BEFORE_AFTER_JSON,
+    defaultCaption: BEFORE_AFTER_CAPTION,
+    accent: '#22C55E', // transformation green
   },
 };
