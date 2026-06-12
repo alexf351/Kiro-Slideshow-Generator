@@ -210,5 +210,21 @@ const eq = (n, a, b) => ok(n + ` (got ${JSON.stringify(a)})`, JSON.stringify(a) 
   ok('fatigue different format ok', !wouldFatigueStreak([p('tweet'), p('tweet')], 'reddit'));
 }
 
+// ---- schedulePlan (auto-spread drafts) ----
+{
+  const { scheduleDates, planFromTomorrow } = await load('schedulePlan.ts');
+  const start = new Date(2026, 5, 15, 10, 0, 0); // Jun 15, 10am local
+  const ds = scheduleDates(3, start, 18, 1);
+  ok('sched count', ds.length === 3);
+  ok('sched hour', ds.every((d) => d.getHours() === 18 && d.getMinutes() === 0));
+  ok('sched consecutive days', ds[0].getDate() === 15 && ds[1].getDate() === 16 && ds[2].getDate() === 17);
+  const pd = scheduleDates(4, start, 9, 2);
+  ok('sched perDay groups', pd[0].getDate() === 15 && pd[1].getDate() === 15 && pd[2].getDate() === 16 && pd[3].getDate() === 16);
+  ok('sched zero empty', scheduleDates(0, start).length === 0);
+  ok('sched month rollover', scheduleDates(1, new Date(2026, 0, 31, 10), 18)[0] instanceof Date);
+  const tom = planFromTomorrow(2, new Date(2026, 5, 15, 23, 0));
+  ok('plan tomorrow', tom[0].getDate() === 16 && tom[1].getDate() === 17 && tom[0].getHours() === 18);
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

@@ -3832,6 +3832,24 @@ export default function App() {
                 Clear {drafts.filter((d) => d.posted).length} posted
               </button>
             )}
+            {drafts.some((d) => !d.posted && !d.scheduledFor) && (
+              <button
+                type="button"
+                onClick={async () => {
+                  const { planFromTomorrow } = await import('./schedulePlan');
+                  const unsched = drafts.filter((d) => !d.posted && !d.scheduledFor);
+                  const dates = planFromTomorrow(unsched.length);
+                  let next = drafts;
+                  unsched.forEach((d, i) => { next = setDraftSchedule(d.id, dates[i].getTime()); });
+                  setDrafts(next);
+                  ui.notify(`Scheduled ${unsched.length} draft${unsched.length === 1 ? '' : 's'} across the next ${unsched.length} day${unsched.length === 1 ? '' : 's'} at 6pm. Export to calendar below.`, { type: 'success' });
+                }}
+                className="w-full mb-2 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-[0.12em] text-gray-400 hover:text-[#34D399] border border-white/[0.08] hover:border-[#34D399]/30"
+                title="Auto-assign each unscheduled draft to a day (one per day from tomorrow, 6pm)"
+              >
+                🗓 Spread {drafts.filter((d) => !d.posted && !d.scheduledFor).length} across the week
+              </button>
+            )}
             {scheduledCount(drafts) > 0 && (
               <button
                 type="button"
