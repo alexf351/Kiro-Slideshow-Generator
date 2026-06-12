@@ -70,7 +70,7 @@ const PROMPT_PACK_JSON = `{
     "instructionBelow": "on the App Store.",
     "slogan": "stop asking AI questions.<br/><strong>start building with it.</strong>"
   },
-  "attribution": "@tryiro"
+  "attribution": ""
 }`;
 
 const PAIN_STORY_JSON = `{
@@ -89,7 +89,7 @@ const PAIN_STORY_JSON = `{
     "instructionBelow": "on the App Store.",
     "slogan": "5 minutes a day. that's it."
   },
-  "attribution": "@tryiro"
+  "attribution": ""
 }`;
 
 const MEME_POV_JSON = `{
@@ -110,7 +110,7 @@ const MEME_POV_JSON = `{
     "instructionBelow": "on the App Store",
     "slogan": "actually get good at AI."
   },
-  "attribution": "@tryiro"
+  "attribution": ""
 }`;
 
 const CHECKLIST_JSON = `{
@@ -133,7 +133,7 @@ const CHECKLIST_JSON = `{
     "instructionBelow": "on the App Store.",
     "slogan": "5 min/day. for real."
   },
-  "attribution": "@tryiro"
+  "attribution": ""
 }`;
 
 const HANDWRITTEN_PACK_JSON = `{
@@ -171,7 +171,7 @@ const HANDWRITTEN_PACK_JSON = `{
     "instructionBelow": "on the App Store.",
     "slogan": "5 min a day. that's it."
   },
-  "attribution": "@tryiro"
+  "attribution": ""
 }`;
 
 const PRODUCT_DEMO_JSON = `{
@@ -200,7 +200,7 @@ const PRODUCT_DEMO_JSON = `{
     "instructionBelow": "on the App Store.",
     "slogan": "5 min/day. that's it."
   },
-  "attribution": "@tryiro"
+  "attribution": ""
 }`;
 
 const ASPIRATIONAL_JSON = `{
@@ -234,7 +234,7 @@ const ASPIRATIONAL_JSON = `{
     "instructionBelow": "on the App Store.",
     "slogan": "the future is yours."
   },
-  "attribution": "@tryiro"
+  "attribution": ""
 }`;
 
 
@@ -328,7 +328,7 @@ const APP_STACK_JSON = `{
       "iconUrl": ""
     }
   ],
-  "attribution": "@tryiro"
+  "attribution": ""
 }`;
 
 const OUTPUT_VS_HYPE_JSON = `{
@@ -351,7 +351,7 @@ const OUTPUT_VS_HYPE_JSON = `{
     "instructionBelow": "on the App Store.",
     "slogan": "less hype. more output."
   },
-  "attribution": "@tryiro"
+  "attribution": ""
 }`;
 
 const OUTPUT_VS_HYPE_CAPTION = `output vs hype — what AI tools actually deliver 📊
@@ -391,7 +391,7 @@ const CURATED_LIST_JSON = `{
       "sub": "Words, ideas, references — don't skip them. Curiosity practiced consistently turns into intelligence."
     }
   ],
-  "attribution": "@tryiro"
+  "attribution": ""
 }`;
 
 const CURATED_LIST_CAPTION = `habits to become disgustingly well-educated (and end brainrot) 📚

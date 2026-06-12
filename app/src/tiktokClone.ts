@@ -112,7 +112,7 @@ const EMIT_CLONE_TOOL = {
       slides: {
         type: 'object',
         description:
-          'Preset-specific JSON. Must include attribution "@tryiro" and a cta pointing to "Iro AI" on the App Store. Follow the schema in the system prompt exactly — do not invent fields.',
+          'Preset-specific JSON with a cta pointing to "Iro AI" on the App Store. Leave attribution as an empty string unless the source clearly shows a creator handle. Follow the schema in the system prompt exactly — do not invent fields.',
         additionalProperties: true,
       },
       caption: {
