@@ -1143,6 +1143,25 @@ export default function App() {
     setSlideBgs((prev) => ({ ...prev, [slideKey]: { type: 'media', mediaId: item.id } }));
   }
 
+  // Generate a brand-new background for a slide from a text description (OpenAI).
+  async function handleGenerateBgForSlide(slideKey: string, label: string) {
+    if (!openaiKey) { ui.notify('Add an OpenAI API key in Settings to generate backgrounds.', { type: 'error' }); return; }
+    const desc = await ui.prompt({ title: 'Generate background', message: `Describe the background for ${label}.`, placeholder: 'e.g. moody dark study desk at night, soft rim light', confirmLabel: 'Generate' });
+    if (!desc || !desc.trim()) return;
+    setEditingBg((prev) => ({ ...prev, [slideKey]: true }));
+    try {
+      const { generateImage, buildBackgroundPrompt } = await import('./openaiImage');
+      const blob = await generateImage({ apiKey: openaiKey, prompt: buildBackgroundPrompt(desc.trim()), quality: 'medium' });
+      await saveAndAssignBlob(slideKey, blob, `ai-${desc.trim().slice(0, 30)}`);
+      setTimeout(() => void handleRender({ switchView: false }), 80);
+      ui.notify('Background generated.', { type: 'success' });
+    } catch (e) {
+      ui.notify(`Generation failed: ${(e as Error).message}`, { type: 'error' });
+    } finally {
+      setEditingBg((prev) => ({ ...prev, [slideKey]: false }));
+    }
+  }
+
   async function handleUploadForSlide(slideKey: string, file: File) {
     if (!file.type.startsWith('image/')) {
       ui.notify('Pick an image file.', { type: 'error' });
@@ -2489,6 +2508,14 @@ export default function App() {
                             {menuItem('Paste image URL', () => handlePasteUrlForSlide(key), {
                               sub: 'Direct link to a publicly reachable image.',
                             })}
+                            {openaiKey && menuItem(
+                              editing ? 'Generating…' : '✨ Generate with AI',
+                              () => void handleGenerateBgForSlide(key, label),
+                              {
+                                sub: 'gpt-image-1 · pay-per-image · a unique background from a text prompt.',
+                                disabled: editing,
+                              },
+                            )}
                             {set && bg?.type === 'media' && openaiKey && menuItem(
                               editing ? 'AI-editing…' : 'AI-edit current image',
                               () => void handleAiEditBg(key, label),

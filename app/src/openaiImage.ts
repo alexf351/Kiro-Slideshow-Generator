@@ -9,6 +9,7 @@
 // $0.04-0.19 depending on quality.
 
 const ENDPOINT = 'https://api.openai.com/v1/images/edits';
+const GEN_ENDPOINT = 'https://api.openai.com/v1/images/generations';
 
 export type OpenAIImageQuality = 'low' | 'medium' | 'high';
 
@@ -73,6 +74,61 @@ export async function editImage(opts: EditOptions): Promise<Blob> {
     return await dl.blob();
   }
   throw new OpenAIImageError('OpenAI response had neither b64_json nor url.');
+}
+
+// Shared response → Blob decode for the OpenAI image endpoints.
+async function imageResponseToBlob(res: Response): Promise<Blob> {
+  if (!res.ok) {
+    let detail = '';
+    try { const j = (await res.json()) as { error?: { message?: string } }; detail = j?.error?.message || ''; } catch {}
+    throw new OpenAIImageError(detail || `OpenAI image API returned ${res.status}.`, res.status);
+  }
+  const json = (await res.json()) as { data?: Array<{ b64_json?: string; url?: string }> };
+  const first = json.data && json.data[0];
+  if (!first) throw new OpenAIImageError('OpenAI returned no image data.');
+  if (first.b64_json) {
+    const bin = atob(first.b64_json);
+    const buf = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+    return new Blob([buf], { type: 'image/png' });
+  }
+  if (first.url) {
+    const dl = await fetch(first.url);
+    if (!dl.ok) throw new OpenAIImageError(`Failed to download generated image (${dl.status})`);
+    return await dl.blob();
+  }
+  throw new OpenAIImageError('OpenAI response had neither b64_json nor url.');
+}
+
+// Generate a brand-new slide background from a text prompt (no source image).
+export async function generateImage(opts: {
+  apiKey: string;
+  prompt: string;
+  size?: '1024x1024' | '1024x1536' | '1536x1024';
+  quality?: OpenAIImageQuality;
+}): Promise<Blob> {
+  if (!opts.apiKey) throw new OpenAIImageError('Missing OpenAI API key. Add one in Settings.');
+  const res = await fetch(GEN_ENDPOINT, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${opts.apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'gpt-image-1',
+      prompt: opts.prompt,
+      n: 1,
+      size: opts.size || '1024x1536', // portrait, closest to the 9:16 canvas
+      quality: opts.quality || 'medium',
+    }),
+  });
+  return imageResponseToBlob(res);
+}
+
+// A background-friendly wrapper around a user's short description.
+export function buildBackgroundPrompt(description: string): string {
+  return [
+    `A vertical 9:16 background image for a TikTok slideshow slide: ${description}.`,
+    'Cinematic, high-quality, with clear empty space and gentle darkening toward the edges so bold text reads on top.',
+    'No text, no logos, no watermarks, no UI. Do not render any words.',
+  ].join(' ');
 }
 
 // Default prompt template used when AI-editing a cloned TikTok slide.
