@@ -2144,6 +2144,20 @@ export default function App() {
     }
   }
 
+  // Copy the full posting cheat-sheet (caption + first-comment hashtags +
+  // sound + checklist) to the clipboard — the same thing the slide ZIP's
+  // posting.txt contains, for when you just want the text.
+  async function handleCopyPostPack() {
+    const { buildPostingNotes } = await import('./captionAI');
+    const text = buildPostingNotes(caption, PRESETS[preset].label, slideCount || 0, audioNote);
+    try {
+      await navigator.clipboard.writeText(text);
+      ui.notify('Post pack copied — caption, first comment, sound + checklist.', { type: 'success' });
+    } catch {
+      await ui.prompt({ title: 'Post pack', message: 'Copy this:', placeholder: '', confirmLabel: 'Done', defaultValue: text });
+    }
+  }
+
   async function handleSharePost() {
     const code = encodePost({ preset, json: jsonText, caption });
     try {
@@ -2427,6 +2441,7 @@ export default function App() {
       ...(aiUndo ? [{ id: 'ai-undo', section: 'AI', label: 'Undo last AI change', keywords: 'revert', run: handleUndoAi }] : []),
       { id: 'save-draft', section: 'Actions', label: 'Save as draft', hint: '⌘S', keywords: 'project', run: () => void handleSaveDraft() },
       { id: 'copy-script', section: 'Actions', label: 'Copy slide script', keywords: 'voiceover text', run: () => void handleCopyScript() },
+      { id: 'copy-postpack', section: 'Actions', label: 'Copy post pack', keywords: 'caption first comment checklist sound posting', run: () => void handleCopyPostPack() },
       { id: 'send-phone', section: 'Export', label: 'Send to phone (QR)', keywords: 'mobile transfer', run: () => void handlePhoneHandoff() },
       { id: 'export-video', section: 'Export', label: 'Export as video', keywords: 'mp4 reel', run: () => handleExportVideo() },
       { id: 'export-pdf', section: 'Export', label: 'Export as PDF', keywords: 'carousel instagram linkedin', run: () => void handleExportPdf() },
@@ -4043,13 +4058,23 @@ export default function App() {
                   <span>{deckLength.tip}</span>
                 </div>
               )}
-              <button
-                type="button"
-                onClick={() => void handleCopyScript()}
-                className="w-full mt-2.5 py-2 rounded-lg text-[11px] font-bold uppercase tracking-[0.1em] border border-white/[0.10] bg-white/[0.03] text-gray-300 hover:text-[#00E5FF] hover:border-[#00E5FF]/30 transition-all"
-              >
-                📝 Copy slide script
-              </button>
+              <div className="mt-2.5 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => void handleCopyScript()}
+                  className="flex-1 py-2 rounded-lg text-[11px] font-bold uppercase tracking-[0.1em] border border-white/[0.10] bg-white/[0.03] text-gray-300 hover:text-[#00E5FF] hover:border-[#00E5FF]/30 transition-all"
+                >
+                  📝 Copy script
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleCopyPostPack()}
+                  title="Copy the full posting plan (caption, first-comment hashtags, sound, checklist) to paste anywhere"
+                  className="flex-1 py-2 rounded-lg text-[11px] font-bold uppercase tracking-[0.1em] border border-white/[0.10] bg-white/[0.03] text-gray-300 hover:text-[#34D399] hover:border-[#34D399]/30 transition-all"
+                >
+                  📋 Copy post pack
+                </button>
+              </div>
             </div>
             <p className="text-xs text-gray-500 leading-relaxed mb-3">
               Push the current slideshow straight to your TikTok <strong className="text-gray-300">inbox</strong> as a photo draft — then open the app to finish posting. Uses your caption below.
