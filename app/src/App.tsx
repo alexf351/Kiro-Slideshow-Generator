@@ -2188,6 +2188,22 @@ export default function App() {
                          resize-y custom-scrollbar transition-all duration-200"
               placeholder="Hook in the first line. Hashtags at the end. (Saved with the post when you tap Save to history.)"
             />
+            {(() => {
+              const len = caption.length;
+              const firstLine = caption.split('\n')[0] || '';
+              const over = len > 2200;
+              const hookLong = firstLine.trim().length > 100;
+              return (
+                <div className="mt-1.5 flex items-center justify-between text-[10px] gap-3">
+                  <span className={hookLong ? 'text-amber-400' : 'text-gray-600'}>
+                    {hookLong ? '⚠ First line is long — TikTok may cut your hook off' : 'First line is your on-screen hook'}
+                  </span>
+                  <span className={'tabular-nums shrink-0 ' + (over ? 'text-red-400 font-bold' : len > 2000 ? 'text-amber-400' : 'text-gray-600')}>
+                    {len}/2200
+                  </span>
+                </div>
+              );
+            })()}
             <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
               <button
                 type="button"
