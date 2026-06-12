@@ -709,6 +709,7 @@ export default function App() {
   }
 
   function jumpToSlide(index: number) {
+    previewIndexRef.current = index;
     iframeRef.current?.contentWindow?.postMessage({ type: 'scrollToSlide', index }, '*');
   }
 
@@ -793,7 +794,7 @@ export default function App() {
       if (!msg || typeof msg !== 'object') return;
       if (msg.type === 'rendered') {
         setStatus({ kind: 'ok', at: Date.now() });
-        if (typeof msg.slideCount === 'number') setSlideCount(msg.slideCount);
+        if (typeof msg.slideCount === 'number') { setSlideCount(msg.slideCount); previewIndexRef.current = 0; }
         // A draft is being loaded with its own overlays — re-apply them now
         // that the new slides exist (consumed once).
         if (pendingOverlaysRef.current !== null) {
@@ -2294,6 +2295,11 @@ export default function App() {
   // Bound to the (hoisted) handleSaveDraft so Cmd/Ctrl+S quick-saves a draft.
   const saveDraftRef = useRef<() => void>(() => {});
   saveDraftRef.current = handleSaveDraft;
+  // Current previewed slide + count, as refs so the (once-bound) key handler
+  // reads fresh values without re-binding. jumpToSlide keeps the index in sync.
+  const previewIndexRef = useRef(0);
+  const slideCountRef = useRef(slideCount);
+  slideCountRef.current = slideCount;
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
@@ -2312,6 +2318,19 @@ export default function App() {
         const tag = el?.tagName;
         const typing = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el?.isContentEditable;
         if (!typing) { e.preventDefault(); setShortcutsOpen((o) => !o); }
+      } else if ((e.key === 'ArrowRight' || e.key === 'ArrowLeft') && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        // Step through slides in the preview — but not while typing (arrows
+        // must move the caret in a field).
+        const el = e.target as HTMLElement | null;
+        const tag = el?.tagName;
+        const typing = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el?.isContentEditable;
+        const n = slideCountRef.current;
+        if (!typing && n > 1) {
+          e.preventDefault();
+          const delta = e.key === 'ArrowRight' ? 1 : -1;
+          const next = Math.max(0, Math.min(n - 1, previewIndexRef.current + delta));
+          if (next !== previewIndexRef.current) jumpToSlide(next);
+        }
       } else if (e.key === 'Escape') {
         setShortcutsOpen(false);
       }
@@ -4344,6 +4363,7 @@ export default function App() {
                 ['Render preview', [mod, '⏎']],
                 ['Save draft', [mod, 'S']],
                 ['Toggle safe zone', ['Safe zone btn']],
+                ['Step through slides', ['←', '→']],
                 ['This help', ['?']],
                 ['Close dialogs', ['Esc']],
               ] as [string, string[]][]).map(([label, keys]) => (
