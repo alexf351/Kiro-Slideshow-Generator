@@ -195,6 +195,14 @@ function loadPersisted(): Persisted {
 }
 
 // Strip wrappers like `const SLIDES =` / `;` / ```json fences before JSON.parse.
+// Small per-UI-preference store (separate from the main persisted state blob).
+function loadPref(key: string): string {
+  try { return localStorage.getItem('kiro_pref_' + key) || ''; } catch { return ''; }
+}
+function savePref(key: string, value: string): void {
+  try { localStorage.setItem('kiro_pref_' + key, value); } catch {}
+}
+
 function stripJsonWrappers(t: string): string {
   return t
     .replace(/^\s*(const|let|var)\s+SLIDES\s*=\s*/, '')
@@ -416,7 +424,7 @@ export default function App() {
   // Animated MP4/WebM export progress.
   const [videoBusy, setVideoBusy] = useState<string | null>(null);
   // Seconds per slide for the video export (pacing).
-  const [videoPace, setVideoPace] = useState<number>(2.5);
+  const [videoPace, setVideoPace] = useState<number>(() => { const v = Number(loadPref('videoPace')); return v >= 1 && v <= 6 ? v : 2.5; });
   // PDF export (repurpose the deck as an IG / LinkedIn carousel).
   const [pdfBusy, setPdfBusy] = useState<string | null>(null);
   const [genDeckBusy, setGenDeckBusy] = useState(false);
@@ -471,7 +479,7 @@ export default function App() {
   const [topic, setTopic] = useState('');
   const [topicBusy, setTopicBusy] = useState(false);
   const [fullPostBusy, setFullPostBusy] = useState<string | null>(null);
-  const [remixTarget, setRemixTarget] = useState<PresetKey>('tier_list');
+  const [remixTarget, setRemixTarget] = useState<PresetKey>(() => { const v = loadPref('remixTarget'); return (PRESET_KEYS as readonly string[]).includes(v) ? (v as PresetKey) : 'tier_list'; });
   const [remixBusy, setRemixBusy] = useState(false);
   const [improveBusy, setImproveBusy] = useState<string | null>(null);
   const [rewritingIndex, setRewritingIndex] = useState<number | null>(null);
@@ -479,7 +487,7 @@ export default function App() {
   const [hashtagSets, setHashtagSets] = useState<HashtagSet[]>(() => listSets());
   // Batch generate — one draft per topic line.
   const [batchTopics, setBatchTopics] = useState('');
-  const [batchSmart, setBatchSmart] = useState(false);
+  const [batchSmart, setBatchSmart] = useState(() => loadPref('batchSmart') === '1');
   const [batchBusy, setBatchBusy] = useState<string | null>(null);
   const [ideasBusy, setIdeasBusy] = useState(false);
   // Which collapsible sidebar groups are expanded. Everything outside the
@@ -1080,7 +1088,7 @@ export default function App() {
   // Write a fresh caption + hashtags with Claude from the current slide
   // content. Learns the user's voice from their recent saved captions.
   const [captionAiBusy, setCaptionAiBusy] = useState(false);
-  const [captionTone, setCaptionTone] = useState('Auto');
+  const [captionTone, setCaptionTone] = useState(() => loadPref('captionTone') || 'Auto');
   const [translateLang, setTranslateLang] = useState('Spanish');
   const [translateBusy, setTranslateBusy] = useState(false);
 
@@ -1846,6 +1854,12 @@ export default function App() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, []);
+
+  // Persist lightweight UI preferences so they survive a reload.
+  useEffect(() => { savePref('captionTone', captionTone); }, [captionTone]);
+  useEffect(() => { savePref('videoPace', String(videoPace)); }, [videoPace]);
+  useEffect(() => { savePref('remixTarget', remixTarget); }, [remixTarget]);
+  useEffect(() => { savePref('batchSmart', batchSmart ? '1' : '0'); }, [batchSmart]);
 
   // Picking a format chip loads that format's example post into the
   // content + JSON editors and the caption, so the user can choose a
