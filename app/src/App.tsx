@@ -27,6 +27,7 @@ import { checkEngagement } from './captionSignals';
 import { computeReadiness, READINESS_COLOR, READINESS_TEXT } from './postReadiness';
 import { makeZip, dataUrlToBytes } from './zip';
 import { analyzeDeck } from './deckBalance';
+import { deckLengthVerdict } from './deckPacing';
 import { listSets, saveSet, deleteSet, formatTags, type HashtagSet } from './hashtagSets';
 import { encodePost, decodePost } from './postShare';
 import { useUI } from './ui';
@@ -518,6 +519,16 @@ export default function App() {
       const contentArr = CONTENT_KEYS.map((k) => parsed[k]).find((v) => Array.isArray(v)) as unknown[] | undefined;
       if (!contentArr) return null;
       return analyzeDeck(contentArr);
+    } catch { return null; }
+  }, [jsonText]);
+  // Total deck-length pacing (completion-rate nudge), separate axis from the
+  // per-slide density check above.
+  const deckLength = useMemo(() => {
+    try {
+      const parsed = JSON.parse(stripJsonWrappers(jsonText.trim())) as Record<string, unknown>;
+      const contentArr = CONTENT_KEYS.map((k) => parsed[k]).find((v) => Array.isArray(v)) as unknown[] | undefined;
+      const count = (contentArr ? contentArr.length : 0) + (parsed.hook ? 1 : 0) + (parsed.cta ? 1 : 0);
+      return deckLengthVerdict(count);
     } catch { return null; }
   }, [jsonText]);
   // Composite post-readiness verdict synthesizing the quality signals + the
@@ -3662,6 +3673,12 @@ export default function App() {
                 <div className="mt-2 flex items-start gap-2 text-[11px] text-amber-300/90 leading-snug">
                   <span className="shrink-0">⚠</span>
                   <span>{deckBalance.tip}</span>
+                </div>
+              )}
+              {deckLength && deckLength.tip && (
+                <div className="mt-2 flex items-start gap-2 text-[11px] text-amber-300/90 leading-snug">
+                  <span className="shrink-0">↕</span>
+                  <span>{deckLength.tip}</span>
                 </div>
               )}
               <button
