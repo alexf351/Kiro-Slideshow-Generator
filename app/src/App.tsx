@@ -1119,6 +1119,22 @@ export default function App() {
     }
   }
 
+  // Copy one slide's background onto every slide for a unified look. Skips
+  // the icon/logo/card sub-slots (those aren't full-slide backgrounds).
+  function handleApplyBgToAll(sourceKey: string) {
+    const src = slideBgs[sourceKey];
+    if (!src) { ui.notify('Set a background on this slide first.', { type: 'info' }); return; }
+    const targets = slideMetas.map((m) => m.key).filter((k) => !/-(icon|logo|card):/.test(k));
+    setSlideBgs((prev) => {
+      const next = { ...prev };
+      for (const k of targets) next[k] = src;
+      return next;
+    });
+    setOpenBgMenuKey(null);
+    setTimeout(() => void handleRender({ switchView: false }), 60);
+    ui.notify(`Applied to ${targets.length} slide${targets.length === 1 ? '' : 's'}.`, { type: 'success' });
+  }
+
   function handleClearBgForSlide(slideKey: string) {
     setSlideBgs((prev) => {
       const next = { ...prev };
@@ -3123,6 +3139,9 @@ export default function App() {
                               () => ui.notify('Add an OpenAI API key under Settings to enable AI-edit.', { type: 'info' }),
                               { sub: 'Pay-per-image. Optional.', disabled: false },
                             )}
+                            {set && menuItem('Apply to all slides', () => handleApplyBgToAll(key), {
+                              sub: 'Use this background behind every slide (one unified look).',
+                            })}
                             {set && menuItem('Clear (use mascot default)', () => handleClearBgForSlide(key), {
                               danger: true,
                             })}
