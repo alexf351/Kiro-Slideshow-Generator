@@ -1140,6 +1140,23 @@ export default function App() {
 
   // Translate the current caption into another language for a different
   // audience. Save as a draft afterward to keep one post per market.
+  const [punchBusy, setPunchBusy] = useState(false);
+  async function handlePunchUpCaption() {
+    if (!caption.trim()) { ui.notify('Write a caption first.', { type: 'info' }); return; }
+    if (!anthropicKey) { ui.notify('Add an Anthropic API key in Settings to use this.', { type: 'error' }); return; }
+    setPunchBusy(true);
+    try {
+      const { punchUpCaption } = await import('./captionAI');
+      const out = await punchUpCaption({ caption, apiKey: anthropicKey, model: claudeModel });
+      setCaption(out);
+      ui.notify('Caption punched up.', { type: 'success' });
+    } catch (e) {
+      ui.notify(`Failed: ${(e as Error).message}`, { type: 'error' });
+    } finally {
+      setPunchBusy(false);
+    }
+  }
+
   async function handleTranslateCaption() {
     if (!caption.trim()) { ui.notify('Write a caption first.', { type: 'info' }); return; }
     if (!anthropicKey) { ui.notify('Add an Anthropic API key in Settings to translate.', { type: 'error' }); return; }
@@ -2914,6 +2931,14 @@ export default function App() {
                   <option key={t} value={t}>{t}</option>
                 ))}
               </select>
+              <button
+                type="button"
+                onClick={() => void handlePunchUpCaption()}
+                disabled={punchBusy}
+                className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#A78BFA] hover:text-[#C4B5FD] disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {punchBusy ? '✨ …' : '✨ Punch up'}
+              </button>
               <EmojiPicker onPick={insertEmoji} />
               <span className="flex items-center gap-1">
                 <select

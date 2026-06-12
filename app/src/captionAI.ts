@@ -94,6 +94,31 @@ Rules:
 // Translate a caption into another language for reaching a different
 // audience, keeping it native (not a stiff literal translation) and leaving
 // #hashtags and @handles intact.
+// Rewrite the user's OWN caption to be punchier/more scroll-stopping, keeping
+// its meaning, hashtags and handles. Distinct from generateCaption (writes a
+// new caption from the slides).
+export async function punchUpCaption(opts: {
+  caption: string;
+  apiKey: string;
+  model: ClaudeModelId;
+}): Promise<string> {
+  const system = `You sharpen TikTok captions. Rewrite the given caption to be punchier and more scroll-stopping while keeping its core meaning. Keep it short, lowercase-leaning, native and casual (not corporate). Keep any #hashtags and @handles exactly as-is. Keep emoji count reasonable. Return only the rewritten caption.`;
+  const res = await callClaude({
+    apiKey: opts.apiKey,
+    model: opts.model,
+    maxTokens: 700,
+    system: [{ type: 'text', text: system }],
+    messages: [{ role: 'user', content: opts.caption }],
+  });
+  const text = res.content
+    .filter((b): b is { type: 'text'; text: string } => b.type === 'text')
+    .map((b) => b.text)
+    .join('\n')
+    .trim();
+  if (!text) throw new Error('No caption returned.');
+  return text;
+}
+
 export async function translateCaption(opts: {
   caption: string;
   language: string;
