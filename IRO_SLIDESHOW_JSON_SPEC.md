@@ -538,7 +538,7 @@ Mixing 1-2 cross/warning items at the end with mostly checks is high-engagement.
 
 ---
 
-## Additional presets (9–20)
+## Additional presets (9–23)
 
 All of these take the standard top-level `hook` (`{ headline, subline }` unless
 noted), `cta` (the shared CTA shape above), and `attribution` (use `""`). They
@@ -563,6 +563,12 @@ differ in the content array. Match the field names exactly.
 - **`countdown`** — ranked listicle counting down to #1. `items: [{ title, body }]`
   (top item renders as #1; rank auto-fills by position).
 - **`definition`** — dictionary cards on cream. `items: [{ term, pron, def, example }]`.
+- **`qa`** — Instagram-question-sticker bubble + answer per slide (AMA / FAQ).
+  `items: [{ q, a }]`.
+- **`flags`** — one color-coded flag per slide ("green flags / red flags of X").
+  `items: [{ flag, type: "green" | "red" }]` (default green).
+- **`steps`** — sequential how-to, one numbered step per slide with a progress
+  bar. `items: [{ title, body }]`.
 
 For any of these, the app also loads a full working example when the format is
 selected — mirror that example's structure exactly. Keep text short and
