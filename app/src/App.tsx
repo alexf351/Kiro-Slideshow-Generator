@@ -471,6 +471,7 @@ export default function App() {
   const [autoBgBusy, setAutoBgBusy] = useState<string | null>(null);
   // Named drafts (multiple in-progress projects).
   const [drafts, setDrafts] = useState<Draft[]>(() => listDrafts());
+  const [draftQuery, setDraftQuery] = useState('');
   // The draft currently loaded for editing (enables one-tap "Update").
   const [activeDraftName, setActiveDraftName] = useState('');
   // Opt-in "swipe →" cue on non-final slides (completion-rate booster).
@@ -3884,11 +3885,24 @@ export default function App() {
                 📅 Add plan to calendar (.ics)
               </button>
             )}
+            {drafts.length > 5 && (
+              <input
+                type="search"
+                value={draftQuery}
+                onChange={(e) => setDraftQuery(e.target.value)}
+                placeholder={`Filter ${drafts.length} drafts by name…`}
+                className="w-full mb-2 bg-[#070b18] border border-white/[0.08] rounded-lg px-3 py-1.5 text-[11px] text-gray-200 placeholder:text-gray-600 focus:border-[#00E5FF]/40 focus:outline-none"
+              />
+            )}
             {drafts.length === 0 ? (
               <div className="text-[11px] text-gray-600 text-center py-2">No drafts yet.</div>
-            ) : (
+            ) : (() => {
+              const q = draftQuery.trim().toLowerCase();
+              const shown = q ? drafts.filter((d) => d.name.toLowerCase().includes(q)) : drafts;
+              if (shown.length === 0) return <div className="text-[11px] text-gray-600 text-center py-2">No drafts match “{draftQuery}”.</div>;
+              return (
               <div className="flex flex-col gap-1.5">
-                {drafts.map((d) => {
+                {shown.map((d) => {
                   const isoDate = d.scheduledFor ? new Date(d.scheduledFor).toISOString().slice(0, 10) : '';
                   return (
                   <div key={d.id} className={'flex items-center gap-2 p-2.5 rounded-lg border bg-white/[0.02] ' + (d.posted ? 'border-white/[0.05] opacity-55' : d.scheduledFor ? 'border-[#34D399]/30' : 'border-white/[0.08]')}>
@@ -3950,7 +3964,8 @@ export default function App() {
                   );
                 })}
               </div>
-            )}
+              );
+            })()}
           </Group>
 
           <Group open={!!openGroups.tiktok} onToggle={() => toggleGroup('tiktok')} title="Publish to TikTok" accent="#ff0050" hint={ttToken ? 'connected' : 'send to inbox'}>
