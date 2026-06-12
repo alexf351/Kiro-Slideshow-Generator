@@ -470,6 +470,8 @@ export default function App() {
   // "Fill from topic" — AI populates the current template from a typed topic.
   const [topic, setTopic] = useState('');
   const [topicBusy, setTopicBusy] = useState(false);
+  const [remixTarget, setRemixTarget] = useState<PresetKey>('tier_list');
+  const [remixBusy, setRemixBusy] = useState(false);
   const [improveBusy, setImproveBusy] = useState<string | null>(null);
   const [rewritingIndex, setRewritingIndex] = useState<number | null>(null);
   // Saved hashtag sets (reusable niche blocks).
@@ -1478,6 +1480,32 @@ export default function App() {
     }
   }
 
+  // Reflow the current post's content into a DIFFERENT format — repurpose one
+  // idea across formats (e.g. a tier list → a countdown).
+  async function handleRemix() {
+    if (!anthropicKey) { ui.notify('Add an Anthropic API key in Settings to use this.', { type: 'error' }); return; }
+    const content = buildScript();
+    if (!content.trim()) { ui.notify('Render a post first, then remix it.', { type: 'info' }); return; }
+    if (!(await ui.confirm({ message: `Remix this post's content into the ${PRESETS[remixTarget].label} format? This replaces the current content.`, confirmLabel: 'Remix' }))) return;
+    setRemixBusy(true);
+    try {
+      const { generateFromTopic } = await import('./fillFromTopic');
+      const filled = await generateFromTopic({
+        topic: `Reflow this existing post's ideas into the new format, keeping the same core points and angle:\n${content}`,
+        preset: remixTarget, exampleJson: PRESETS[remixTarget].defaultJson, apiKey: anthropicKey, model: claudeModel,
+      });
+      setPreset(remixTarget);
+      setJsonText(filled);
+      setActiveDraftName('');
+      setTimeout(() => void handleRender({ switchView: false }), 80);
+      ui.notify(`Remixed into ${PRESETS[remixTarget].label}.`, { type: 'success' });
+    } catch (e) {
+      ui.notify(`Remix failed: ${(e as Error).message}`, { type: 'error' });
+    } finally {
+      setRemixBusy(false);
+    }
+  }
+
   // Rewrite the current post's content per a quick instruction.
   async function handleImprovePost(label: string, instruction: string) {
     if (!anthropicKey) { ui.notify('Add an Anthropic API key in Settings to use this.', { type: 'error' }); return; }
@@ -2310,6 +2338,29 @@ export default function App() {
                   {improveBusy === label ? '…' : label}
                 </button>
               ))}
+            </div>
+
+            {/* Remix the current content into a different format. */}
+            <div className="flex items-center gap-1.5 mb-4 flex-wrap">
+              <span className="text-[10px] uppercase tracking-[0.12em] text-gray-600 mr-0.5">♻️ Remix as</span>
+              <select
+                value={remixTarget}
+                onChange={(e) => setRemixTarget(e.target.value as PresetKey)}
+                aria-label="Remix target format"
+                className="bg-[#070b18] border border-white/[0.10] rounded-md px-1.5 py-1 text-[11px] text-gray-300 focus:outline-none focus:border-[#A78BFA]/50"
+              >
+                {PRESET_KEYS.map((k) => <option key={k} value={k}>{PRESETS[k].label}</option>)}
+              </select>
+              <button
+                type="button"
+                onClick={() => void handleRemix()}
+                disabled={remixBusy}
+                className="px-2.5 py-1 rounded-md text-[11px] font-bold uppercase tracking-[0.1em]
+                           border border-[#A78BFA]/25 bg-[#A78BFA]/[0.06] text-[#C4B5FD]
+                           disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#A78BFA]/[0.14] transition-all"
+              >
+                {remixBusy ? '…' : 'Remix'}
+              </button>
             </div>
 
             {editMode === 'quick' ? (
