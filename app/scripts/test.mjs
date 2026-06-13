@@ -400,5 +400,24 @@ const eq = (n, a, b) => ok(n + ` (got ${JSON.stringify(a)})`, JSON.stringify(a) 
   ok('trends year anchored', s.rows[1].date.getFullYear() === 2026 && s.rows[1].date.getMonth() === 3);
 }
 
+// ---- overlayRemap (overlays follow slide reorders) ----
+{
+  const { remapOverlays } = await load('overlayRemap.ts');
+  const H = [{ id: 'h' }], B = [{ id: 'b' }], C = [{ id: 'c' }], T = [{ id: 'cta' }];
+  // deck: hook(0), content slides 1..3, cta(4). hookOffset 1, oldLen 3.
+  let r = remapOverlays({ '0': H, '2': B, '4': T }, 1, 3, [0, 2, 1]);
+  ok('overlay move: hook stays', r['0'] === H);
+  ok('overlay move: B follows slide 2->3', r['3'] === B && !r['2']);
+  r = remapOverlays({ '0': H, '2': B, '4': T }, 1, 3, [0, 2]);
+  ok('overlay remove: dropped + cta shifts', !Object.values(r).includes(B) && r['3'] === T && r['0'] === H);
+  r = remapOverlays({ '2': B, '4': T }, 1, 3, [0, 1, 2, -1]);
+  ok('overlay add: cta shifts 4->5', r['2'] === B && r['5'] === T);
+  let i = 0;
+  r = remapOverlays({ '2': B, '4': T }, 1, 3, [0, 1, 1, 2], () => 'c' + i++);
+  ok('overlay duplicate: original keeps, copy fresh id', r['2'] === B && r['3'] && r['3'][0].id === 'c0');
+  r = remapOverlays({ '0': B }, 0, 2, [1, 0]);
+  ok('overlay no-hook: slide 0 -> 1', r['1'] === B && !r['0']);
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

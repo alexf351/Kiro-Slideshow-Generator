@@ -26,6 +26,7 @@ import { wouldFatigueStreak } from './recentFormats';
 import { buildIcs, scheduledCount } from './ics';
 import { postsToCsv } from './csv';
 import { scoreHook, HOOK_TIER_COLOR, HOOK_TIER_TEXT } from './hookScore';
+import { remapOverlays, type OverlayMap } from './overlayRemap';
 import { lintHashtags, HASHTAG_TIER_COLOR, HASHTAG_TIER_TEXT } from './hashtagLint';
 import { checkEngagement, captionFold } from './captionSignals';
 import { computeReadiness, READINESS_COLOR, READINESS_TEXT } from './postReadiness';
@@ -710,6 +711,20 @@ export default function App() {
       const t = setTimeout(() => { window.removeEventListener('message', onMsg); resolve(null); }, 4000);
       iframe.contentWindow.postMessage({ type: 'getOverlays', requestId }, '*');
     });
+  }
+
+  // Keep on-slide overlays (pasted photos / text) attached to their slide when
+  // the content order or count changes via Quick Edit. Capture the live
+  // overlays — or the pending set from an earlier reorder that hasn't rendered
+  // yet, so rapid edits compose correctly — remap the slide-index keys, stash
+  // them for the next render, and re-render (via renderRef so it sees the
+  // just-updated JSON) so the new order and relocated overlays land together.
+  async function handleSlidesReordered(info: { newOrder: number[]; hookOffset: number; oldLen: number }) {
+    const base = (pendingOverlaysRef.current as OverlayMap | null) ?? ((await captureOverlays()) as OverlayMap | null);
+    if (base && Object.keys(base).length > 0) {
+      pendingOverlaysRef.current = remapOverlays(base, info.hookOffset, info.oldLen, info.newOrder) as Record<string, unknown>;
+    }
+    setTimeout(() => { void renderRef.current({ switchView: false }); }, 60);
   }
 
   function jumpToSlide(index: number) {
@@ -3129,7 +3144,7 @@ export default function App() {
                   onRemoveTool={shiftToolBgsAfterRemove}
                 />
               ) : (
-                <QuickEdit jsonText={jsonText} onChange={setJsonText} onRewriteItem={(i) => void handleRewriteItem(i)} rewritingIndex={rewritingIndex} />
+                <QuickEdit jsonText={jsonText} onChange={setJsonText} onRewriteItem={(i) => void handleRewriteItem(i)} rewritingIndex={rewritingIndex} onReorder={(info) => void handleSlidesReordered(info)} />
               )
             ) : (
             <textarea

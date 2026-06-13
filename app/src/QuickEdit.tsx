@@ -18,6 +18,10 @@ type Props = {
   // Optional AI rewrite of a single content item (wired from App).
   onRewriteItem?: (index: number) => void;
   rewritingIndex?: number | null;
+  // Fired when the content slides change order/count so the parent can keep
+  // on-slide overlays (pasted photos / text) attached to their slide.
+  // `newOrder` is the new content array in OLD indices (-1 = fresh blank).
+  onReorder?: (info: { newOrder: number[]; hookOffset: number; oldLen: number }) => void;
 };
 
 type Parsed = Record<string, unknown>;
@@ -83,7 +87,7 @@ function isLong(field: string): boolean {
   return ['prompt', 'text', 'sub', 'slogan', 'supporting', 'subline', 'bottom', 'top'].includes(field);
 }
 
-export default function QuickEdit({ jsonText, onChange, onRewriteItem, rewritingIndex }: Props) {
+export default function QuickEdit({ jsonText, onChange, onRewriteItem, rewritingIndex, onReorder }: Props) {
   const parsed = useMemo(() => tryParse(jsonText), [jsonText]);
 
   if (!parsed) {
@@ -119,6 +123,15 @@ export default function QuickEdit({ jsonText, onChange, onRewriteItem, rewriting
     });
   }
 
+  // Tell the parent how the content array changed, so it can keep on-slide
+  // overlays attached to their slide. `newOrder` lists the new content array
+  // in OLD indices (-1 = a fresh blank item).
+  const hookOffset = parsed.hook ? 1 : 0;
+  function emitReorder(newOrder: number[]) {
+    onReorder?.({ newOrder, hookOffset, oldLen: items.length });
+  }
+  const identity = () => items.map((_, k) => k);
+
   function addItem() {
     if (!contentKey) return;
     commit((draft) => {
@@ -131,6 +144,7 @@ export default function QuickEdit({ jsonText, onChange, onRewriteItem, rewriting
       arr.push(blank);
       draft[contentKey] = arr;
     });
+    emitReorder([...identity(), -1]);
   }
 
   function removeItem(i: number) {
@@ -140,6 +154,7 @@ export default function QuickEdit({ jsonText, onChange, onRewriteItem, rewriting
       arr.splice(i, 1);
       draft[contentKey] = arr;
     });
+    emitReorder(identity().filter((k) => k !== i));
   }
 
   // Clone an item's content and insert it right after — a fast starting
@@ -151,6 +166,9 @@ export default function QuickEdit({ jsonText, onChange, onRewriteItem, rewriting
       arr.splice(i + 1, 0, { ...arr[i] });
       draft[contentKey] = arr;
     });
+    const order = identity();
+    order.splice(i + 1, 0, i); // the duplicate references the same old index
+    emitReorder(order);
   }
 
   function moveItem(i: number, dir: -1 | 1) {
@@ -162,6 +180,9 @@ export default function QuickEdit({ jsonText, onChange, onRewriteItem, rewriting
       [arr[i], arr[j]] = [arr[j], arr[i]];
       draft[contentKey] = arr;
     });
+    const order = identity();
+    [order[i], order[j]] = [order[j], order[i]];
+    emitReorder(order);
   }
 
   const hookFields = stringFields(parsed.hook);
