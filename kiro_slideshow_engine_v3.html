@@ -3008,6 +3008,9 @@
     font-family: 'Inter', sans-serif; max-width: calc(100vw - 20px);
   }
   .tov-toolbar.show { display: flex; }
+  /* When a photo overlay is selected, hide the text-only styling controls —
+     only move / copy / delete apply. */
+  .tov-toolbar.image-mode .tov-text-only { display: none; }
   .tov-tool {
     display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
     padding: 8px 11px; border-radius: 9px; font-size: 13px; font-weight: 700;
@@ -5803,6 +5806,50 @@ function addImageOverlayFromFile(file) {
   reader.readAsDataURL(file);
 }
 
+// ---- move / copy an overlay to another slide ----
+// `dir` is -1 (prev slide) or +1 (next). `makeCopy` leaves the original in
+// place and drops a fresh-id copy on the target (nudged so it isn't hidden
+// exactly behind the source). Works for image AND text overlays. No-op when
+// there's no slide in that direction.
+function relocateOverlay(ov, fromSi, dir, makeCopy) {
+  var slides = document.querySelectorAll('.slide');
+  var toSi = fromSi + dir;
+  if (toSi < 0 || toSi >= slides.length) return null;
+  var target;
+  if (makeCopy) {
+    target = JSON.parse(JSON.stringify(ov));
+    target.id = (ov.type === 'image' ? 'i' : 't') + Date.now() + Math.random().toString(36).slice(2, 6);
+    target.xPct = Math.min(92, (target.xPct || 50) + 4);
+    target.yPct = Math.min(92, (target.yPct || 42) + 4);
+  } else {
+    target = ov;
+    var srcList = TEXT_OVERLAYS[fromSi];
+    if (srcList) {
+      var idx = srcList.indexOf(ov);
+      if (idx >= 0) srcList.splice(idx, 1);
+      if (!srcList.length) delete TEXT_OVERLAYS[fromSi];
+    }
+    var srcSlide = slides[fromSi];
+    if (srcSlide) {
+      var sl = srcSlide.querySelector('.text-layer');
+      if (sl) [].slice.call(sl.children).forEach(function (c) { if (c._ov === ov) c.remove(); });
+    }
+  }
+  if (!TEXT_OVERLAYS[toSi]) TEXT_OVERLAYS[toSi] = [];
+  TEXT_OVERLAYS[toSi].push(target);
+  var tslide = slides[toSi];
+  var layer = tslide.querySelector('.text-layer');
+  if (!layer) { layer = document.createElement('div'); layer.className = 'text-layer'; tslide.appendChild(layer); }
+  var el = renderOverlayEl(target, toSi);
+  layer.appendChild(el);
+  saveOverlays();
+  tslide.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  selectOverlay(el, target, toSi);
+  return el;
+}
+function moveSelectedOverlay(dir) { if (TOV_SEL) relocateOverlay(TOV_SEL.ov, TOV_SEL.si, dir, false); }
+function copySelectedOverlay(dir) { if (TOV_SEL) relocateOverlay(TOV_SEL.ov, TOV_SEL.si, dir, true); }
+
 function removeOverlay(ov, si) {
   var list = TEXT_OVERLAYS[si];
   if (list) {
@@ -5824,11 +5871,12 @@ function selectOverlay(el, ov, si) {
   if (TOV_SEL && TOV_SEL.el !== el) TOV_SEL.el.classList.remove('selected', 'editing');
   TOV_SEL = { el: el, ov: ov, si: si };
   el.classList.add('selected');
-  // Images use only drag / resize / rotate / delete handles — the text
-  // toolbar (color, font, stroke, …) doesn't apply to them.
-  if (ov.type === 'image') { hideToolbar(); return; }
+  // Images get the toolbar too — but only the move/copy/delete controls; the
+  // text styling (color, font, stroke, …) is hidden via `image-mode`.
   showToolbar();
-  refreshToolbar();
+  var tb = document.getElementById('tov-toolbar');
+  if (tb) tb.classList.toggle('image-mode', ov.type === 'image');
+  if (ov.type !== 'image') refreshToolbar();
 }
 
 function deselectAll() {
@@ -5954,24 +6002,31 @@ function initToolbar() {
   tb.appendChild(tovTool('✓ Done', function () { deselectAll(); }));
   tb.appendChild(tovSep());
 
-  var fontBtn = tovTool('Classic', function () { cycleFont(); });
-  fontBtn.id = 'tov-font-btn'; tb.appendChild(fontBtn);
-  tb.appendChild(tovTool('A−', function () { changeSize(-8); }));
-  tb.appendChild(tovTool('A+', function () { changeSize(8); }));
-  var alignBtn = tovTool('Center', function () { cycleAlign(); });
-  alignBtn.id = 'tov-align-btn'; tb.appendChild(alignBtn);
+  // Move / copy this overlay to an adjacent slide — works for photos + text,
+  // so a snipped image can be relocated when you rearrange slides.
+  tb.appendChild(tovTool('◀ Slide', function () { moveSelectedOverlay(-1); }));
+  tb.appendChild(tovTool('Slide ▶', function () { moveSelectedOverlay(1); }));
+  tb.appendChild(tovTool('⧉ Copy ▶', function () { copySelectedOverlay(1); }));
   tb.appendChild(tovSep());
+
+  var fontBtn = tovTool('Classic', function () { cycleFont(); });
+  fontBtn.id = 'tov-font-btn'; fontBtn.classList.add('tov-text-only'); tb.appendChild(fontBtn);
+  tb.appendChild(tovTool('A−', function () { changeSize(-8); })).classList.add('tov-text-only');
+  tb.appendChild(tovTool('A+', function () { changeSize(8); })).classList.add('tov-text-only');
+  var alignBtn = tovTool('Center', function () { cycleAlign(); });
+  alignBtn.id = 'tov-align-btn'; alignBtn.classList.add('tov-text-only'); tb.appendChild(alignBtn);
+  tb.appendChild(tovSep()).classList.add('tov-text-only');
 
   // One-tap style presets — bundle color + stroke + bg in a single tap.
   TEXT_STYLE_PRESETS.forEach(function (p) {
     var b = tovTool(p.label, function () { applyTextStyle(p.style); });
-    b.classList.add('tov-style-preset');
+    b.classList.add('tov-style-preset', 'tov-text-only');
     tb.appendChild(b);
   });
-  tb.appendChild(tovSep());
+  tb.appendChild(tovSep()).classList.add('tov-text-only');
 
   var sw = document.createElement('div');
-  sw.className = 'tov-swatches'; sw.id = 'tov-color-swatches';
+  sw.className = 'tov-swatches tov-text-only'; sw.id = 'tov-color-swatches';
   TEXT_COLORS.forEach(function (col) {
     var s = document.createElement('div');
     s.className = 'tov-swatch'; s.style.background = col; s.dataset.col = col;
@@ -5979,17 +6034,17 @@ function initToolbar() {
     sw.appendChild(s);
   });
   tb.appendChild(sw);
-  tb.appendChild(tovSep());
+  tb.appendChild(tovSep()).classList.add('tov-text-only');
 
   var strokeBtn = tovTool('', function () { cycleStroke(); });
-  strokeBtn.id = 'tov-stroke-btn';
+  strokeBtn.id = 'tov-stroke-btn'; strokeBtn.classList.add('tov-text-only');
   strokeBtn.innerHTML = '<span class="tov-chip" id="tov-stroke-chip"></span> Stroke';
   tb.appendChild(strokeBtn);
   var bgBtn = tovTool('', function () { cycleBg(); });
-  bgBtn.id = 'tov-bg-btn';
+  bgBtn.id = 'tov-bg-btn'; bgBtn.classList.add('tov-text-only');
   bgBtn.innerHTML = '<span class="tov-chip" id="tov-bg-chip"></span> BG';
   tb.appendChild(bgBtn);
-  tb.appendChild(tovSep());
+  tb.appendChild(tovSep()).classList.add('tov-text-only');
 
   var del = tovTool('Delete', function () { if (TOV_SEL) { removeOverlay(TOV_SEL.ov, TOV_SEL.si); deselectAll(); } });
   del.classList.add('danger');
