@@ -23,7 +23,7 @@ export type DraftState = {
   audioNote?: string;
 };
 
-export type Draft = { id: string; name: string; savedAt: number; state: DraftState; scheduledFor?: number; posted?: boolean };
+export type Draft = { id: string; name: string; savedAt: number; state: DraftState; scheduledFor?: number; posted?: boolean; thumb?: string };
 
 const DB_NAME = 'kiro_drafts_db';
 const DB_VERSION = 1;
@@ -132,15 +132,18 @@ export async function listDrafts(): Promise<Draft[]> {
 // Save a new draft, or overwrite one with the same (case-insensitive) name.
 // Never throws — on a write failure the returned list simply won't contain the
 // new draft, which the caller treats as "couldn't save".
-export async function saveDraft(name: string, state: DraftState): Promise<Draft[]> {
+export async function saveDraft(name: string, state: DraftState, thumb?: string): Promise<Draft[]> {
   try {
     const db = await ready();
     const all = await getAll();
     const clean = name.trim() || `Draft ${new Date().toLocaleString()}`;
     const existing = all.find((d) => d.name.toLowerCase() === clean.toLowerCase());
+    // A new cover replaces the old; if none was captured this save, keep the
+    // previous cover rather than blanking it.
+    const cover = thumb ?? existing?.thumb;
     const draft: Draft = existing
-      ? { ...existing, state, savedAt: Date.now() }
-      : { id: newId(), name: clean, savedAt: Date.now(), state };
+      ? { ...existing, state, savedAt: Date.now(), thumb: cover }
+      : { id: newId(), name: clean, savedAt: Date.now(), state, thumb: cover };
     const t = db.transaction([STORE], 'readwrite');
     t.objectStore(STORE).put(draft);
     await txDone(t);
@@ -211,6 +214,7 @@ export async function duplicateDraft(id: string): Promise<Draft[]> {
       savedAt: Date.now(),
       // Deep-clone so the copy never shares the original's state object.
       state: JSON.parse(JSON.stringify(src.state)) as DraftState,
+      thumb: src.thumb,
     };
     const t = db.transaction([STORE], 'readwrite');
     t.objectStore(STORE).put(copy);
