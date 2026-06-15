@@ -10,6 +10,7 @@
 
 import { listPosts, importPosts, type Post } from './posts';
 import { scorePost, hasStats, type ScoreBreakdown } from './scoring';
+import { getAllDrafts, importDrafts, type Draft } from './drafts';
 
 const SETTINGS_KEY = 'kiro_slideshow_generator_state_v2';
 // Every BYOK secret persisted in the settings blob — MUST stay out of an
@@ -26,7 +27,8 @@ export function stripSecrets(obj: Record<string, unknown>): Record<string, unkno
 }
 const BACKUP_VERSION = 1;
 // Other browser-local data worth backing up (irreplaceable, not in settings).
-const DRAFTS_KEY = 'kiro_drafts';
+// Drafts now live in IndexedDB (see drafts.ts) and are read/written via its
+// async API; hashtag sets + favorites are still small localStorage arrays.
 const HASHTAG_SETS_KEY = 'kiro_hashtag_sets';
 const FAV_FORMATS_KEY = 'kiro_fav_formats';
 
@@ -113,7 +115,7 @@ export async function exportBackup(): Promise<Blob> {
     settings: loadSettings(),
     posts: serialized,
     local: {
-      drafts: readLocalArray(DRAFTS_KEY),
+      drafts: await getAllDrafts(),
       hashtagSets: readLocalArray(HASHTAG_SETS_KEY),
       favFormats: readLocalArray(FAV_FORMATS_KEY),
     },
@@ -173,7 +175,7 @@ export async function importBackup(text: string): Promise<ImportResult> {
   }
   // Restore drafts / hashtag sets / favorites (merged, never destructive).
   if (parsed.local && typeof parsed.local === 'object') {
-    if (Array.isArray(parsed.local.drafts)) mergeLocalArray(DRAFTS_KEY, parsed.local.drafts);
+    if (Array.isArray(parsed.local.drafts)) await importDrafts(parsed.local.drafts as Draft[]);
     if (Array.isArray(parsed.local.hashtagSets)) mergeLocalArray(HASHTAG_SETS_KEY, parsed.local.hashtagSets);
     if (Array.isArray(parsed.local.favFormats)) mergeLocalArray(FAV_FORMATS_KEY, parsed.local.favFormats);
   }

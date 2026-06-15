@@ -18,7 +18,7 @@ import HypeEditor from './HypeEditor';
 import CropAdjust, { DEFAULT_CROP, type CropValue } from './CropAdjust';
 import { GRADIENTS, SOLID_BGS } from './gradients';
 import { coerceDesign, DEFAULT_DESIGN, designPayload, ASPECT_KEYS, ASPECTS, type BrandDesign } from './design';
-import { listDrafts, saveDraft, deleteDraft, duplicateDraft, renameDraft, setDraftSchedule, setDraftPosted, clearPostedDrafts, type Draft } from './drafts';
+import { listDrafts, saveDraft, deleteDraft, duplicateDraft, renameDraft, setDraftSchedule, setDraftPosted, clearPostedDrafts, uniqueCopyName, type Draft } from './drafts';
 import { exportBackup, importBackup, downloadBlob, timestampSlug } from './backup';
 import { suggestHashtags, parseHashtags } from './insights';
 import { findSimilarHooks } from './similarity';
@@ -473,8 +473,10 @@ export default function App() {
   const [genDeckBusy, setGenDeckBusy] = useState(false);
   // Progress label while auto-filling stock backgrounds across the deck.
   const [autoBgBusy, setAutoBgBusy] = useState<string | null>(null);
-  // Named drafts (multiple in-progress projects).
-  const [drafts, setDrafts] = useState<Draft[]>(() => listDrafts());
+  // Named drafts (multiple in-progress projects). Stored in IndexedDB, so the
+  // list loads asynchronously on mount.
+  const [drafts, setDrafts] = useState<Draft[]>([]);
+  useEffect(() => { void listDrafts().then(setDrafts); }, []);
   const [draftQuery, setDraftQuery] = useState('');
   // The draft currently loaded for editing (enables one-tap "Update").
   const [activeDraftName, setActiveDraftName] = useState('');
@@ -2108,7 +2110,7 @@ export default function App() {
       const caps = batchSmart ? await import('./captionAI') : null;
       const preferList = buildPreferList(favFormats, formatPerf);
       const formats = PRESET_KEYS.map((k) => ({ key: k, label: PRESETS[k].label, pitch: PRESETS[k].pitch }));
-      let made = 0; let failed = 0; let next = drafts;
+      let made = 0; let failed = 0;
       for (let i = 0; i < lines.length; i++) {
         setBatchBusy(`Generating ${i + 1} / ${lines.length}…`);
         try {
@@ -2124,11 +2126,11 @@ export default function App() {
           if (batchSmart && caps) {
             try { const r = await caps.generateCaption({ json: filled, preset: target, apiKey: anthropicKey, model: claudeModel }); cap = caps.composeCaption(r.caption, r.hashtags); } catch {}
           }
-          next = saveDraft(lines[i].slice(0, 48), { jsonText: filled, caption: cap, preset: target, slideBgs: {}, slideBgAdjust: {}, attribution, attrPresets });
+          await saveDraft(lines[i].slice(0, 48), { jsonText: filled, caption: cap, preset: target, slideBgs: {}, slideBgAdjust: {}, attribution, attrPresets });
           made++;
         } catch { failed++; }
       }
-      setDrafts(next);
+      setDrafts(await listDrafts());
       setBatchTopics('');
       ui.notify(`Saved ${made} draft${made === 1 ? '' : 's'}${failed ? `, ${failed} failed` : ''}. Open them in Drafts.`, { type: failed && !made ? 'error' : 'success' });
     } finally {
@@ -2246,16 +2248,31 @@ export default function App() {
     const name = await ui.prompt({ title: 'Save draft', message: 'Name this project (re-using a name overwrites it).', placeholder: 'e.g. Monday prompt pack', confirmLabel: 'Save', defaultValue: activeDraftName });
     if (!name || !name.trim()) return;
     const overlays = await captureOverlays();
-    const next = saveDraft(name, { ...currentDraftState(), overlays: overlays && Object.keys(overlays).length ? overlays : undefined });
+    const next = await saveDraft(name, { ...currentDraftState(), overlays: overlays && Object.keys(overlays).length ? overlays : undefined });
     setDrafts(next);
-    // saveDraft re-reads localStorage; if the write was rejected (quota), the
-    // new draft won't be there — surface that instead of a false "saved".
+    // saveDraft returns the fresh list; if the write was rejected the new draft
+    // won't be there — surface that instead of a false "saved".
     if (!next.some((d) => d.name.toLowerCase() === name.trim().toLowerCase())) {
-      ui.notify('Could not save — browser storage may be full. Delete old drafts and try again.', { type: 'error' });
+      ui.notify('Could not save — storage may be full. Delete old drafts and try again.', { type: 'error' });
       return;
     }
     setActiveDraftName(name.trim());
     ui.notify('Draft saved.', { type: 'success' });
+  }
+
+  // One-tap "duplicate this post" — fork the current working post (JSON,
+  // backgrounds, AND snipped overlays) into a fresh auto-named "(copy)" draft
+  // and switch to it, so a burner template can be cloned without re-snipping.
+  async function handleDuplicateCurrentPost() {
+    const overlays = await captureOverlays();
+    const hook = (caption.split('\n').find((l) => l.trim()) || '').replace(/<[^>]+>/g, '').trim();
+    const base = (activeDraftName || hook || PRESETS[preset].label).slice(0, 40) || 'Post';
+    const name = uniqueCopyName(base.replace(/\s*\(copy.*\)\s*$/i, ''), (await listDrafts()).map((d) => d.name));
+    const next = await saveDraft(name, { ...currentDraftState(), overlays: overlays && Object.keys(overlays).length ? overlays : undefined });
+    setDrafts(next);
+    if (!next.some((d) => d.name === name)) { ui.notify('Could not save the copy — storage may be full.', { type: 'error' }); return; }
+    setActiveDraftName(name);
+    ui.notify(`Saved a copy: “${name}”. Tweak it and post.`, { type: 'success' });
   }
 
   // Save back to the currently-loaded draft without re-typing its name.
@@ -2263,7 +2280,7 @@ export default function App() {
     if (!activeDraftName) return;
     const before = drafts.find((d) => d.name === activeDraftName)?.savedAt || 0;
     const overlays = await captureOverlays();
-    const next = saveDraft(activeDraftName, { ...currentDraftState(), overlays: overlays && Object.keys(overlays).length ? overlays : undefined });
+    const next = await saveDraft(activeDraftName, { ...currentDraftState(), overlays: overlays && Object.keys(overlays).length ? overlays : undefined });
     setDrafts(next);
     const after = next.find((d) => d.name === activeDraftName)?.savedAt || 0;
     if (after <= before) {
@@ -2294,14 +2311,14 @@ export default function App() {
 
   async function handleDeleteDraft(d: Draft) {
     if (!(await ui.confirm({ message: `Delete draft "${d.name}"?`, confirmLabel: 'Delete' }))) return;
-    setDrafts(deleteDraft(d.id));
+    setDrafts(await deleteDraft(d.id));
   }
 
   async function handleRenameDraft(d: Draft) {
     const name = await ui.prompt({ title: 'Rename draft', message: 'New name', defaultValue: d.name, confirmLabel: 'Rename' });
     const clean = (name || '').trim();
     if (!clean || clean === d.name) return;
-    setDrafts(renameDraft(d.id, clean));
+    setDrafts(await renameDraft(d.id, clean));
     if (activeDraftName === d.name) setActiveDraftName(clean);
     ui.notify('Draft renamed.', { type: 'success' });
   }
@@ -3975,15 +3992,27 @@ export default function App() {
                 💾 Update “{activeDraftName}”
               </button>
             )}
-            <button
-              type="button"
-              onClick={handleSaveDraft}
-              className="w-full py-3 mb-3 rounded-xl text-[12px] font-bold uppercase tracking-[0.12em]
-                         border border-[#34D399]/30 bg-[#34D399]/10 text-[#34D399]
-                         hover:bg-[#34D399]/20 transition-all"
-            >
-              {activeDraftName ? '+ Save as new draft' : '+ Save current as draft'}
-            </button>
+            <div className="flex gap-2 mb-3">
+              <button
+                type="button"
+                onClick={handleSaveDraft}
+                className="flex-1 py-3 rounded-xl text-[12px] font-bold uppercase tracking-[0.12em]
+                           border border-[#34D399]/30 bg-[#34D399]/10 text-[#34D399]
+                           hover:bg-[#34D399]/20 transition-all"
+              >
+                {activeDraftName ? '+ Save as new draft' : '+ Save current as draft'}
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleDuplicateCurrentPost()}
+                title="Save a copy of this post — JSON, backgrounds & snipped photos — as a new draft you can tweak"
+                className="shrink-0 px-3 py-3 rounded-xl text-[12px] font-bold uppercase tracking-[0.12em]
+                           border border-[#34D399]/30 bg-[#34D399]/10 text-[#34D399]
+                           hover:bg-[#34D399]/20 transition-all"
+              >
+                ⧉ Copy
+              </button>
+            </div>
             <div className="flex gap-2 mb-3">
               <button
                 type="button"
@@ -4003,7 +4032,7 @@ export default function App() {
             {drafts.some((d) => d.posted) && (
               <button
                 type="button"
-                onClick={async () => { if (await ui.confirm({ message: `Clear ${drafts.filter((d) => d.posted).length} posted draft(s)?`, confirmLabel: 'Clear' })) setDrafts(clearPostedDrafts()); }}
+                onClick={async () => { if (await ui.confirm({ message: `Clear ${drafts.filter((d) => d.posted).length} posted draft(s)?`, confirmLabel: 'Clear' })) setDrafts(await clearPostedDrafts()); }}
                 className="w-full mb-2 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-[0.12em] text-gray-500 hover:text-red-400 border border-white/[0.08]"
               >
                 Clear {drafts.filter((d) => d.posted).length} posted
@@ -4019,9 +4048,8 @@ export default function App() {
                     // Don't double-book days that already hold a scheduled draft.
                     const taken = drafts.filter((d) => d.scheduledFor).map((d) => new Date(d.scheduledFor!));
                     const dates = planAroundExisting(unsched.length, taken, new Date(), scheduleHour);
-                    let next = drafts;
-                    unsched.forEach((d, i) => { next = setDraftSchedule(d.id, dates[i].getTime()); });
-                    setDrafts(next);
+                    for (let i = 0; i < unsched.length; i++) await setDraftSchedule(unsched[i].id, dates[i].getTime());
+                    setDrafts(await listDrafts());
                     const hr = new Date(dates[0]).toLocaleTimeString([], { hour: 'numeric' });
                     ui.notify(`Scheduled ${unsched.length} draft${unsched.length === 1 ? '' : 's'} on the next free day${unsched.length === 1 ? '' : 's'} at ${hr}. Export to calendar below.`, { type: 'success' });
                   }}
@@ -4081,7 +4109,7 @@ export default function App() {
                   <div key={d.id} className={'flex items-center gap-2 p-2.5 rounded-lg border bg-white/[0.02] ' + (d.posted ? 'border-white/[0.05] opacity-55' : d.scheduledFor ? 'border-[#34D399]/30' : 'border-white/[0.08]')}>
                     <button
                       type="button"
-                      onClick={() => setDrafts(setDraftPosted(d.id, !d.posted))}
+                      onClick={() => void setDraftPosted(d.id, !d.posted).then(setDrafts)}
                       title={d.posted ? 'Mark not posted' : 'Mark as posted'}
                       aria-label={d.posted ? `Mark ${d.name} not posted` : `Mark ${d.name} posted`}
                       className={'shrink-0 w-6 h-6 rounded-md border flex items-center justify-center text-[12px] transition-colors ' + (d.posted ? 'border-[#34D399] bg-[#34D399]/20 text-[#34D399]' : 'border-white/15 text-transparent hover:text-gray-500')}
@@ -4125,7 +4153,7 @@ export default function App() {
                         // Schedule at the creator's chosen posting hour (same
                         // pref the "spread across the week" planner uses).
                         const ts = v ? new Date(v + `T${String(scheduleHour).padStart(2, '0')}:00:00`).getTime() : null;
-                        setDrafts(setDraftSchedule(d.id, ts));
+                        void setDraftSchedule(d.id, ts).then(setDrafts);
                       }}
                       title="Schedule a post date"
                       aria-label={`Schedule date for ${d.name}`}
@@ -4142,7 +4170,7 @@ export default function App() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => { setDrafts(duplicateDraft(d.id)); ui.notify(`Duplicated “${d.name}”.`, { type: 'success' }); }}
+                      onClick={() => void duplicateDraft(d.id).then((next) => { setDrafts(next); ui.notify(`Duplicated “${d.name}”.`, { type: 'success' }); })}
                       className="shrink-0 w-7 h-7 rounded-md flex items-center justify-center text-gray-500 hover:text-[#00E5FF] hover:bg-[#00E5FF]/10"
                       title="Duplicate draft"
                       aria-label={`Duplicate ${d.name}`}
