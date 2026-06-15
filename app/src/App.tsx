@@ -5,6 +5,7 @@ import Analytics from './Analytics';
 import Patterns from './Patterns';
 import Discover from './Discover';
 import Trends from './Trends';
+import DraftsGallery from './DraftsGallery';
 import type { ViralPattern } from './viralLibrary';
 import Propose from './Propose';
 import { addStockItem, blobToDataUrl, getItem } from './mediaBank';
@@ -47,8 +48,8 @@ import { buildIroEditPrompt, editImage, OpenAIImageError, type OpenAIImageQualit
 type Mascot = 'bronze' | 'silver' | 'gold' | 'platinum' | 'diamond' | 'iridescent';
 type Platform = 'claude' | 'chatgpt';
 type Status = { kind: 'idle' } | { kind: 'rendering' } | { kind: 'ok'; at: number } | { kind: 'err'; msg: string };
-type MobileView = 'edit' | 'library' | 'patterns' | 'analytics' | 'discover' | 'trends' | 'preview';
-type MainView = 'preview' | 'library' | 'patterns' | 'analytics' | 'discover' | 'trends';
+type MobileView = 'edit' | 'library' | 'patterns' | 'analytics' | 'discover' | 'trends' | 'drafts' | 'preview';
+type MainView = 'preview' | 'library' | 'patterns' | 'analytics' | 'discover' | 'trends' | 'drafts';
 
 // Per-slide background. Either a media-bank item id (resolved to a data URL at
 // render time) or a pasted URL we hand straight through to the engine.
@@ -1692,6 +1693,33 @@ export default function App() {
   // back via postMessage. Resolves to null if the engine never replies
   // (timeout) or hasn't rendered any slides yet — we still save the post,
   // just without a thumbnail.
+  // Capture the hook slide and shrink it to a tiny JPEG data URL for a draft
+  // cover — small enough to live in IndexedDB + backups without bloat.
+  async function captureDraftCover(): Promise<string | undefined> {
+    try {
+      const blob = await captureThumbnail();
+      if (!blob) return undefined;
+      const url = await blobToDataUrl(blob);
+      return await new Promise<string | undefined>((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+          const maxW = 220;
+          const scale = Math.min(1, maxW / (img.naturalWidth || maxW));
+          const w = Math.max(1, Math.round((img.naturalWidth || maxW) * scale));
+          const h = Math.max(1, Math.round((img.naturalHeight || maxW) * scale));
+          try {
+            const c = document.createElement('canvas');
+            c.width = w; c.height = h;
+            c.getContext('2d')!.drawImage(img, 0, 0, w, h);
+            resolve(c.toDataURL('image/jpeg', 0.72));
+          } catch { resolve(undefined); }
+        };
+        img.onerror = () => resolve(undefined);
+        img.src = url;
+      });
+    } catch { return undefined; }
+  }
+
   function captureThumbnail(): Promise<Blob | null> {
     return new Promise((resolve) => {
       const iframe = iframeRef.current;
@@ -2248,7 +2276,8 @@ export default function App() {
     const name = await ui.prompt({ title: 'Save draft', message: 'Name this project (re-using a name overwrites it).', placeholder: 'e.g. Monday prompt pack', confirmLabel: 'Save', defaultValue: activeDraftName });
     if (!name || !name.trim()) return;
     const overlays = await captureOverlays();
-    const next = await saveDraft(name, { ...currentDraftState(), overlays: overlays && Object.keys(overlays).length ? overlays : undefined });
+    const cover = await captureDraftCover();
+    const next = await saveDraft(name, { ...currentDraftState(), overlays: overlays && Object.keys(overlays).length ? overlays : undefined }, cover);
     setDrafts(next);
     // saveDraft returns the fresh list; if the write was rejected the new draft
     // won't be there — surface that instead of a false "saved".
@@ -2265,10 +2294,11 @@ export default function App() {
   // and switch to it, so a burner template can be cloned without re-snipping.
   async function handleDuplicateCurrentPost() {
     const overlays = await captureOverlays();
+    const cover = await captureDraftCover();
     const hook = (caption.split('\n').find((l) => l.trim()) || '').replace(/<[^>]+>/g, '').trim();
     const base = (activeDraftName || hook || PRESETS[preset].label).slice(0, 40) || 'Post';
     const name = uniqueCopyName(base.replace(/\s*\(copy.*\)\s*$/i, ''), (await listDrafts()).map((d) => d.name));
-    const next = await saveDraft(name, { ...currentDraftState(), overlays: overlays && Object.keys(overlays).length ? overlays : undefined });
+    const next = await saveDraft(name, { ...currentDraftState(), overlays: overlays && Object.keys(overlays).length ? overlays : undefined }, cover);
     setDrafts(next);
     if (!next.some((d) => d.name === name)) { ui.notify('Could not save the copy — storage may be full.', { type: 'error' }); return; }
     setActiveDraftName(name);
@@ -2280,7 +2310,8 @@ export default function App() {
     if (!activeDraftName) return;
     const before = drafts.find((d) => d.name === activeDraftName)?.savedAt || 0;
     const overlays = await captureOverlays();
-    const next = await saveDraft(activeDraftName, { ...currentDraftState(), overlays: overlays && Object.keys(overlays).length ? overlays : undefined });
+    const cover = await captureDraftCover();
+    const next = await saveDraft(activeDraftName, { ...currentDraftState(), overlays: overlays && Object.keys(overlays).length ? overlays : undefined }, cover);
     setDrafts(next);
     const after = next.find((d) => d.name === activeDraftName)?.savedAt || 0;
     if (after <= before) {
@@ -2559,6 +2590,7 @@ export default function App() {
       { id: 'go-patterns', section: 'Go to', label: 'Patterns', run: goto('patterns', 'patterns') },
       { id: 'go-stats', section: 'Go to', label: 'Performance', keywords: 'analytics stats scores', run: goto('analytics', 'analytics') },
       { id: 'go-trends', section: 'Go to', label: 'Account Trends', keywords: 'analytics growth views over time tiktok overview chart', run: goto('trends', 'trends') },
+      { id: 'go-drafts', section: 'Go to', label: 'Drafts gallery', keywords: 'saved posts templates covers projects', run: goto('drafts', 'drafts') },
     ];
     for (const k of PRESET_KEYS) {
       list.push({ id: `fmt-${k}`, section: 'Format', label: `Format: ${PRESETS[k].label}`, keywords: 'preset template example', run: () => void selectFormat(k) });
@@ -3864,6 +3896,18 @@ export default function App() {
               >
                 📈 Trends
               </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setMainView('drafts');
+                  setMobileView('drafts');
+                }}
+                className="py-3 rounded-xl text-[11px] md:text-xs font-bold uppercase tracking-[0.12em]
+                           border border-white/[0.10] bg-white/[0.03] text-gray-300
+                           hover:border-[#34D399]/40 hover:text-[#34D399] transition-all"
+              >
+                🗂 Drafts{drafts.length ? ` (${drafts.length})` : ''}
+              </button>
             </div>
 
             {/* Native-overlay toggle. When on, the hook + cta slides
@@ -4116,6 +4160,9 @@ export default function App() {
                     >
                       ✓
                     </button>
+                    {d.thumb && (
+                      <img src={d.thumb} alt="" className="shrink-0 w-6 h-[42px] rounded object-cover border border-white/10" loading="lazy" />
+                    )}
                     <button
                       type="button"
                       onClick={() => void handleLoadDraft(d)}
@@ -4607,6 +4654,23 @@ export default function App() {
           (mainView === 'trends' ? 'md:block' : 'md:hidden')
         }>
           <Trends />
+        </div>
+        <div className={
+          'absolute inset-0 ' +
+          (mobileView === 'drafts' ? 'block ' : 'hidden ') +
+          (mainView === 'drafts' ? 'md:block' : 'md:hidden')
+        }>
+          <DraftsGallery
+            drafts={drafts}
+            activeName={activeDraftName}
+            scheduleHour={scheduleHour}
+            onLoad={(d) => void handleLoadDraft(d)}
+            onDuplicate={(d) => void duplicateDraft(d.id).then((next) => { setDrafts(next); ui.notify(`Duplicated “${d.name}”.`, { type: 'success' }); })}
+            onRename={(d) => void handleRenameDraft(d)}
+            onDelete={(d) => void handleDeleteDraft(d)}
+            onTogglePosted={(d) => void setDraftPosted(d.id, !d.posted).then(setDrafts)}
+            onSchedule={(d, ts) => void setDraftSchedule(d.id, ts).then(setDrafts)}
+          />
         </div>
         <div className={
           'absolute inset-0 flex flex-col ' +
