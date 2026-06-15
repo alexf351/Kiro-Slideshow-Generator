@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
+  bestStockProvider,
   fetchStockBlob,
   providerNeedsKey,
   searchStock,
@@ -19,6 +20,9 @@ type Props = {
   // Fired after we've imported a photo; lets the parent Library refresh
   // its grid without re-querying IDB on its own.
   onImported: () => void;
+  // A theme pack tap from the Library: run this query (optionally on a forced
+  // provider). `nonce` re-triggers even when the query repeats.
+  preset?: { query: string; provider?: StockProvider; nonce: number } | null;
 };
 
 const PROVIDER_LABEL: Record<StockProvider, string> = {
@@ -41,8 +45,10 @@ const PROVIDER_NOTE: Record<StockProvider, string> = {
 
 const PROVIDER_ORDER: StockProvider[] = ['openverse', 'wikimedia', 'artic', 'pexels', 'unsplash', 'pixabay'];
 
-export default function StockSearch({ pexelsKey, unsplashKey, pixabayKey, onImported }: Props) {
-  const [provider, setProvider] = useState<StockProvider>('openverse');
+export default function StockSearch({ pexelsKey, unsplashKey, pixabayKey, onImported, preset }: Props) {
+  // Default to the creator's best available provider so manual searches +
+  // theme packs use the most aesthetic source they have keys for.
+  const [provider, setProvider] = useState<StockProvider>(() => bestStockProvider({ pexels: pexelsKey, unsplash: unsplashKey, pixabay: pixabayKey }).provider);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<StockPhoto[]>([]);
   const [searching, setSearching] = useState(false);
@@ -52,19 +58,21 @@ export default function StockSearch({ pexelsKey, unsplashKey, pixabayKey, onImpo
   const [importing, setImporting] = useState<Set<string>>(new Set());
   const [imported, setImported] = useState<Set<string>>(new Set());
 
-  const activeKey = provider === 'pexels' ? pexelsKey : provider === 'unsplash' ? unsplashKey : provider === 'pixabay' ? pixabayKey : '';
+  const keyFor = (p: StockProvider) => (p === 'pexels' ? pexelsKey : p === 'unsplash' ? unsplashKey : p === 'pixabay' ? pixabayKey : '');
+  const activeKey = keyFor(provider);
   const keyMissing = providerNeedsKey(provider) && !activeKey;
 
-  async function handleSearch() {
-    if (!query.trim()) return;
-    if (keyMissing) {
-      setError(`Add a ${PROVIDER_LABEL[provider]} API key in Settings (sidebar) before searching.`);
+  async function runSearch(prov: StockProvider, q: string) {
+    if (!q.trim()) return;
+    const key = keyFor(prov);
+    if (providerNeedsKey(prov) && !key) {
+      setError(`Add a ${PROVIDER_LABEL[prov]} API key in Settings (sidebar) before searching.`);
       return;
     }
     setSearching(true);
     setError(null);
     try {
-      const photos = await searchStock(provider, query, activeKey);
+      const photos = await searchStock(prov, q, key);
       setResults(photos);
       if (photos.length === 0) setError('No matches. Try a different phrase.');
     } catch (e) {
@@ -75,6 +83,19 @@ export default function StockSearch({ pexelsKey, unsplashKey, pixabayKey, onImpo
       setSearching(false);
     }
   }
+
+  function handleSearch() { void runSearch(provider, query); }
+
+  // A theme pack tapped in the Library — switch to its provider + query and
+  // run the search immediately.
+  useEffect(() => {
+    if (!preset || !preset.nonce) return;
+    const prov = preset.provider ?? bestStockProvider({ pexels: pexelsKey, unsplash: unsplashKey, pixabay: pixabayKey }).provider;
+    setProvider(prov);
+    setQuery(preset.query);
+    void runSearch(prov, preset.query);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [preset?.nonce]);
 
   async function handleImport(photo: StockPhoto) {
     if (importing.has(photo.id) || imported.has(photo.id)) return;
