@@ -623,7 +623,9 @@ export default function App() {
   // panel reads as a simple "make a post" funnel instead of a wall of
   // controls. The user opens the extras (look, backgrounds, AI, settings)
   // only when they need them.
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+  // Format is open on first load so new users see the picker; the rest of the
+  // editor groups stay collapsed for a clean Create view.
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({ format: true });
   const toggleGroup = (id: string) => setOpenGroups((p) => ({ ...p, [id]: !p[id] }));
   // Bumped by Patterns → "Clone again". CloneFromTikTok watches this
   // and prefills its URL input + expands. Resets to empty string
@@ -2850,8 +2852,7 @@ export default function App() {
             </div>
           </Group>
 
-          <section className="px-5 md:px-10 py-6 md:py-7 border-b border-white/[0.05]">
-            {sectionLabel('Format')}
+          <Group open={!!openGroups.format} onToggle={() => toggleGroup('format')} title="Format" hint={PRESETS[preset].label}>
             <input
               type="search"
               value={formatQuery}
@@ -2964,7 +2965,7 @@ export default function App() {
             >
               Reset to {PRESETS[preset].label} example post →
             </button>
-          </section>
+          </Group>
 
           <Group open={!!openGroups.mascot} onToggle={() => toggleGroup('mascot')} title="Mascot" hint={mascot}>
             <div className="grid grid-cols-3 gap-3 md:gap-4">
