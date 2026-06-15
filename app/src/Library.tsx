@@ -14,6 +14,8 @@ import {
   type MediaSet,
 } from './mediaBank';
 import StockSearch from './StockSearch';
+import { THEME_PACKS } from './themes';
+import type { StockProvider } from './stockPhotos';
 import { useUI } from './ui';
 
 type Props = {
@@ -27,7 +29,7 @@ type Props = {
   pixabayKey: string;
 };
 
-type LibraryView = 'library' | 'stock';
+type LibraryView = 'library' | 'stock' | 'themes';
 
 const ALL_FILTER = '__all__';
 
@@ -42,6 +44,12 @@ export default function Library({ pickMode, pexelsKey, unsplashKey, pixabayKey }
   // panel. Pick mode forces 'library' since you can't pick a slide bg
   // from a search result that hasn't been imported yet.
   const [view, setView] = useState<LibraryView>('library');
+  // Theme pack tapped → drive StockSearch to run its query.
+  const [stockPreset, setStockPreset] = useState<{ query: string; provider?: StockProvider; nonce: number } | null>(null);
+  function openTheme(query: string, provider?: StockProvider) {
+    setStockPreset({ query, provider, nonce: Date.now() });
+    setView('stock');
+  }
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   // Paste-image-URL import (e.g. a Pinterest pin's image address).
   const [urlInput, setUrlInput] = useState('');
@@ -241,6 +249,40 @@ export default function Library({ pickMode, pexelsKey, unsplashKey, pixabayKey }
   // mid-pick because the user is choosing from existing items.
   const effectiveView: LibraryView = pickMode ? 'library' : view;
 
+  if (effectiveView === 'themes') {
+    return (
+      <div className="h-full flex flex-col bg-[#070a14]">
+        <header className="shrink-0 px-5 md:px-8 pt-5 md:pt-7 pb-3 border-b border-white/[0.06]">
+          <h2 className="text-xl md:text-2xl font-black tracking-tight text-white mb-3">Media Bank</h2>
+          <div className="flex gap-2">
+            {tabBtn('library', 'My Library')}
+            {tabBtn('themes', 'Themes')}
+            {tabBtn('stock', 'Search Stock')}
+          </div>
+        </header>
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-6">
+          <p className="text-[12px] text-gray-500 leading-relaxed mb-4">
+            Tap an aesthetic to pull a curated set of slide-ready backgrounds — no search needed.
+          </p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+            {THEME_PACKS.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => openTheme(t.query, t.provider)}
+                className="group relative flex flex-col items-center justify-center gap-2 aspect-[4/3] rounded-xl border border-white/[0.08] overflow-hidden transition-all hover:-translate-y-0.5 hover:border-white/25"
+                style={{ background: `linear-gradient(150deg, ${t.accent}26, #0a0e1a 70%)` }}
+              >
+                <span className="text-2xl">{t.emoji}</span>
+                <span className="text-[12px] font-bold text-gray-100 text-center px-2 leading-tight">{t.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (effectiveView === 'stock') {
     return (
       <div className="h-full flex flex-col bg-[#070a14]">
@@ -250,11 +292,12 @@ export default function Library({ pickMode, pexelsKey, unsplashKey, pixabayKey }
           </div>
           <div className="flex gap-2">
             {tabBtn('library', 'My Library')}
+            {tabBtn('themes', 'Themes')}
             {tabBtn('stock', 'Search Stock')}
           </div>
         </header>
         <div className="flex-1 min-h-0">
-          <StockSearch pexelsKey={pexelsKey} unsplashKey={unsplashKey} pixabayKey={pixabayKey} onImported={refresh} />
+          <StockSearch pexelsKey={pexelsKey} unsplashKey={unsplashKey} pixabayKey={pixabayKey} onImported={refresh} preset={stockPreset} />
         </div>
       </div>
     );
@@ -292,6 +335,7 @@ export default function Library({ pickMode, pexelsKey, unsplashKey, pixabayKey }
         </div>
         <div className="mt-3 flex gap-2">
           {tabBtn('library', 'My Library')}
+          {tabBtn('themes', 'Themes')}
           {tabBtn('stock', 'Search Stock')}
         </div>
         {/* Paste any image URL — e.g. a Pinterest pin's image address. */}
