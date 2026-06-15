@@ -2740,85 +2740,79 @@ export default function App() {
   );
 
 
-  const mobileTabBtn = (kind: MobileView, label: string) => {
-    const active = mobileView === kind;
+  // Top-nav destination tab. `id` is the MainView it activates (Create is the
+  // 'preview' view = editor + live preview). On mobile it also sets the
+  // matching MobileView; labels collapse to icons on the smallest screens.
+  const navTab = (id: MainView, label: string, icon: string, badge?: number) => {
+    const active = mainView === id;
     return (
       <button
+        key={id}
         type="button"
-        onClick={() => setMobileView(kind)}
+        onClick={() => { setMainView(id); setMobileView(id === 'preview' ? 'edit' : (id as MobileView)); }}
         className={
-          'relative flex-1 py-3.5 text-[10px] font-bold uppercase tracking-[0.10em] transition-colors ' +
-          (active ? 'text-[#00E5FF]' : 'text-gray-500 hover:text-gray-300')
+          'shrink-0 inline-flex items-center gap-1.5 px-2.5 md:px-3 h-8 rounded-lg text-[11px] font-bold tracking-[0.04em] transition-colors border ' +
+          (active
+            ? 'bg-[#00E5FF]/[0.14] text-[#00E5FF] border-[#00E5FF]/30'
+            : 'text-gray-400 hover:text-gray-100 hover:bg-white/[0.05] border-transparent')
         }
       >
-        {label}
-        <span
-          className={
-            'absolute left-1/2 bottom-0 -translate-x-1/2 h-[2px] rounded-full transition-all duration-200 ' +
-            (active ? 'w-8 bg-[#00E5FF] shadow-[0_0_10px_rgba(0,229,255,0.7)]' : 'w-0 bg-transparent')
-          }
-        />
+        <span className="text-[13px] leading-none">{icon}</span>
+        <span className="hidden sm:inline">{label}</span>
+        {badge ? <span className="text-[9px] font-bold tabular-nums px-1 rounded bg-white/10 text-gray-300">{badge}</span> : null}
       </button>
     );
   };
 
   return (
-    <div className="flex flex-col md:flex-row h-screen bg-[#070a14] text-gray-100">
-      {/* Mobile-only tab bar; hidden on md+ where the sidebar is always visible. */}
-      <nav className="md:hidden flex shrink-0 bg-gradient-to-b from-[#0a0e1a] to-[#080b16] border-b border-white/[0.05]">
-        {mobileTabBtn('edit', 'Edit')}
-        {mobileTabBtn('discover', 'Discover')}
-        {mobileTabBtn('library', 'Lib')}
-        {mobileTabBtn('patterns', 'Patterns')}
-        {mobileTabBtn('analytics', 'Stats')}
-        {mobileTabBtn('preview', 'Preview')}
-      </nav>
+    <div className="flex flex-col h-screen bg-[#070a14] text-gray-100">
+      {/* TOP NAVIGATION — every destination is a real tab, so nothing hides in
+         the editor rail. Scrolls horizontally on narrow screens. */}
+      <header className="shrink-0 flex items-center gap-1 px-3 md:px-5 h-12 border-b border-white/[0.06] bg-[#0a0e1a]/95 backdrop-blur-sm overflow-x-auto custom-scrollbar">
+        <div className="flex items-baseline gap-1.5 shrink-0 mr-2 md:mr-3">
+          <span className="text-xl font-black tracking-[-0.04em] text-white leading-none">iro</span>
+          <span className="hidden md:inline text-[9px] font-bold uppercase tracking-[0.3em] text-[#00E5FF]">studio</span>
+        </div>
+        {navTab('preview', 'Create', '✏️')}
+        {navTab('discover', 'Discover', '🔥')}
+        {navTab('drafts', 'Drafts', '🗂', drafts.length || undefined)}
+        {navTab('library', 'Media', '🖼')}
+        {navTab('trends', 'Trends', '📈')}
+        {navTab('analytics', 'Performance', '📊')}
+        {navTab('patterns', 'Patterns', '🧩')}
+        {/* Mobile-only: jump to the rendered slides (desktop shows them beside
+           the editor in Create). */}
+        <button
+          type="button"
+          onClick={() => setMobileView('preview')}
+          className={
+            'md:hidden shrink-0 inline-flex items-center px-2.5 h-8 rounded-lg text-[13px] border ' +
+            (mobileView === 'preview' ? 'bg-[#00E5FF]/[0.14] text-[#00E5FF] border-[#00E5FF]/30' : 'text-gray-400 border-transparent')
+          }
+          title="Preview slides"
+        >
+          👁
+        </button>
+        <button
+          type="button"
+          onClick={() => setPaletteOpen(true)}
+          title="Command palette"
+          className="ml-auto shrink-0 inline-flex items-center gap-1.5 px-2.5 h-8 rounded-lg border border-white/10 bg-white/[0.03] text-gray-400 hover:text-[#00E5FF] hover:border-[#00E5FF]/40 transition-colors"
+        >
+          <span className="hidden sm:inline text-[11px]">Commands</span>
+          <kbd className="text-[10px] font-mono bg-white/[0.06] rounded px-1 py-0.5">⌘K</kbd>
+        </button>
+      </header>
 
+      {/* BODY — the editor rail (only in Create) + the active destination view. */}
+      <div className="flex-1 flex flex-row min-h-0">
       <aside className={
-        (mobileView === 'edit' ? 'flex' : 'hidden') +
-        ' md:flex w-full md:w-[520px] xl:w-[640px] 2xl:w-[760px] shrink-0 flex-col overflow-hidden relative ' +
+        (mobileView === 'edit' ? 'flex ' : 'hidden ') +
+        (mainView === 'preview' ? 'md:flex ' : 'md:hidden ') +
+        'w-full md:w-[460px] xl:w-[560px] 2xl:w-[640px] shrink-0 flex-col overflow-hidden relative ' +
         'bg-gradient-to-b from-[#0b1020] via-[#0a0e1a] to-[#07091a] ' +
-        'border-r border-white/[0.06] ' +
-        'shadow-[inset_-1px_0_0_rgba(0,229,255,0.04)]'
+        'border-r border-white/[0.06]'
       }>
-        {/* subtle top accent */}
-        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#00E5FF]/40 to-transparent"></div>
-
-        <header className="px-5 md:px-10 pt-7 md:pt-9 pb-5 md:pb-6 border-b border-white/[0.05]">
-          <div className="flex items-baseline gap-3">
-            <h1 className="text-3xl md:text-5xl font-black tracking-[-0.04em] text-white leading-none">
-              iro
-            </h1>
-            <span className="text-[10px] md:text-[11px] font-bold uppercase tracking-[0.32em] text-[#00E5FF]">
-              studio
-            </span>
-            <button
-              type="button"
-              onClick={() => setPaletteOpen(true)}
-              title="Command palette"
-              className="ml-auto inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-white/10 bg-white/[0.03] text-gray-400 hover:text-[#00E5FF] hover:border-[#00E5FF]/40 transition-colors"
-            >
-              <span className="text-[11px]">Commands</span>
-              <kbd className="text-[10px] font-mono bg-white/[0.06] rounded px-1 py-0.5">⌘K</kbd>
-            </button>
-          </div>
-          <p className="mt-3 md:mt-4 text-[12px] md:text-[13px] text-gray-500 leading-relaxed">
-            Pick a format. Paste content. Render.
-          </p>
-          <button
-            type="button"
-            onClick={() => { setMainView('discover'); setMobileView('discover'); }}
-            className={
-              'mt-4 w-full py-2.5 rounded-xl text-[11px] font-bold uppercase tracking-[0.14em] transition-all ' +
-              (mainView === 'discover'
-                ? 'bg-[#00E5FF] text-[#0a0e1a] shadow-[0_4px_20px_rgba(0,229,255,0.35)]'
-                : 'border border-[#00E5FF]/30 bg-[#00E5FF]/[0.08] text-[#00E5FF] hover:bg-[#00E5FF]/[0.18]')
-            }
-          >
-            🔥 Discover viral slideshows
-          </button>
-        </header>
-
         <div className="flex-1 overflow-y-auto custom-scrollbar">
           <Group open={!!openGroups.ai} onToggle={() => toggleGroup('ai')} title="AI assist" accent="#A78BFA" hint="Clone · Propose · Predict · Design">
             <div className="flex flex-col gap-3">
@@ -3837,78 +3831,7 @@ export default function App() {
             </div>
           </section>
 
-          <Group open={!!openGroups.more} onToggle={() => toggleGroup('more')} title="Workspace" accent="#FFC857" hint="Discover · Media · Patterns · Analytics">
-            <button
-              type="button"
-              onClick={() => { setMainView('discover'); setMobileView('discover'); }}
-              className="w-full mb-3 py-3 rounded-xl text-[11px] md:text-xs font-bold uppercase tracking-[0.12em]
-                         border border-[#00E5FF]/30 bg-[#00E5FF]/[0.08] text-[#00E5FF]
-                         hover:bg-[#00E5FF]/[0.16] transition-all"
-            >
-              🔥 Discover viral slideshows
-            </button>
-            <div className="grid grid-cols-2 gap-2 mb-4">
-              <button
-                type="button"
-                onClick={() => {
-                  setMainView('library');
-                  setMobileView('library');
-                }}
-                className="py-3 rounded-xl text-[11px] md:text-xs font-bold uppercase tracking-[0.12em]
-                           border border-white/[0.10] bg-white/[0.03] text-gray-300
-                           hover:border-[#00E5FF]/40 hover:text-[#00E5FF] transition-all"
-              >
-                Media Bank
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setMainView('patterns');
-                  setMobileView('patterns');
-                }}
-                className="py-3 rounded-xl text-[11px] md:text-xs font-bold uppercase tracking-[0.12em]
-                           border border-white/[0.10] bg-white/[0.03] text-gray-300
-                           hover:border-[#FFC857]/40 hover:text-[#FFC857] transition-all"
-              >
-                Patterns
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setMainView('analytics');
-                  setMobileView('analytics');
-                }}
-                className="py-3 rounded-xl text-[11px] md:text-xs font-bold uppercase tracking-[0.12em]
-                           border border-white/[0.10] bg-white/[0.03] text-gray-300
-                           hover:border-[#00E5FF]/40 hover:text-[#00E5FF] transition-all"
-              >
-                Analytics
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setMainView('trends');
-                  setMobileView('trends');
-                }}
-                className="py-3 rounded-xl text-[11px] md:text-xs font-bold uppercase tracking-[0.12em]
-                           border border-white/[0.10] bg-white/[0.03] text-gray-300
-                           hover:border-[#00E5FF]/40 hover:text-[#00E5FF] transition-all"
-              >
-                📈 Trends
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setMainView('drafts');
-                  setMobileView('drafts');
-                }}
-                className="py-3 rounded-xl text-[11px] md:text-xs font-bold uppercase tracking-[0.12em]
-                           border border-white/[0.10] bg-white/[0.03] text-gray-300
-                           hover:border-[#34D399]/40 hover:text-[#34D399] transition-all"
-              >
-                🗂 Drafts{drafts.length ? ` (${drafts.length})` : ''}
-              </button>
-            </div>
+          <Group open={!!openGroups.more} onToggle={() => toggleGroup('more')} title="Post options" accent="#FFC857" hint="native overlay · swipe cue · handle">
 
             {/* Native-overlay toggle. When on, the hook + cta slides
                export with bg + mascot only — the user types the actual
@@ -4719,6 +4642,7 @@ export default function App() {
           />
         </div>
       </main>
+      </div>
 
       <CommandPalette open={paletteOpen} commands={commands} onClose={() => setPaletteOpen(false)} />
       {shortcutsOpen && (
