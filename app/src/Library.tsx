@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   addItems,
+  addStockItem,
   blobToObjectUrl,
   createSet,
   deleteItem,
@@ -42,6 +43,9 @@ export default function Library({ pickMode, pexelsKey, unsplashKey, pixabayKey }
   // from a search result that hasn't been imported yet.
   const [view, setView] = useState<LibraryView>('library');
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  // Paste-image-URL import (e.g. a Pinterest pin's image address).
+  const [urlInput, setUrlInput] = useState('');
+  const [urlBusy, setUrlBusy] = useState(false);
 
   // Object URLs for thumbnails. Revoked when the item list changes so we
   // don't leak memory across reloads.
@@ -90,6 +94,34 @@ export default function Library({ pickMode, pexelsKey, unsplashKey, pixabayKey }
       await refresh();
     } finally {
       setBusy(null);
+    }
+  }
+
+  // Import any image by URL (Pinterest has no public search API, so paste a
+  // pin's image address instead). Routed through /api/proxy-image so the bytes
+  // are same-origin + canvas-safe for export, like the proxied stock providers.
+  async function importFromUrl() {
+    const u = urlInput.trim();
+    if (!u) return;
+    let parsed: URL;
+    try { parsed = new URL(u); } catch { ui.notify('That doesn’t look like a URL.', { type: 'error' }); return; }
+    if (!/^https?:$/.test(parsed.protocol)) { ui.notify('Use an http(s) image link.', { type: 'error' }); return; }
+    setUrlBusy(true);
+    try {
+      const res = await fetch(`/api/proxy-image?url=${encodeURIComponent(u)}`);
+      if (!res.ok) throw new Error(`couldn’t fetch (${res.status})`);
+      const blob = await res.blob();
+      if (!blob.type.startsWith('image/')) throw new Error('that link isn’t an image — use the image address (right-click → Copy image address).');
+      const name = (parsed.pathname.split('/').filter(Boolean).pop() || parsed.hostname).replace(/\.[a-z0-9]+$/i, '').slice(0, 40) || 'pasted-image';
+      const item = await addStockItem({ blob, mimeType: blob.type || 'image/jpeg', name, source: { provider: 'upload', photoUrl: u } });
+      if (activeSet !== ALL_FILTER) await setItemSetMembership([item.id], activeSet, true);
+      setUrlInput('');
+      await refresh();
+      ui.notify('Image added to your library.', { type: 'success' });
+    } catch (e) {
+      ui.notify(`Import failed: ${(e as Error).message}`, { type: 'error' });
+    } finally {
+      setUrlBusy(false);
     }
   }
 
@@ -261,6 +293,25 @@ export default function Library({ pickMode, pexelsKey, unsplashKey, pixabayKey }
         <div className="mt-3 flex gap-2">
           {tabBtn('library', 'My Library')}
           {tabBtn('stock', 'Search Stock')}
+        </div>
+        {/* Paste any image URL — e.g. a Pinterest pin's image address. */}
+        <div className="mt-3 flex gap-2">
+          <input
+            type="url"
+            value={urlInput}
+            onChange={(e) => setUrlInput(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter' && !urlBusy) void importFromUrl(); }}
+            placeholder="Paste an image URL (Pinterest pin, etc.)…"
+            className="flex-1 bg-[#070b18] border border-white/[0.10] rounded-lg px-3 py-2 text-[12px] text-gray-200 placeholder:text-gray-600 focus:border-[#00E5FF]/50 focus:outline-none"
+          />
+          <button
+            type="button"
+            onClick={() => void importFromUrl()}
+            disabled={urlBusy || !urlInput.trim()}
+            className="shrink-0 px-3 py-2 rounded-lg text-[11px] font-bold uppercase tracking-[0.1em] bg-[#00E5FF]/15 text-[#00E5FF] border border-[#00E5FF]/30 hover:bg-[#00E5FF]/25 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {urlBusy ? '…' : 'Add'}
+          </button>
         </div>
         <input
           ref={fileInputRef}
