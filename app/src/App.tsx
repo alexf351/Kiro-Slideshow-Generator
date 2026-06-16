@@ -595,6 +595,8 @@ export default function App() {
   }, [jsonText, caption, deckBalance]);
   // "Fill from topic" — AI populates the current template from a typed topic.
   const [topic, setTopic] = useState('');
+  // Quick Create style/angle (plain-language) fed to "Generate post".
+  const [quickStyle, setQuickStyle] = useState('Auto');
   const [topicBusy, setTopicBusy] = useState(false);
   const [fullPostBusy, setFullPostBusy] = useState<string | null>(null);
   // Snapshot of content before the last AI op, for one-tap undo.
@@ -1982,22 +1984,25 @@ export default function App() {
   // Fill the current template's JSON from a one-line topic, via Claude.
   // Topic → complete ready-to-post post: AI picks the best format, fills it,
   // and writes a caption — all in one tap.
-  async function handleFullPost() {
+  async function handleFullPost(angle?: string) {
     const t = topic.trim();
     if (!t) return;
     if (!anthropicKey) { ui.notify('Add an Anthropic API key in Settings to use this.', { type: 'error' }); return; }
     if (!isExampleJson(jsonText) && !(await ui.confirm({ message: 'Generate a full post? This replaces your current content and caption.', confirmLabel: 'Generate' }))) return;
+    // Plain-language style from Quick Create, woven into the topic so it
+    // steers both the format pick and the writing.
+    const fullTopic = angle && angle !== 'Auto' ? `${t}\n\n(Angle / style: ${angle})` : t;
     snapshotForAi();
     try {
       const { pickFormat, generateFromTopic, buildPreferList } = await import('./fillFromTopic');
       const { generateCaption, composeCaption } = await import('./captionAI');
       setFullPostBusy('Picking format…');
       const formats = PRESET_KEYS.map((k) => ({ key: k, label: PRESETS[k].label, pitch: PRESETS[k].pitch }));
-      const picked = await pickFormat({ topic: t, formats, apiKey: anthropicKey, model: claudeModel, prefer: buildPreferList(favFormats, formatPerf) });
+      const picked = await pickFormat({ topic: fullTopic, formats, apiKey: anthropicKey, model: claudeModel, prefer: buildPreferList(favFormats, formatPerf) });
       const target = (PRESET_KEYS as readonly string[]).includes(picked) ? (picked as PresetKey) : preset;
       setPreset(target);
       setFullPostBusy(`Writing the ${PRESETS[target].label}…`);
-      const filled = await generateFromTopic({ topic: t, preset: target, exampleJson: PRESETS[target].defaultJson, apiKey: anthropicKey, model: claudeModel, brand: brainPrompt(brain) });
+      const filled = await generateFromTopic({ topic: fullTopic, preset: target, exampleJson: PRESETS[target].defaultJson, apiKey: anthropicKey, model: claudeModel, brand: brainPrompt(brain) });
       setJsonText(filled);
       setActiveDraftName('');
       setFullPostBusy('Writing the caption…');
@@ -2821,6 +2826,45 @@ export default function App() {
         'border-r border-white/[0.06]'
       }>
         <div className="flex-1 overflow-y-auto custom-scrollbar">
+          {/* Quick Create — the fast, opinionated path: topic + style → AI
+             picks a format and writes the whole post. The manual editor
+             (Format / Content / Caption) is right below for fine control. */}
+          <div className="px-5 md:px-10 pt-5 pb-4 border-b border-white/[0.05]">
+            <div className="rounded-2xl border border-[#00E5FF]/25 bg-[#00E5FF]/[0.05] p-4">
+              <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#00E5FF] mb-2.5">✨ Quick create</div>
+              <input
+                type="text"
+                value={topic}
+                onChange={(e) => setTopic(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter' && topic.trim() && !fullPostBusy) void handleFullPost(quickStyle); }}
+                placeholder="What's the post about? e.g. 5 ChatGPT prompts for writers"
+                className="w-full bg-[#070b18] border border-white/[0.10] rounded-lg px-3 py-2.5 text-[13px] text-gray-200 placeholder:text-gray-600 focus:border-[#00E5FF]/50 focus:outline-none"
+              />
+              <div className="flex gap-2 mt-2.5">
+                <select
+                  value={quickStyle}
+                  onChange={(e) => setQuickStyle(e.target.value)}
+                  className="shrink-0 bg-[#070b18] border border-white/[0.10] rounded-lg px-2.5 py-2 text-[12px] text-gray-200 focus:border-[#00E5FF]/40 focus:outline-none"
+                  title="Angle / style"
+                >
+                  {['Auto', 'Educational', 'Storytime', 'Hot take', 'Listicle', 'Relatable', 'Emotional', 'Direct plug'].map((s) => (
+                    <option key={s} value={s}>{s === 'Auto' ? 'Any angle' : s}</option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={() => void handleFullPost(quickStyle)}
+                  disabled={!!fullPostBusy || !topic.trim()}
+                  className="flex-1 py-2 rounded-lg text-[12px] font-bold uppercase tracking-[0.1em] bg-gradient-to-r from-[#00E5FF] to-[#00A5D9] text-[#0a0e1a] disabled:opacity-40 disabled:cursor-not-allowed hover:brightness-110 transition-all"
+                >
+                  {fullPostBusy || '✨ Generate post'}
+                </button>
+              </div>
+              <div className="text-[10px] text-gray-500 mt-2 leading-relaxed">
+                AI picks the best of {PRESET_KEYS.length} formats, writes the slides + caption{brainHasContent(brain) ? ', tuned to your Brand brain' : ''}. Or build it by hand below.
+              </div>
+            </div>
+          </div>
           <Group open={!!openGroups.ai} onToggle={() => toggleGroup('ai')} title="AI assist" accent="#A78BFA" hint="Clone · Propose · Predict · Design">
             <div className="flex flex-col gap-3">
             <CloneFromTikTok
