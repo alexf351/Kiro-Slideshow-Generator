@@ -204,7 +204,7 @@ function loadPersisted(): Persisted {
     unsplashKey: '',
     pixabayKey: '',
     anthropicKey: '',
-    claudeModel: 'claude-opus-4-7',
+    claudeModel: 'claude-sonnet-4-6',
     openaiKey: '',
     design: { ...DEFAULT_DESIGN },
     nativeTextOverlay: false,
@@ -2860,6 +2860,28 @@ export default function App() {
                   {fullPostBusy || '✨ Generate post'}
                 </button>
               </div>
+              <div className="mt-2.5 flex items-center gap-1.5">
+                <span className="text-[9px] font-bold uppercase tracking-[0.14em] text-gray-600 mr-0.5">Model</span>
+                {CLAUDE_MODELS.map((m) => {
+                  const active = claudeModel === m.id;
+                  const short = m.label.split(' ')[0]; // Opus / Sonnet / Haiku
+                  return (
+                    <button
+                      key={m.id}
+                      type="button"
+                      onClick={() => setClaudeModel(m.id)}
+                      title={m.label}
+                      className={
+                        'px-2 py-0.5 rounded-md text-[10px] font-bold transition-colors ' +
+                        (active ? 'bg-[#00E5FF]/20 text-[#00E5FF] border border-[#00E5FF]/40' : 'text-gray-500 hover:text-gray-300 border border-transparent')
+                      }
+                    >
+                      {short}
+                    </button>
+                  );
+                })}
+                <span className="ml-auto text-[9px] text-gray-600">{claudeModel.includes('opus') ? 'best · $$$' : claudeModel.includes('haiku') ? 'fastest · cheapest' : 'balanced'}</span>
+              </div>
               <div className="text-[10px] text-gray-500 mt-2 leading-relaxed">
                 AI picks the best of {PRESET_KEYS.length} formats, writes the slides + caption{brainHasContent(brain) ? ', tuned to your Brand brain' : ''}. Or build it by hand below.
               </div>
@@ -4465,7 +4487,7 @@ export default function App() {
 
             <label className="flex flex-col gap-1.5 mb-3">
               <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-gray-500">
-                Claude model (for cloning)
+                Claude model (all AI: Quick Create, captions, clone…)
               </span>
               <select
                 value={claudeModel}
