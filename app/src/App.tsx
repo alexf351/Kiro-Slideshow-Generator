@@ -2752,69 +2752,80 @@ export default function App() {
   );
 
 
-  // Top-nav destination tab. `id` is the MainView it activates (Create is the
-  // 'preview' view = editor + live preview). On mobile it also sets the
-  // matching MobileView; labels collapse to icons on the smallest screens.
-  const navTab = (id: MainView, label: string, icon: string, badge?: number) => {
+  // Left-rail destination item (icon + label + optional count). `id` is the
+  // MainView it activates (Create = 'preview' view). Labels collapse away on
+  // the narrow icon-only rail (mobile). Active gets a raised bg + accent.
+  const railTab = (id: MainView, label: string, icon: string, badge?: number) => {
     const active = mainView === id;
     return (
       <button
         key={id}
         type="button"
         onClick={() => { setMainView(id); setMobileView(id === 'preview' ? 'edit' : (id as MobileView)); }}
+        title={label}
         className={
-          'shrink-0 inline-flex items-center gap-1.5 px-2.5 md:px-3 h-8 rounded-lg text-[11px] font-bold tracking-[0.04em] transition-colors border ' +
+          'w-full h-10 flex items-center gap-3 rounded-lg px-2.5 transition-colors ' +
           (active
-            ? 'bg-[#00E5FF]/[0.14] text-[#00E5FF] border-[#00E5FF]/30'
-            : 'text-gray-400 hover:text-gray-100 hover:bg-white/[0.05] border-transparent')
+            ? 'bg-white/[0.07] text-[#00E5FF]'
+            : 'text-gray-400 hover:bg-white/[0.04] hover:text-gray-100')
         }
       >
-        <span className="text-[13px] leading-none">{icon}</span>
-        <span className="hidden sm:inline">{label}</span>
-        {badge ? <span className="text-[9px] font-bold tabular-nums px-1 rounded bg-white/10 text-gray-300">{badge}</span> : null}
+        <span className="w-5 text-center text-[16px] leading-none shrink-0">{icon}</span>
+        <span className="hidden md:inline text-[13px] font-semibold truncate">{label}</span>
+        {badge ? <span className="hidden md:flex ml-auto items-center text-[10px] font-bold tabular-nums px-1.5 h-[18px] rounded bg-white/10 text-gray-300">{badge}</span> : null}
       </button>
     );
   };
 
   return (
-    <div className="flex flex-col h-screen bg-[#070a14] text-gray-100">
-      {/* TOP NAVIGATION — every destination is a real tab, so nothing hides in
-         the editor rail. Scrolls horizontally on narrow screens. */}
-      <header className="shrink-0 flex items-center gap-1 px-3 md:px-5 h-12 border-b border-white/[0.06] bg-[#0a0e1a]/95 backdrop-blur-sm overflow-x-auto custom-scrollbar">
-        <div className="flex items-baseline gap-1.5 shrink-0 mr-2 md:mr-3">
-          <span className="text-xl font-black tracking-[-0.04em] text-white leading-none">iro</span>
-          <span className="hidden md:inline text-[9px] font-bold uppercase tracking-[0.3em] text-[#00E5FF]">studio</span>
+    <div className="flex flex-row h-screen bg-[#070a14] text-gray-100">
+      {/* LEFT NAV RAIL — persistent destinations (icon + label), Commands
+         pinned at the bottom. Icon-only on mobile, icon+label on md+. */}
+      <nav className="shrink-0 w-14 md:w-[200px] flex flex-col bg-[#0a0e1a] border-r border-white/[0.06] h-full">
+        <div className="px-3 py-4 border-b border-white/[0.05]">
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-[7px] bg-gradient-to-br from-[#00E5FF] to-[#00A5D9] flex items-center justify-center text-[#06121a] font-black text-[14px] shrink-0">i</div>
+            <div className="hidden md:flex flex-col leading-none">
+              <span className="text-[14px] font-black text-white">iro</span>
+              <span className="text-[9px] text-gray-500 mt-0.5 uppercase tracking-[0.24em]">studio</span>
+            </div>
+          </div>
         </div>
-        {navTab('preview', 'Create', '✏️')}
-        {navTab('discover', 'Discover', '🔥')}
-        {navTab('drafts', 'Drafts', '🗂', drafts.length || undefined)}
-        {navTab('library', 'Media', '🖼')}
-        {navTab('trends', 'Trends', '📈')}
-        {navTab('analytics', 'Performance', '📊')}
-        {navTab('patterns', 'Patterns', '🧩')}
-        {/* Mobile-only: jump to the rendered slides (desktop shows them beside
-           the editor in Create). */}
-        <button
-          type="button"
-          onClick={() => setMobileView('preview')}
-          className={
-            'md:hidden shrink-0 inline-flex items-center px-2.5 h-8 rounded-lg text-[13px] border ' +
-            (mobileView === 'preview' ? 'bg-[#00E5FF]/[0.14] text-[#00E5FF] border-[#00E5FF]/30' : 'text-gray-400 border-transparent')
-          }
-          title="Preview slides"
-        >
-          👁
-        </button>
-        <button
-          type="button"
-          onClick={() => setPaletteOpen(true)}
-          title="Command palette"
-          className="ml-auto shrink-0 inline-flex items-center gap-1.5 px-2.5 h-8 rounded-lg border border-white/10 bg-white/[0.03] text-gray-400 hover:text-[#00E5FF] hover:border-[#00E5FF]/40 transition-colors"
-        >
-          <span className="hidden sm:inline text-[11px]">Commands</span>
-          <kbd className="text-[10px] font-mono bg-white/[0.06] rounded px-1 py-0.5">⌘K</kbd>
-        </button>
-      </header>
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-2 flex flex-col gap-0.5">
+          {railTab('preview', 'Create', '✏️')}
+          {railTab('discover', 'Discover', '🔥')}
+          {railTab('drafts', 'Drafts', '🗂', drafts.length || undefined)}
+          {railTab('library', 'Media', '🖼')}
+          {railTab('trends', 'Trends', '📈')}
+          {railTab('analytics', 'Performance', '📊')}
+          {railTab('patterns', 'Patterns', '🧩')}
+        </div>
+        <div className="border-t border-white/[0.05] p-2 flex flex-col gap-0.5">
+          {/* Mobile-only: jump to the rendered slides (desktop shows them beside
+             the editor in Create). */}
+          <button
+            type="button"
+            onClick={() => setMobileView('preview')}
+            title="Preview slides"
+            className={
+              'md:hidden w-full h-10 flex items-center justify-center rounded-lg text-[16px] ' +
+              (mobileView === 'preview' ? 'bg-white/[0.07] text-[#00E5FF]' : 'text-gray-400 hover:bg-white/[0.04]')
+            }
+          >
+            👁
+          </button>
+          <button
+            type="button"
+            onClick={() => setPaletteOpen(true)}
+            title="Command palette (⌘K)"
+            className="w-full h-10 flex items-center gap-3 rounded-lg px-2.5 text-gray-400 hover:bg-white/[0.04] hover:text-[#00E5FF] transition-colors"
+          >
+            <span className="w-5 text-center text-[15px] leading-none shrink-0">⌘</span>
+            <span className="hidden md:inline text-[13px] font-semibold">Commands</span>
+            <kbd className="hidden md:inline ml-auto text-[10px] font-mono bg-white/[0.06] rounded px-1 py-0.5">⌘K</kbd>
+          </button>
+        </div>
+      </nav>
 
       {/* BODY — the editor rail (only in Create) + the active destination view. */}
       <div className="flex-1 flex flex-row min-h-0">

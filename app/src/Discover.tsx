@@ -23,9 +23,9 @@ export default function Discover({ onAdapt, onCloneUrl }: { onAdapt: (p: ViralPa
 
   return (
     <div className="h-full flex flex-col">
-      <div className="shrink-0 px-5 md:px-8 pt-4 pb-3 border-b border-white/[0.06]">
+      <div className="shrink-0 px-5 md:px-8 pt-5 md:pt-7 pb-3 border-b border-white/[0.06]">
         <div className="flex items-baseline gap-2.5 mb-1">
-          <h2 className="text-lg font-black tracking-tight text-white">Discover</h2>
+          <h2 className="text-xl md:text-2xl font-black tracking-tight text-white">Discover</h2>
           <span className="text-[10px] font-bold uppercase tracking-[0.28em] text-[#00E5FF]">viral patterns</span>
         </div>
         <p className="text-[12px] text-gray-500 leading-relaxed mb-3">
