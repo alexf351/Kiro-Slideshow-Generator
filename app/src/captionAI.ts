@@ -46,6 +46,7 @@ export async function generateCaption(opts: {
   model: ClaudeModelId;
   examples?: string[]; // a few of the user's past captions, for voice
   tone?: string;       // optional tone label (see TONE_GUIDE)
+  brand?: string;      // optional brand-brain context block
 }): Promise<{ caption: string; hashtags: string[] }> {
   const content = summariseSlides(opts.json);
   const voice = opts.examples && opts.examples.length
@@ -68,7 +69,7 @@ Rules:
     system: [{ type: 'text', text: system }],
     messages: [{
       role: 'user',
-      content: `Format: ${opts.preset}\n\nSlide content:\n${content}\n\nWrite the caption.`,
+      content: `${opts.brand || ''}Format: ${opts.preset}\n\nSlide content:\n${content}\n\nWrite the caption.`,
     }],
     tools: [{
       name: 'caption',
@@ -103,6 +104,7 @@ export async function generateHookVariations(opts: {
   apiKey: string;
   model: ClaudeModelId;
   n?: number;
+  brand?: string;
 }): Promise<string[]> {
   const n = Math.max(3, Math.min(8, opts.n ?? 5));
   const content = summariseSlides(opts.json);
@@ -120,7 +122,7 @@ Rules:
     system: [{ type: 'text', text: system }],
     messages: [{
       role: 'user',
-      content: `Format: ${opts.preset}\n\nCurrent hook:\n${opts.currentHook || '(none yet)'}\n\nSlide content:\n${content}\n\nGive me ${n} alternative hooks.`,
+      content: `${opts.brand || ''}Format: ${opts.preset}\n\nCurrent hook:\n${opts.currentHook || '(none yet)'}\n\nSlide content:\n${content}\n\nGive me ${n} alternative hooks.`,
     }],
     tools: [{
       name: 'hooks',

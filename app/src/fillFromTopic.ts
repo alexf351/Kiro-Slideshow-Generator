@@ -71,6 +71,7 @@ export async function generateFromTopic(opts: {
   exampleJson: string; // the preset's example JSON — used as the schema/shape
   apiKey: string;
   model: ClaudeModelId;
+  brand?: string;      // optional brand-brain context block
 }): Promise<string> {
   const system = `You fill content templates for "Iro AI" TikTok slideshows (Iro is an app that teaches people to actually build with AI).
 You receive an EXAMPLE JSON for the chosen format and a TOPIC. Return a NEW JSON object that:
@@ -89,7 +90,7 @@ Return ONLY the JSON via the tool — no commentary.`;
     system: [{ type: 'text', text: system }],
     messages: [{
       role: 'user',
-      content: `FORMAT: ${opts.preset}\n\nEXAMPLE JSON (match this shape exactly):\n${opts.exampleJson}\n\nTOPIC: ${opts.topic}\n\nReturn the filled JSON.`,
+      content: `${opts.brand || ''}FORMAT: ${opts.preset}\n\nEXAMPLE JSON (match this shape exactly):\n${opts.exampleJson}\n\nTOPIC: ${opts.topic}\n\nReturn the filled JSON.`,
     }],
     tools: [{
       name: 'slides',
@@ -127,6 +128,7 @@ export async function generateIdeas(opts: {
   count: number;
   apiKey: string;
   model: ClaudeModelId;
+  brand?: string;
 }): Promise<string[]> {
   const system = `You brainstorm TikTok slideshow post ideas for "Iro AI" (an app that teaches people to actually build with AI). Given a NICHE/theme, return ${opts.count} short, specific, scroll-stopping post topics — one line each, ~4-9 words, no numbering. Vary the angles across the set (listicle, myth-busting, storytime, hot take, tutorial, before/after, tier list). Make them feel native to TikTok, not corporate.`;
   const res = await callClaude({
@@ -134,7 +136,7 @@ export async function generateIdeas(opts: {
     model: opts.model,
     maxTokens: 700,
     system: [{ type: 'text', text: system }],
-    messages: [{ role: 'user', content: `NICHE: ${opts.niche}\n\nGive me the ideas.` }],
+    messages: [{ role: 'user', content: `${opts.brand || ''}NICHE: ${opts.niche}\n\nGive me the ideas.` }],
     tools: [{
       name: 'ideas',
       description: 'Return the list of post topic ideas.',
@@ -157,6 +159,7 @@ export async function rewriteItem(opts: {
   preset: string;
   apiKey: string;
   model: ClaudeModelId;
+  brand?: string;
 }): Promise<string> {
   const system = `You revise ONE slide of an "Iro AI" TikTok slideshow (format: ${opts.preset}). You receive a single JSON object for that slide. Return a NEW object with the SAME keys, rewriting the values to be punchier, clearer and more scroll-stopping. Keep inline <strong> tags where present. Return ONLY the object via the tool.`;
   const res = await callClaude({
@@ -164,7 +167,7 @@ export async function rewriteItem(opts: {
     model: opts.model,
     maxTokens: 900,
     system: [{ type: 'text', text: system }],
-    messages: [{ role: 'user', content: opts.itemJson }],
+    messages: [{ role: 'user', content: `${opts.brand || ''}${opts.itemJson}` }],
     tools: [{
       name: 'slides',
       description: 'Return the revised slide object as a JSON string.',
