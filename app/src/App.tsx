@@ -980,16 +980,23 @@ export default function App() {
     }
     setStatus({ kind: 'rendering' });
 
-    // Sidebar preset always wins over whatever's in the pasted JSON — the
-    // dropdown is the explicit user choice, the JSON field is just a hint
-    // about which format the JSON was authored for.
-    const slides: Record<string, unknown> = { ...parsed, mascot: mascotKey(mascot, variant), platform, preset, swipeHint };
+    // A pasted/authored JSON's own `preset` is authoritative — it's the exact
+    // shape the content was written for (e.g. a curated_list's hook + picks
+    // only render under curated_list). Honor it and sync the Format pill so
+    // pasting a complete deck "just works"; fall back to the sidebar format
+    // only when the JSON doesn't declare a known preset.
+    const jsonPreset = (typeof parsed.preset === 'string' && (PRESET_KEYS as readonly string[]).includes(parsed.preset))
+      ? (parsed.preset as PresetKey)
+      : null;
+    const effPreset: PresetKey = jsonPreset || preset;
+    if (jsonPreset && jsonPreset !== preset) setPreset(jsonPreset);
+    const slides: Record<string, unknown> = { ...parsed, mascot: mascotKey(mascot, variant), platform, preset: effPreset, swipeHint };
 
     // Creator handle: the HUD "Creator handle" field is the single source
     // of truth, so a blank field reliably removes the handle (overriding
     // any "@tryiro" left in older saved JSON). Only stamped on formats
     // toggled on for the handle (polished styles by default).
-    slides.attribution = attrPresets[preset] === true ? attribution.trim() : '';
+    slides.attribution = attrPresets[effPreset] === true ? attribution.trim() : '';
 
     // Per-photo crop adjustments, keyed by the resolved URL so the engine
     // can apply pan/zoom to that exact background.
