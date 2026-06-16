@@ -633,6 +633,15 @@ export default function App() {
   // Brand brain — niche/audience/voice/product, threaded into every AI call.
   const [brain, setBrain] = useState<BrandBrain>(loadBrain);
   useEffect(() => { saveBrain(brain); }, [brain]);
+  // Light / dark theme. A global CSS invert (in index.css, keyed off the
+  // html[data-theme] attribute) flips the whole UI to a light palette without
+  // re-theming every hardcoded class; media + the slideshow preview are
+  // counter-inverted there so photos and exported slides stay true-color.
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => (loadPref('theme') === 'light' ? 'light' : 'dark'));
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    savePref('theme', theme);
+  }, [theme]);
   const toggleGroup = (id: string) => setOpenGroups((p) => ({ ...p, [id]: !p[id] }));
   // Bumped by Patterns → "Clone again". CloneFromTikTok watches this
   // and prefills its URL input + expands. Resets to empty string
@@ -2813,6 +2822,15 @@ export default function App() {
             }
           >
             👁
+          </button>
+          <button
+            type="button"
+            onClick={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
+            title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            className="w-full h-10 flex items-center gap-3 rounded-lg px-2.5 text-gray-400 hover:bg-white/[0.04] hover:text-[#00E5FF] transition-colors"
+          >
+            <span className="w-5 text-center text-[15px] leading-none shrink-0">{theme === 'dark' ? '☀️' : '🌙'}</span>
+            <span className="hidden md:inline text-[13px] font-semibold">{theme === 'dark' ? 'Light mode' : 'Dark mode'}</span>
           </button>
           <button
             type="button"
