@@ -12,6 +12,29 @@ body,
   -moz-osx-font-smoothing: grayscale;
 }
 
+/*
+  Light mode. The UI hard-codes hundreds of dark colors across 24 files, so
+  rather than re-theme every class we flip the whole document with a single
+  "smart invert" (the same invert + 180° hue-rotate iOS Smart Invert uses) —
+  it turns dark surfaces light while keeping accent hues recognizable.
+
+  Real content must NOT flip: photos, thumbnails, the rendered slideshow
+  <iframe>, and anything tagged [data-keep-color] are counter-inverted with the
+  identical filter so they render in true color. Toggled via the html
+  data-theme attribute set from React.
+*/
+html[data-theme='light'] {
+  filter: invert(1) hue-rotate(180deg);
+  background: #0a0e1a; /* inverts to near-white behind the app */
+}
+html[data-theme='light'] img,
+html[data-theme='light'] video,
+html[data-theme='light'] canvas,
+html[data-theme='light'] iframe,
+html[data-theme='light'] [data-keep-color] {
+  filter: invert(1) hue-rotate(180deg);
+}
+
 .custom-scrollbar::-webkit-scrollbar {
   width: 8px;
   height: 8px;
