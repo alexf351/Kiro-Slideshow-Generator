@@ -28,6 +28,7 @@ import { buildIcs, scheduledCount } from './ics';
 import { postsToCsv } from './csv';
 import { scoreHook, HOOK_TIER_COLOR, HOOK_TIER_TEXT } from './hookScore';
 import { remapOverlays, type OverlayMap } from './overlayRemap';
+import { loadBrain, saveBrain, brainPrompt, brainHasContent, type BrandBrain } from './brandBrain';
 import { lintHashtags, HASHTAG_TIER_COLOR, HASHTAG_TIER_TEXT } from './hashtagLint';
 import { checkEngagement, captionFold } from './captionSignals';
 import { computeReadiness, READINESS_COLOR, READINESS_TEXT } from './postReadiness';
@@ -626,6 +627,10 @@ export default function App() {
   // Format is open on first load so new users see the picker; the rest of the
   // editor groups stay collapsed for a clean Create view.
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({ format: true });
+
+  // Brand brain — niche/audience/voice/product, threaded into every AI call.
+  const [brain, setBrain] = useState<BrandBrain>(loadBrain);
+  useEffect(() => { saveBrain(brain); }, [brain]);
   const toggleGroup = (id: string) => setOpenGroups((p) => ({ ...p, [id]: !p[id] }));
   // Bumped by Patterns → "Clone again". CloneFromTikTok watches this
   // and prefills its URL input + expands. Resets to empty string
@@ -1481,7 +1486,7 @@ export default function App() {
     try {
       const { generateHookVariations } = await import('./captionAI');
       const currentHook = (caption.split('\n').find((l) => l.trim()) || '').trim();
-      const hooks = await generateHookVariations({ json: jsonText, currentHook, preset, apiKey: anthropicKey, model: claudeModel });
+      const hooks = await generateHookVariations({ json: jsonText, currentHook, preset, apiKey: anthropicKey, model: claudeModel, brand: brainPrompt(brain) });
       setHookVars(hooks);
     } catch (e) {
       ui.notify(`Failed: ${(e as Error).message}`, { type: 'error' });
@@ -1555,7 +1560,7 @@ export default function App() {
       const examples = posts.map((p) => p.caption).filter((c) => c && c.trim().length > 10).slice(0, 4);
       const { caption: body, hashtags } = await generateCaption({
         json: jsonText, preset, apiKey: anthropicKey, model: claudeModel, examples,
-        tone: captionTone === 'Auto' ? undefined : captionTone,
+        tone: captionTone === 'Auto' ? undefined : captionTone, brand: brainPrompt(brain),
       });
       setCaption(composeCaption(body, hashtags));
       ui.notify('Caption written.', { type: 'success' });
@@ -1992,12 +1997,12 @@ export default function App() {
       const target = (PRESET_KEYS as readonly string[]).includes(picked) ? (picked as PresetKey) : preset;
       setPreset(target);
       setFullPostBusy(`Writing the ${PRESETS[target].label}…`);
-      const filled = await generateFromTopic({ topic: t, preset: target, exampleJson: PRESETS[target].defaultJson, apiKey: anthropicKey, model: claudeModel });
+      const filled = await generateFromTopic({ topic: t, preset: target, exampleJson: PRESETS[target].defaultJson, apiKey: anthropicKey, model: claudeModel, brand: brainPrompt(brain) });
       setJsonText(filled);
       setActiveDraftName('');
       setFullPostBusy('Writing the caption…');
       try {
-        const { caption: body, hashtags } = await generateCaption({ json: filled, preset: target, apiKey: anthropicKey, model: claudeModel, tone: captionTone === 'Auto' ? undefined : captionTone });
+        const { caption: body, hashtags } = await generateCaption({ json: filled, preset: target, apiKey: anthropicKey, model: claudeModel, tone: captionTone === 'Auto' ? undefined : captionTone, brand: brainPrompt(brain) });
         setCaption(composeCaption(body, hashtags));
       } catch { /* caption is best-effort; content still lands */ }
       setTimeout(() => void handleRender({ switchView: false }), 80);
@@ -2019,7 +2024,7 @@ export default function App() {
     try {
       const { generateFromTopic } = await import('./fillFromTopic');
       const filled = await generateFromTopic({
-        topic: t, preset, exampleJson: PRESETS[preset].defaultJson, apiKey: anthropicKey, model: claudeModel,
+        topic: t, preset, exampleJson: PRESETS[preset].defaultJson, apiKey: anthropicKey, model: claudeModel, brand: brainPrompt(brain),
       });
       setJsonText(filled);
       setTimeout(() => void handleRender({ switchView: false }), 80);
@@ -2044,7 +2049,7 @@ export default function App() {
       const { generateFromTopic } = await import('./fillFromTopic');
       const filled = await generateFromTopic({
         topic: `Reflow this existing post's ideas into the new format, keeping the same core points and angle:\n${content}`,
-        preset: remixTarget, exampleJson: PRESETS[remixTarget].defaultJson, apiKey: anthropicKey, model: claudeModel,
+        preset: remixTarget, exampleJson: PRESETS[remixTarget].defaultJson, apiKey: anthropicKey, model: claudeModel, brand: brainPrompt(brain),
       });
       setPreset(remixTarget);
       setJsonText(filled);
@@ -2095,7 +2100,7 @@ export default function App() {
     setRewritingIndex(index);
     try {
       const { rewriteItem } = await import('./fillFromTopic');
-      const revised = JSON.parse(await rewriteItem({ itemJson: JSON.stringify(arr[index]), preset, apiKey: anthropicKey, model: claudeModel }));
+      const revised = JSON.parse(await rewriteItem({ itemJson: JSON.stringify(arr[index]), preset, apiKey: anthropicKey, model: claudeModel, brand: brainPrompt(brain) }));
       arr[index] = revised;
       (parsed as Record<string, unknown>)[key] = arr;
       setJsonText(JSON.stringify(parsed, null, 2));
@@ -2117,7 +2122,7 @@ export default function App() {
     setIdeasBusy(true);
     try {
       const { generateIdeas } = await import('./fillFromTopic');
-      const topics = await generateIdeas({ niche, count: 8, apiKey: anthropicKey, model: claudeModel });
+      const topics = await generateIdeas({ niche, count: 8, apiKey: anthropicKey, model: claudeModel, brand: brainPrompt(brain) });
       if (!topics.length) throw new Error('No ideas returned.');
       setBatchTopics((prev) => (prev.trim() ? prev.trimEnd() + '\n' + topics.join('\n') : topics.join('\n')));
       ui.notify(`${topics.length} ideas added — review, then Generate.`, { type: 'success' });
@@ -2151,10 +2156,10 @@ export default function App() {
             const picked = await pickFormat({ topic: lines[i], formats, apiKey: anthropicKey, model: claudeModel, prefer: preferList });
             if ((PRESET_KEYS as readonly string[]).includes(picked)) target = picked as PresetKey;
           }
-          const filled = await generateFromTopic({ topic: lines[i], preset: target, exampleJson: PRESETS[target].defaultJson, apiKey: anthropicKey, model: claudeModel });
+          const filled = await generateFromTopic({ topic: lines[i], preset: target, exampleJson: PRESETS[target].defaultJson, apiKey: anthropicKey, model: claudeModel, brand: brainPrompt(brain) });
           let cap = '';
           if (batchSmart && caps) {
-            try { const r = await caps.generateCaption({ json: filled, preset: target, apiKey: anthropicKey, model: claudeModel }); cap = caps.composeCaption(r.caption, r.hashtags); } catch {}
+            try { const r = await caps.generateCaption({ json: filled, preset: target, apiKey: anthropicKey, model: claudeModel, brand: brainPrompt(brain) }); cap = caps.composeCaption(r.caption, r.hashtags); } catch {}
           }
           await saveDraft(lines[i].slice(0, 48), { jsonText: filled, caption: cap, preset: target, slideBgs: {}, slideBgAdjust: {}, attribution, attrPresets });
           made++;
@@ -2849,6 +2854,41 @@ export default function App() {
                 <strong className="text-gray-400">Last {lastOrigin}:</strong> {lastCloneNote}
               </div>
             )}
+            </div>
+          </Group>
+
+          <Group open={!!openGroups.brain} onToggle={() => toggleGroup('brain')} title="Brand brain" accent="#A78BFA" hint={brainHasContent(brain) ? (brain.niche || 'set') : 'set once → smarter AI'}>
+            <p className="text-[11px] text-gray-500 leading-relaxed mb-3">
+              Set this once — it's fed into every AI generation (Full post, caption, ideas, rewrites, hooks) so the output fits your account without re-typing context.
+            </p>
+            <div className="flex flex-col gap-2.5">
+              {([
+                ['niche', 'Niche', 'e.g. AI tools for creators'],
+                ['audience', 'Audience', 'e.g. solo founders & creators 20-35'],
+                ['voice', 'Voice & tone', 'e.g. casual, witty, lowercase, no corporate'],
+                ['product', 'Promoting / CTA', 'e.g. iro — search "Iro AI" on the App Store'],
+              ] as const).map(([key, label, ph]) => (
+                <label key={key} className="flex flex-col gap-1">
+                  <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-500">{label}</span>
+                  <input
+                    type="text"
+                    value={brain[key]}
+                    onChange={(e) => setBrain((b) => ({ ...b, [key]: e.target.value }))}
+                    placeholder={ph}
+                    className="bg-[#070b18] border border-white/[0.10] rounded-lg px-3 py-2 text-[12px] text-gray-200 placeholder:text-gray-600 focus:border-[#A78BFA]/50 focus:outline-none"
+                  />
+                </label>
+              ))}
+              <label className="flex flex-col gap-1">
+                <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-500">Notes (optional)</span>
+                <textarea
+                  value={brain.notes}
+                  onChange={(e) => setBrain((b) => ({ ...b, notes: e.target.value }))}
+                  rows={2}
+                  placeholder="do's & don'ts — e.g. never use emojis in hooks; always end with a question"
+                  className="bg-[#070b18] border border-white/[0.10] rounded-lg px-3 py-2 text-[12px] text-gray-200 placeholder:text-gray-600 focus:border-[#A78BFA]/50 focus:outline-none resize-y"
+                />
+              </label>
             </div>
           </Group>
 

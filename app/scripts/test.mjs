@@ -419,5 +419,18 @@ const eq = (n, a, b) => ok(n + ` (got ${JSON.stringify(a)})`, JSON.stringify(a) 
   ok('overlay no-hook: slide 0 -> 1', r['1'] === B && !r['0']);
 }
 
+// ---- brandBrain (AI context profile) ----
+{
+  const { brainPrompt, brainHasContent, EMPTY_BRAIN } = await load('brandBrain.ts');
+  ok('brain empty -> no content', !brainHasContent(EMPTY_BRAIN));
+  ok('brain empty -> empty prompt', brainPrompt(EMPTY_BRAIN) === '');
+  const b = { ...EMPTY_BRAIN, niche: 'AI tools', voice: 'casual lowercase' };
+  ok('brain has content', brainHasContent(b));
+  const p = brainPrompt(b);
+  ok('brain prompt includes set fields', p.includes('Niche: AI tools') && p.includes('Voice & tone: casual lowercase'));
+  ok('brain prompt omits empty fields', !p.includes('Audience:') && !p.includes('Promoting'));
+  ok('brain prompt is prependable (trailing blank line)', p.endsWith('\n\n'));
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
