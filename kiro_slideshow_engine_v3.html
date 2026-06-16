@@ -2823,6 +2823,26 @@
   .hud-btn-primary:active { transform: translateY(0); }
   .hud-btn[disabled] { opacity: 0.55; cursor: not-allowed; transform: none !important; box-shadow: none; }
 
+  /* Light-mode HUD chrome. The React shell counter-inverts the whole iframe in
+     light mode (slides render true-color), so a dark HUD looks out of place;
+     when the shell posts {type:'setTheme',theme:'light'} we restyle just the
+     toolbar to a light palette. The primary download button keeps its cyan. */
+  body[data-theme="light"] .hud {
+    background: linear-gradient(180deg, rgba(247,248,250,0.97) 0%, rgba(238,241,245,0.86) 100%);
+    border-bottom: 1px solid rgba(0,0,0,0.08);
+    box-shadow: 0 4px 24px rgba(0,0,0,0.10);
+  }
+  body[data-theme="light"] .hud-title { color: #0a0e1a; }
+  body[data-theme="light"] .hud-badge {
+    color: #0089a8; background: rgba(0,137,168,0.10); border-color: rgba(0,137,168,0.30);
+  }
+  body[data-theme="light"] .hud-btn-ghost {
+    background: rgba(0,0,0,0.04); color: #3a4150; border-color: rgba(0,0,0,0.12);
+  }
+  body[data-theme="light"] .hud-btn-ghost:hover {
+    background: rgba(0,0,0,0.08); border-color: rgba(0,0,0,0.20); color: #0a0e1a;
+  }
+
   /* ============================================================
      PASTE PANEL — fixed top-right, where you paste JSON from Barry/Claude
      ============================================================ */
@@ -6188,6 +6208,17 @@ window.addEventListener('message', async (e) => {
   if (msg.type === 'toggle-safezone') {
     if (typeof msg.on === 'boolean') document.body.classList.toggle('show-safezone', msg.on);
     else document.body.classList.toggle('show-safezone');
+    return;
+  }
+
+  // Mirror the React shell's light/dark theme onto the HUD chrome only. In
+  // light mode the shell counter-inverts this whole iframe (so slides stay
+  // true-color), which would otherwise leave the dark HUD floating in a light
+  // app; we restyle just the toolbar to a light palette to match. The slide
+  // canvas is never touched.
+  if (msg.type === 'setTheme') {
+    if (msg.theme === 'light') document.body.setAttribute('data-theme', 'light');
+    else document.body.removeAttribute('data-theme');
     return;
   }
 
