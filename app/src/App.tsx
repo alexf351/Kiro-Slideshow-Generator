@@ -641,6 +641,9 @@ export default function App() {
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
     savePref('theme', theme);
+    // Mirror onto the engine HUD chrome (it lives in the counter-inverted
+    // iframe, so it doesn't follow the shell's global invert on its own).
+    iframeRef.current?.contentWindow?.postMessage({ type: 'setTheme', theme }, '*');
   }, [theme]);
   const toggleGroup = (id: string) => setOpenGroups((p) => ({ ...p, [id]: !p[id] }));
   // Bumped by Patterns → "Clone again". CloneFromTikTok watches this
@@ -2439,6 +2442,7 @@ export default function App() {
     // switchView:false so a phone user isn't bounced off the Edit tab.
     handleRender({ switchView: false });
     if (safeZone) iframeRef.current?.contentWindow?.postMessage({ type: 'toggle-safezone', on: true }, '*');
+    iframeRef.current?.contentWindow?.postMessage({ type: 'setTheme', theme }, '*');
   }
 
   // Live design preview: when the brand kit / aspect / watermark changes,
