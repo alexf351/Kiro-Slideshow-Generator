@@ -261,7 +261,10 @@ export default function QuickEdit({ jsonText, onChange, onRewriteItem, rewriting
             </button>
           </div>
           {items.map((item, i) => {
-            const fields = stringFields(item);
+            // For curated_list picks the small "my favorite" pill (label) gets
+            // its own always-present field below, so drop it from the
+            // auto-detected string fields to avoid rendering it twice.
+            const fields = stringFields(item).filter((f) => !(contentKey === 'picks' && f === 'label'));
             return (
               <div key={i} className={card}>
                 <div className="flex items-center justify-between mb-2">
@@ -293,6 +296,18 @@ export default function QuickEdit({ jsonText, onChange, onRewriteItem, rewriting
                     />
                   ))}
                 </div>
+                {contentKey === 'picks' && (
+                  <label className="mt-2 flex flex-col gap-1">
+                    <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-gray-500">Label <span className="text-gray-600 normal-case font-normal tracking-normal">(small pill — optional)</span></span>
+                    <input
+                      type="text"
+                      value={String(item.label ?? '')}
+                      onChange={(e) => setField({ section: 'item', index: i, field: 'label' }, e.target.value)}
+                      placeholder="e.g. my favorite"
+                      className="bg-[#070b18] border border-white/[0.08] rounded-lg px-3 py-2 text-[13px] text-gray-200 placeholder:text-gray-600 focus:border-[#00E5FF]/40 focus:outline-none"
+                    />
+                  </label>
+                )}
                 {contentKey === 'picks' && (
                   <label className="mt-2 flex items-center gap-2 cursor-pointer select-none">
                     <input
