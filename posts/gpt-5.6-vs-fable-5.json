@@ -1,7 +1,7 @@
 {
   "preset": "hot_take",
   "hook": {
-    "headline": "GPT-5.6 dropped today.<br/><strong>Fable 5</strong>'s already here.<br/>which do you actually use?",
+    "headline": "<span style='color:#1CC7A0'>GPT-5.6</span> dropped today.<br/><strong>Fable 5</strong>'s already here.<br/>which do you actually use?",
     "subline": "(save this before you waste a month on the wrong one.)"
   },
   "items": [
@@ -10,7 +10,7 @@
       "defense": "The truth nobody posting about this will tell you: Claude and ChatGPT are both so good now the 'which wins' fight barely matters."
     },
     {
-      "take": "Open ChatGPT (GPT-5.6) when you want one great all-rounder.",
+      "take": "Open ChatGPT (<span style='color:#1CC7A0'>GPT-5.6</span>) when you want one great all-rounder.",
       "defense": "It's already in your pocket — and the new free tier just got a serious upgrade."
     },
     {
