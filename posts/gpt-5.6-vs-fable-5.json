@@ -1,0 +1,33 @@
+{
+  "preset": "hot_take",
+  "hook": {
+    "headline": "GPT-5.6 dropped today.<br/><strong>Fable 5</strong>'s already here.<br/>which do you actually use?",
+    "subline": "(save this before you waste a month on the wrong one.)"
+  },
+  "items": [
+    {
+      "take": "For 95% of your work, either one crushes it.",
+      "defense": "The truth nobody posting about this will tell you: Claude and ChatGPT are both so good now the 'which wins' fight barely matters."
+    },
+    {
+      "take": "Open ChatGPT (GPT-5.6) when you want one great all-rounder.",
+      "defense": "It's already in your pocket — and the new free tier just got a serious upgrade."
+    },
+    {
+      "take": "Open Claude (Fable 5) when it's a long, messy project.",
+      "defense": "Big docs, deep research, work you hand off and check later. It goes further without hand-holding."
+    },
+    {
+      "take": "The model was never your bottleneck. Your prompting is.",
+      "defense": "A pro on ChatGPT beats a beginner on the best model alive."
+    }
+  ],
+  "cta": {
+    "headline": "Want to <strong>actually get good</strong><br/>instead of chasing every model?",
+    "instructionAbove": "search:",
+    "searchTerm": "Iro AI",
+    "instructionBelow": "on the App Store 🐧",
+    "slogan": "it grades your prompts. 5 min a day."
+  },
+  "attribution": ""
+}
