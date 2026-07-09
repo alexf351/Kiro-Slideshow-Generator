@@ -1317,7 +1317,7 @@
     color: rgba(255,255,255,0.78); max-width: 880px;
   }
   .preset-hot-take .ht-cta-app-icon {
-    width: 172px; height: 172px; border-radius: 40px; margin-bottom: 50px;
+    width: 116px; height: 116px; border-radius: 28px; flex-shrink: 0;
     box-shadow: 0 6px 24px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.08);
   }
   .preset-hot-take .ht-cta-headline {
@@ -1329,7 +1329,7 @@
   }
   .preset-hot-take .ht-cta-headline strong { color: #FF6B4D; font-weight: 900; }
   .preset-hot-take .ht-cta-search-row {
-    display: flex; align-items: baseline; justify-content: center; gap: 28px; margin-bottom: 28px;
+    display: flex; align-items: center; justify-content: center; gap: 28px; margin-bottom: 28px;
   }
   .preset-hot-take .ht-cta-instruction {
     font-family: 'Inter', sans-serif; font-size: 50px; font-weight: 500; color: rgba(255,255,255,0.85);
@@ -4742,12 +4742,12 @@ function buildHotCTA(c, attribution) {
   if (c.instructionAbove || c.searchTerm) {
     const above = c.instructionAbove ? `<span class="ht-cta-instruction">${c.instructionAbove}</span>` : '';
     const term = c.searchTerm ? `<span class="ht-cta-search">${c.searchTerm}</span>` : '';
-    searchRow = `<div class="ht-cta-search-row">${above}${term}</div>`;
+    searchRow = `<div class="ht-cta-search-row">${above}${icon}${term}</div>`;
   }
   const below = c.instructionBelow ? `<div class="ht-cta-instruction">${c.instructionBelow}</div>` : '';
   const slogan = c.slogan ? `<div class="ht-cta-slogan">${c.slogan}</div>` : '';
   const attr = attribution ? `<div class="ht-attribution">${attribution}</div>` : '';
-  return `${icon}${headline}${searchRow}${below}${slogan}${attr}`;
+  return `${headline}${searchRow}${below}${slogan}${attr}`;
 }
 
 // ============================================================
