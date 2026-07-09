@@ -1316,6 +1316,10 @@
     font-size: 52px; font-weight: 500; font-style: italic; line-height: 1.3;
     color: rgba(255,255,255,0.78); max-width: 880px;
   }
+  .preset-hot-take .ht-cta-app-icon {
+    width: 172px; height: 172px; border-radius: 40px; margin-bottom: 50px;
+    box-shadow: 0 6px 24px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.08);
+  }
   .preset-hot-take .ht-cta-headline {
     font-family: 'Inter', sans-serif;
     font-size: 132px; font-weight: 900; line-height: 1.0;
@@ -4730,6 +4734,9 @@ function buildHotItem(it, n) {
 
 function buildHotCTA(c, attribution) {
   if (!c) return '';
+  // Anchor the payoff slide to the Iro app — after five slides carrying
+  // ChatGPT/Claude branding, the CTA should read unmistakably as our app.
+  const icon = `<img class="ht-cta-app-icon" src="${APP_ICON}" alt="Iro app icon" />`;
   const headline = c.headline ? `<div class="ht-cta-headline">${c.headline}</div>` : '';
   let searchRow = '';
   if (c.instructionAbove || c.searchTerm) {
@@ -4740,7 +4747,7 @@ function buildHotCTA(c, attribution) {
   const below = c.instructionBelow ? `<div class="ht-cta-instruction">${c.instructionBelow}</div>` : '';
   const slogan = c.slogan ? `<div class="ht-cta-slogan">${c.slogan}</div>` : '';
   const attr = attribution ? `<div class="ht-attribution">${attribution}</div>` : '';
-  return `${headline}${searchRow}${below}${slogan}${attr}`;
+  return `${icon}${headline}${searchRow}${below}${slogan}${attr}`;
 }
 
 // ============================================================
