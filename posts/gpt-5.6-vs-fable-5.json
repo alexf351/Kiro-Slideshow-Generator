@@ -1,7 +1,7 @@
 {
   "preset": "hot_take",
   "hook": {
-    "headline": "<span style='color:#1CC7A0'>GPT-5.6</span> dropped today.<br/><strong>Fable 5</strong>'s already here.<br/>which do you actually use?",
+    "headline": "<span style='color:#1CC7A0'>GPT-5.6</span> dropped today.<br/><span style='color:#F2853F'>Fable 5</span>'s already here.<br/>which do you actually use?",
     "subline": "(save this before you waste a month on the wrong one.)"
   },
   "items": [
@@ -14,7 +14,7 @@
       "defense": "It's already in your pocket — and the new free tier just got a serious upgrade."
     },
     {
-      "take": "Open Claude (Fable 5) when it's a long, messy project.",
+      "take": "Open Claude (<span style='color:#F2853F'>Fable 5</span>) when it's a long, messy project.",
       "defense": "Big docs, deep research, work you hand off and check later. It goes further without hand-holding."
     },
     {
@@ -25,7 +25,7 @@
   "cta": {
     "headline": "Want to <strong>actually get good</strong><br/>instead of chasing every model?",
     "instructionAbove": "search:",
-    "searchTerm": "Iro AI",
+    "searchTerm": "<span style='text-shadow:0 4px 22px rgba(0,0,0,0.95), 0 2px 6px rgba(0,0,0,0.9), 0 0 3px rgba(0,0,0,0.85)'>Iro AI</span>",
     "instructionBelow": "on the App Store 🐧",
     "slogan": "it grades your prompts. 5 min a day."
   },
