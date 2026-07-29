@@ -2152,7 +2152,12 @@ export default function App() {
     const body = (await res.json()) as { results?: { name: string; icon: string }[] };
     const hit = (body.results || [])[0];
     if (!hit?.icon) throw new Error(`No App Store match for “${name}”.`);
-    return hit.icon;
+    // Inline the bytes as a data URL. A raw mzstatic URL would display fine but
+    // taint the html2canvas canvas, so the icon would silently drop out of the
+    // exported slides — same reason stock photos go through the proxy.
+    const img = await fetch(`/api/proxy-image?url=${encodeURIComponent(hit.icon)}`);
+    if (!img.ok) throw new Error(`Couldn't download the ${name} icon.`);
+    return await blobToDataUrl(await img.blob());
   }
 
   async function handleFetchAppIcon(index: number) {
@@ -2170,7 +2175,9 @@ export default function App() {
       next[index] = { ...app, iconUrl: icon };
       (parsed as Record<string, unknown>).apps = next;
       setJsonText(JSON.stringify(parsed, null, 2));
-      setTimeout(() => void handleRender({ switchView: false }), 80);
+      // renderRef, not handleRender: this closure captured the pre-fetch
+      // jsonText, so calling it directly would re-render the old (icon-less) deck.
+      setTimeout(() => void renderRef.current({ switchView: false }), 80);
       ui.notify(`Got the ${name} icon.`, { type: 'success' });
     } catch (e) {
       ui.notify((e as Error).message, { type: 'error' });
@@ -2198,7 +2205,7 @@ export default function App() {
       }));
       (parsed as Record<string, unknown>).apps = next;
       setJsonText(JSON.stringify(parsed, null, 2));
-      setTimeout(() => void handleRender({ switchView: false }), 80);
+      setTimeout(() => void renderRef.current({ switchView: false }), 80);
       const got = arr.length - missed.length;
       ui.notify(
         missed.length ? `Got ${got}/${arr.length} icons. No match: ${missed.join(', ')}.` : `Got all ${got} icons.`,
