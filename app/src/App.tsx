@@ -614,6 +614,8 @@ export default function App() {
   const [remixBusy, setRemixBusy] = useState(false);
   const [improveBusy, setImproveBusy] = useState<string | null>(null);
   const [rewritingIndex, setRewritingIndex] = useState<number | null>(null);
+  // Index of the app whose App Store icon is being fetched (-1 = fetching all).
+  const [fetchingIconIndex, setFetchingIconIndex] = useState<number | null>(null);
   // Saved hashtag sets (reusable niche blocks).
   const [hashtagSets, setHashtagSets] = useState<HashtagSet[]>(() => listSets());
   // Batch generate — one draft per topic line.
@@ -2137,6 +2139,76 @@ export default function App() {
     }
   }
 
+  // Look up an app's official App Store artwork by name and set its iconUrl.
+  // The app-list formats (app_stack / app_rating) need a real icon per slide
+  // and sourcing them by hand is the slowest part of building those posts.
+  // Proxied through /api/app-icon (Apple's search endpoint sends no CORS).
+  async function fetchAppIconUrl(name: string): Promise<string> {
+    const res = await fetch(`/api/app-icon?q=${encodeURIComponent(name)}`);
+    if (!res.ok) {
+      const msg = await res.json().catch(() => null);
+      throw new Error((msg as { error?: string } | null)?.error || `Lookup failed (${res.status}).`);
+    }
+    const body = (await res.json()) as { results?: { name: string; icon: string }[] };
+    const hit = (body.results || [])[0];
+    if (!hit?.icon) throw new Error(`No App Store match for “${name}”.`);
+    return hit.icon;
+  }
+
+  async function handleFetchAppIcon(index: number) {
+    const parsed = parseJson(true);
+    if (!parsed) { ui.notify('Fix the JSON first.', { type: 'error' }); return; }
+    const arr = (parsed as Record<string, unknown>).apps as Record<string, unknown>[] | undefined;
+    const app = Array.isArray(arr) ? arr[index] : undefined;
+    if (!app) return;
+    const name = String(app.name || '').trim();
+    if (!name) { ui.notify('Give the app a name first.', { type: 'error' }); return; }
+    setFetchingIconIndex(index);
+    try {
+      const icon = await fetchAppIconUrl(name);
+      const next = arr!.slice();
+      next[index] = { ...app, iconUrl: icon };
+      (parsed as Record<string, unknown>).apps = next;
+      setJsonText(JSON.stringify(parsed, null, 2));
+      setTimeout(() => void handleRender({ switchView: false }), 80);
+      ui.notify(`Got the ${name} icon.`, { type: 'success' });
+    } catch (e) {
+      ui.notify((e as Error).message, { type: 'error' });
+    } finally {
+      setFetchingIconIndex(null);
+    }
+  }
+
+  // Fill every app's icon in one pass. Failures are reported but don't stop
+  // the rest — a single unmatched name shouldn't cost you the whole deck.
+  async function handleFetchAllAppIcons() {
+    const parsed = parseJson(true);
+    if (!parsed) { ui.notify('Fix the JSON first.', { type: 'error' }); return; }
+    const arr = (parsed as Record<string, unknown>).apps as Record<string, unknown>[] | undefined;
+    if (!Array.isArray(arr) || arr.length === 0) return;
+    setFetchingIconIndex(-1);
+    const next = arr.slice();
+    const missed: string[] = [];
+    try {
+      await Promise.all(arr.map(async (app, i) => {
+        const name = String(app?.name || '').trim();
+        if (!name) return;
+        try { next[i] = { ...app, iconUrl: await fetchAppIconUrl(name) }; }
+        catch { missed.push(name); }
+      }));
+      (parsed as Record<string, unknown>).apps = next;
+      setJsonText(JSON.stringify(parsed, null, 2));
+      setTimeout(() => void handleRender({ switchView: false }), 80);
+      const got = arr.length - missed.length;
+      ui.notify(
+        missed.length ? `Got ${got}/${arr.length} icons. No match: ${missed.join(', ')}.` : `Got all ${got} icons.`,
+        { type: missed.length ? 'info' : 'success' },
+      );
+    } finally {
+      setFetchingIconIndex(null);
+    }
+  }
+
   // Brainstorm topic ideas for a niche and drop them into the batch box.
   async function handleGenerateIdeas() {
     if (!anthropicKey) { ui.notify('Add an Anthropic API key in Settings to use this.', { type: 'error' }); return; }
@@ -3210,7 +3282,19 @@ export default function App() {
           <section className="px-5 md:px-10 py-6 md:py-7 border-b border-white/[0.04]">
             {sectionLabel(
               'Content',
-              <div className="ml-auto flex gap-1 p-0.5 rounded-lg bg-black/30 border border-white/[0.05]">
+              <>
+              {(preset === 'app_rating' || preset === 'app_stack') && (
+                <button
+                  type="button"
+                  onClick={() => void handleFetchAllAppIcons()}
+                  disabled={fetchingIconIndex != null}
+                  title="Look up every app's official App Store icon by name"
+                  className="ml-auto shrink-0 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-[0.1em] bg-[#38BDF8]/15 text-[#7DD3FC] border border-[#38BDF8]/30 hover:bg-[#38BDF8]/25 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  {fetchingIconIndex != null ? 'Fetching…' : '🎨 Fetch all icons'}
+                </button>
+              )}
+              <div className={((preset === 'app_rating' || preset === 'app_stack') ? '' : 'ml-auto ') + 'flex gap-1 p-0.5 rounded-lg bg-black/30 border border-white/[0.05]'}>
                 {(['quick', 'json'] as const).map((m) => (
                   <button
                     key={m}
@@ -3224,7 +3308,8 @@ export default function App() {
                     {m === 'quick' ? 'Quick edit' : 'JSON'}
                   </button>
                 ))}
-              </div>,
+              </div>
+              </>,
             )}
 
             {/* AI "fill from topic": populate the current format's content
@@ -3334,7 +3419,7 @@ export default function App() {
                   onRemoveTool={shiftToolBgsAfterRemove}
                 />
               ) : (
-                <QuickEdit jsonText={jsonText} onChange={setJsonText} onRewriteItem={(i) => void handleRewriteItem(i)} rewritingIndex={rewritingIndex} onReorder={(info) => void handleSlidesReordered(info)} />
+                <QuickEdit jsonText={jsonText} onChange={setJsonText} onRewriteItem={(i) => void handleRewriteItem(i)} rewritingIndex={rewritingIndex} onReorder={(info) => void handleSlidesReordered(info)} onFetchIcon={(i) => void handleFetchAppIcon(i)} fetchingIconIndex={fetchingIconIndex} />
               )
             ) : (
             <textarea

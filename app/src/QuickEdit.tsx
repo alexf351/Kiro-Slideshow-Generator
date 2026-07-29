@@ -22,6 +22,10 @@ type Props = {
   // on-slide overlays (pasted photos / text) attached to their slide.
   // `newOrder` is the new content array in OLD indices (-1 = fresh blank).
   onReorder?: (info: { newOrder: number[]; hookOffset: number; oldLen: number }) => void;
+  // App-list formats only: look up this app's App Store icon by name and set
+  // its iconUrl. Rendered as a per-app button when the content key is `apps`.
+  onFetchIcon?: (index: number) => void;
+  fetchingIconIndex?: number | null;
 };
 
 type Parsed = Record<string, unknown>;
@@ -87,7 +91,7 @@ function isLong(field: string): boolean {
   return ['prompt', 'text', 'sub', 'slogan', 'supporting', 'subline', 'bottom', 'top'].includes(field);
 }
 
-export default function QuickEdit({ jsonText, onChange, onRewriteItem, rewritingIndex, onReorder }: Props) {
+export default function QuickEdit({ jsonText, onChange, onRewriteItem, rewritingIndex, onReorder, onFetchIcon, fetchingIconIndex }: Props) {
   const parsed = useMemo(() => tryParse(jsonText), [jsonText]);
 
   if (!parsed) {
@@ -279,6 +283,12 @@ export default function QuickEdit({ jsonText, onChange, onRewriteItem, rewriting
                         aria-label={`Rewrite slide ${i + 1} with AI`} title="Rewrite this slide with AI"
                         className="px-1.5 py-0.5 text-[11px] rounded text-[#A78BFA] hover:text-[#C4B5FD] disabled:opacity-40">
                         {rewritingIndex === i ? '…' : '✨'}</button>
+                    )}
+                    {onFetchIcon && contentKey === 'apps' && (
+                      <button type="button" onClick={() => onFetchIcon(i)} disabled={fetchingIconIndex != null}
+                        aria-label={`Fetch App Store icon for app ${i + 1}`} title="Fetch this app's App Store icon"
+                        className="px-1.5 py-0.5 text-[11px] rounded text-[#38BDF8] hover:text-[#7DD3FC] disabled:opacity-40">
+                        {fetchingIconIndex === i ? '…' : '🎨'}</button>
                     )}
                     <button type="button" onClick={() => duplicateItem(i)} aria-label={`Duplicate slide ${i + 1}`} title="Duplicate slide"
                       className="px-1.5 py-0.5 text-[11px] rounded text-gray-400 hover:text-[#00E5FF]">⎘</button>
