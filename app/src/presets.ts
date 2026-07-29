@@ -20,6 +20,7 @@ export const PRESET_KEYS = [
   'search',
   'handwritten_pack',
   'app_stack',
+  'app_rating',
   'output_vs_hype',
   'curated_list',
   'tier_list',
@@ -48,7 +49,7 @@ export const FORMAT_CATEGORIES = ['AI', 'List', 'Story', 'Social', 'Facts', 'Tak
 export type FormatCategory = (typeof FORMAT_CATEGORIES)[number];
 
 export const FORMAT_CATEGORY: Record<PresetKey, FormatCategory> = {
-  prompt_pack: 'AI', product_demo: 'AI', handwritten_pack: 'AI', app_stack: 'AI',
+  prompt_pack: 'AI', product_demo: 'AI', handwritten_pack: 'AI', app_stack: 'AI', app_rating: 'AI',
   checklist: 'List', curated_list: 'List', tier_list: 'List', countdown: 'List', flags: 'List', steps: 'List',
   pain_story: 'Story', aspirational: 'Story', notes: 'Story', storytime: 'Story',
   receipts: 'Social', tweet: 'Social', reddit: 'Social',
@@ -536,6 +537,34 @@ const APP_STACK_JSON = `{
   ],
   "attribution": ""
 }`;
+
+// App Rating — the "rate every app" clone format. Deliberately text-free:
+// each slide is just one giant centered app logo on a shared background, and
+// the creator types the rating / verdict as native TikTok text after export
+// (the algorithm favours native overlays, and it keeps the deck reusable for
+// any app list). Optional per-app name label via "showNames": true.
+const APP_RATING_JSON = `{
+  "preset": "app_rating",
+  "background": "linear-gradient(160deg, #2b1055 0%, #7597de 100%)",
+  "showNames": false,
+  "logoSize": 480,
+  "apps": [
+    { "name": "Duolingo", "iconUrl": "" },
+    { "name": "YouTube", "iconUrl": "" },
+    { "name": "Coursera", "iconUrl": "" },
+    { "name": "Sololearn", "iconUrl": "" },
+    { "name": "Iro", "iconUrl": "" }
+  ],
+  "attribution": ""
+}`;
+
+const APP_RATING_CAPTION = `rating every app that says it teaches you AI 🐧
+
+most of them are quizzes with no actual building. one isn't.
+
+which one surprised you? 👇
+
+#ai #apps #learnai #aitok #chatgpt`;
 
 const OUTPUT_VS_HYPE_JSON = `{
   "preset": "output_vs_hype",
@@ -1186,6 +1215,15 @@ export const PRESETS: Record<PresetKey, PresetMeta> = {
     defaultJson: APP_STACK_JSON,
     defaultCaption: APP_STACK_CAPTION,
     accent: '#A78BFA', // purple, distinct from other presets
+  },
+  app_rating: {
+    key: 'app_rating',
+    label: 'App Rating',
+    pitch: 'One giant centered app logo per slide, no baked-in text — add the rating in TikTok.',
+    status: 'ready',
+    defaultJson: APP_RATING_JSON,
+    defaultCaption: APP_RATING_CAPTION,
+    accent: '#38BDF8', // sky blue
   },
   output_vs_hype: {
     key: 'output_vs_hype',

@@ -3363,6 +3363,8 @@ export default function App() {
                   <span>
                     {preset === 'app_stack'
                       ? 'Rendered — drag an app card on its slide to reposition it; double-click it to switch the icon/text layout.'
+                      : preset === 'app_rating'
+                      ? 'Rendered — set each app’s icon + background below, then add the ratings as native text in TikTok. Drag a logo to nudge it off-center.'
                       : preset === 'curated_list'
                         ? 'Rendered — drag the heading, label, or card on a slide to place them; drag the card’s corner to resize it.'
                         : 'Rendered — use “Add text” or Download in the top bar.'}
