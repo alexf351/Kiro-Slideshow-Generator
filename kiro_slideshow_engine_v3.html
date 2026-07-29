@@ -2336,6 +2336,37 @@
     box-shadow: 0 8px 28px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.08);
     flex-shrink: 0; background: rgba(255,255,255,0.06);
   }
+  /* ============================================================
+     PRESET: app_rating — the "rate every app" clone. One giant
+     centered app logo per slide over a shared background, and
+     nothing else: the rating / verdict is typed as native TikTok
+     text after export. Optional name label under the logo.
+     ============================================================ */
+  .preset-app-rating .ar-wrap {
+    position: absolute; left: 50%; top: 50%;
+    transform: translate(-50%, -50%);
+    display: flex; flex-direction: column; align-items: center; gap: 44px;
+    cursor: grab; touch-action: none;
+  }
+  .preset-app-rating .ar-logo {
+    display: block; object-fit: cover;
+    /* iOS squircle ≈ 22.4% of the icon's size */
+    border-radius: 22.4%;
+    box-shadow: 0 24px 70px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.07);
+    background: rgba(255,255,255,0.06);
+  }
+  .preset-app-rating .ar-name {
+    font-family: 'Inter', sans-serif;
+    font-size: 104px; font-weight: 800; color: #ffffff; line-height: 1.05;
+    letter-spacing: -0.01em; text-align: center;
+    text-shadow: 0 3px 16px rgba(0,0,0,0.75), 0 1px 3px rgba(0,0,0,0.5);
+  }
+  .preset-app-rating .ar-attribution {
+    position: absolute; left: 0; right: 0; bottom: 90px;
+    text-align: center; font-family: 'Inter', sans-serif;
+    font-size: 34px; font-weight: 600; color: rgba(255,255,255,0.75);
+    text-shadow: 0 2px 10px rgba(0,0,0,0.6);
+  }
   .preset-app-stack .as-app-info { display: flex; flex-direction: column; gap: 6px; }
   .preset-app-stack .as-app-name {
     font-family: 'Inter', sans-serif;
@@ -3824,6 +3855,28 @@ const PRESETS = {
       return out;
     },
   },
+  app_rating: {
+    label: 'App Rating',
+    slideClass: 'preset-app-rating',
+    showCounter: true,
+    fallbackBg: 'photo',
+    buildSlides(S) {
+      const out = [];
+      const shared = S.background;
+      // Hook is optional — the clone format usually starts straight on the
+      // first app and gets its title text typed in TikTok.
+      if (S.hook) {
+        out.push({ html: buildAppStackHook(S.hook), bg: (S.hook && S.hook.bg) || shared });
+      }
+      (S.apps || []).forEach((a, i) => {
+        out.push({
+          html: buildAppRating(a, S, i),
+          bg: (a && a.bg) || shared,
+        });
+      });
+      return out;
+    },
+  },
   output_vs_hype: {
     label: 'Output vs Hype',
     slideClass: 'preset-output-vs-hype',
@@ -5247,6 +5300,38 @@ function buildAppStackApp(a, attribution) {
 }
 
 // ============================================================
+// PRESET: app_rating builder
+// One giant centered app logo per slide and nothing else, so the
+// creator can type the rating ("0/10 💀", "1000/10") as native
+// TikTok text after export. Size is tunable per-deck (S.logoSize)
+// or per-app (a.logoSize); names are off unless S.showNames.
+// Drag support reuses the app_stack x/y convention.
+// ============================================================
+function buildAppRating(a, S, idx) {
+  if (!a) return '';
+  const size = clampLogo(a.logoSize != null ? a.logoSize : S.logoSize);
+  const safeIcon = a.iconUrl ? String(a.iconUrl).replace(/'/g, "\\'") : '';
+  const alt = (a.name || '').replace(/"/g, '&quot;');
+  const logo = safeIcon
+    ? `<img class="ar-logo" src="${safeIcon}" alt="${alt}" style="width:${size}px;height:${size}px" />`
+    : `<div class="ar-logo" style="width:${size}px;height:${size}px"></div>`;
+  const name = (S.showNames && a.name) ? `<div class="ar-name">${a.name}</div>` : '';
+  // Optional drag position (cluster centre, % of slide). Defaults to dead
+  // centre, which is the whole point of the format.
+  const hasPos = isFinite(Number(a.x)) && isFinite(Number(a.y));
+  const px = hasPos ? Math.max(0, Math.min(100, Number(a.x))) : 50;
+  const py = hasPos ? Math.max(0, Math.min(100, Number(a.y))) : 50;
+  const attr = S.attribution ? `<div class="ar-attribution">${S.attribution}</div>` : '';
+  return `<div class="ar-wrap" data-app="${idx}" style="left:${px}%;top:${py}%">${logo}${name}</div>${attr}`;
+}
+
+function clampLogo(v) {
+  const n = Number(v);
+  if (!isFinite(n)) return 480;
+  return Math.max(160, Math.min(900, n));
+}
+
+// ============================================================
 // APP STACK — drag-to-reposition. Each app slide's icon+text cluster
 // can be dragged anywhere on its slide; double-click cycles the
 // arrangement (icon left → icon above → icon right). Position is
@@ -5254,6 +5339,14 @@ function buildAppStackApp(a, attribution) {
 // reported to the parent shell so the JSON stays in sync.
 // ============================================================
 function initAppDrag() {
+  // app_rating reuses the same x/y convention, so it gets drag for free —
+  // it just has no layout variants to cycle on double-click.
+  if (SLIDES.preset === 'app_rating') {
+    document.querySelectorAll('.preset-app-rating .ar-wrap').forEach(function (el, i) {
+      el.addEventListener('pointerdown', function (e) { startAppDrag(e, el, i); });
+    });
+    return;
+  }
   if (SLIDES.preset !== 'app_stack') return;
   const wraps = document.querySelectorAll('.preset-app-stack .as-app-wrap');
   wraps.forEach(function (el, i) {
