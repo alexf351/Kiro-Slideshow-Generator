@@ -4048,7 +4048,8 @@ function subEmphasisStyle(e) {
 
 function buildHook(h) {
   // Count visible text length (strip HTML tags for sizing math)
-  const visibleLength = h.headline.replace(/<[^>]+>/g, '').length;
+  const headline = h.headline || '';
+  const visibleLength = headline.replace(/<[^>]+>/g, '').length;
   // Default 128px, shrink for longer hooks. Tested ranges:
   //   <40 chars  → 128px (e.g. "7 ChatGPT Prompts Every AI Beginner Should Save" = 47 chars actually)
   //   40-55 chars → 110px
@@ -4059,9 +4060,15 @@ function buildHook(h) {
   else if (visibleLength >= 55) fontSize = 92;
   else if (visibleLength >= 40) fontSize = 110;
 
+  // The sub-line is optional — omit the element entirely when it's absent so
+  // a hook-only slide doesn't render the string "undefined" (and doesn't
+  // reserve the sub's top margin either).
+  const sub = h.sub
+    ? `<div class="hook-sub" style="${subEmphasisStyle(h.subEmphasis == null ? 30 : h.subEmphasis)}">${h.sub}</div>`
+    : '';
   return `<div class="body">
-    <div class="hook" style="font-size: ${fontSize}px;">${h.headline}</div>
-    <div class="hook-sub" style="${subEmphasisStyle(h.subEmphasis == null ? 30 : h.subEmphasis)}">${h.sub}</div>
+    <div class="hook" style="font-size: ${fontSize}px;">${headline}</div>
+    ${sub}
   </div>`;
 }
 
@@ -4130,21 +4137,22 @@ function buildCTA(c, pathContext) {
         </div>
         <div class="cta-instruction">→ start with</div>
         <div class="cta-path">${path.name}</div>
-        <div class="cta-slogan">${c.slogan}</div>
+        ${c.slogan ? `<div class="cta-slogan">${c.slogan}</div>` : ''}
       </div>
     </div>`;
   }
-  // Default generic CTA
+  // Default generic CTA. Every line is optional — omit the element rather than
+  // interpolating a missing field, which would render the string "undefined".
   return `<div class="body">
     <div class="cta-scrim">
-      <div class="cta-headline">${c.headline}</div>
-      <div class="cta-instruction">${c.instructionAbove}</div>
-      <div class="cta-search-row">
+      ${c.headline ? `<div class="cta-headline">${c.headline}</div>` : ''}
+      ${c.instructionAbove ? `<div class="cta-instruction">${c.instructionAbove}</div>` : ''}
+      ${c.searchTerm ? `<div class="cta-search-row">
         <img class="cta-app-icon" src="${APP_ICON}" alt="Iro app icon" />
         <div class="cta-search">${c.searchTerm}</div>
-      </div>
-      <div class="cta-instruction">${c.instructionBelow}</div>
-      <div class="cta-slogan">${c.slogan}</div>
+      </div>` : ''}
+      ${c.instructionBelow ? `<div class="cta-instruction">${c.instructionBelow}</div>` : ''}
+      ${c.slogan ? `<div class="cta-slogan">${c.slogan}</div>` : ''}
     </div>
   </div>`;
 }
