@@ -2333,6 +2333,140 @@
     flex-shrink: 0; background: rgba(255,255,255,0.06);
   }
   /* ============================================================
+     PRESET: tool_ranks — editorial "best tools by category" deck.
+     Warm cream page, a soft sage blob, a small letterspaced brand
+     kicker, one huge category headline, and three white cards each
+     holding a logo disc, the tool name, and a score. Cover slide
+     lists every category as a pill so the deck previews itself.
+     ============================================================ */
+  .preset-tool-ranks .bg-photo-scrim { display: none; }
+  .preset-tool-ranks .bg-solid { background: #FAF7F1; }
+  .preset-tool-ranks .frame {
+    padding: 150px 90px 140px 90px;
+    display: flex; flex-direction: column; align-items: center;
+    overflow: hidden;
+  }
+  /* Decorative blobs, drawn behind everything. */
+  .preset-tool-ranks .tr-blob {
+    position: absolute; border-radius: 50%; pointer-events: none;
+  }
+  .preset-tool-ranks .tr-blob-a {
+    width: 760px; height: 760px; top: -250px; right: -230px;
+    background: #C6D2B5; opacity: 0.75;
+  }
+  .preset-tool-ranks .tr-blob-b {
+    width: 620px; height: 620px; bottom: -240px; left: -220px;
+    background: #E4E8DC; opacity: 0.7;
+  }
+  .preset-tool-ranks .tr-inner {
+    position: relative; z-index: 1; width: 100%;
+    display: flex; flex-direction: column; align-items: center;
+  }
+  .preset-tool-ranks .tr-brand {
+    font-family: 'Inter', sans-serif;
+    font-size: 34px; font-weight: 600; letter-spacing: 0.34em;
+    text-transform: uppercase; color: #7C8B93; text-align: center;
+  }
+  .preset-tool-ranks .tr-rule {
+    width: 74px; height: 4px; border-radius: 2px;
+    background: #B3C09F; margin: 26px auto 0 auto;
+  }
+  /* Cover */
+  .preset-tool-ranks .tr-title {
+    font-family: 'Inter', sans-serif;
+    font-size: 150px; font-weight: 800; line-height: 1.02;
+    letter-spacing: -0.035em; color: #16232B;
+    text-align: center; margin-top: 90px;
+  }
+  .preset-tool-ranks .tr-title em { font-style: normal; color: #93A67E; }
+  .preset-tool-ranks .tr-sub-row {
+    display: flex; align-items: center; justify-content: center; gap: 26px;
+    margin-top: 56px; width: 100%;
+  }
+  .preset-tool-ranks .tr-sub {
+    font-family: 'Inter', sans-serif;
+    font-size: 46px; font-weight: 500; color: #55636B; white-space: nowrap;
+  }
+  .preset-tool-ranks .tr-dash {
+    flex: 1; max-width: 190px; height: 3px; border-radius: 2px;
+    background: linear-gradient(90deg, rgba(147,166,126,0) 0%, #B9C6A6 60%, #93A67E 100%);
+  }
+  .preset-tool-ranks .tr-dash.right {
+    background: linear-gradient(270deg, rgba(147,166,126,0) 0%, #B9C6A6 60%, #93A67E 100%);
+  }
+  .preset-tool-ranks .tr-pills {
+    display: flex; flex-wrap: wrap; justify-content: center;
+    gap: 26px; margin-top: 78px; width: 100%;
+  }
+  .preset-tool-ranks .tr-pill {
+    display: flex; align-items: center; gap: 20px;
+    background: #FFFFFF; border-radius: 999px;
+    padding: 22px 40px 22px 22px;
+    box-shadow: 0 10px 26px rgba(22,35,43,0.07);
+  }
+  .preset-tool-ranks .tr-pill-ico {
+    width: 66px; height: 66px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 32px; background: #EEF1E8; flex-shrink: 0;
+  }
+  .preset-tool-ranks .tr-pill-ico img {
+    width: 100%; height: 100%; border-radius: 50%; object-fit: cover;
+  }
+  .preset-tool-ranks .tr-pill-label {
+    font-family: 'Inter', sans-serif;
+    font-size: 42px; font-weight: 600; color: #16232B; white-space: nowrap;
+  }
+  .preset-tool-ranks .tr-swipe {
+    font-family: 'Inter', sans-serif;
+    font-size: 40px; font-weight: 800; font-style: italic;
+    letter-spacing: 0.06em; color: #16232B;
+    margin-top: 74px; text-align: center;
+  }
+  /* Category slide */
+  .preset-tool-ranks .tr-cat-title {
+    font-family: 'Inter', sans-serif;
+    font-size: 168px; font-weight: 800; line-height: 1.0;
+    letter-spacing: -0.04em; color: #16232B;
+    text-align: center; margin-top: 96px;
+  }
+  .preset-tool-ranks .tr-rows {
+    display: flex; flex-direction: column; gap: 40px;
+    margin-top: 100px; width: 100%;
+  }
+  .preset-tool-ranks .tr-row {
+    display: flex; align-items: center; gap: 40px;
+    background: #FFFFFF; border-radius: 46px;
+    padding: 40px 56px;
+    box-shadow: 0 14px 34px rgba(22,35,43,0.08);
+  }
+  .preset-tool-ranks .tr-ico {
+    width: 128px; height: 128px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    background: #EEF1E8; flex-shrink: 0; overflow: hidden;
+    font-size: 60px;
+  }
+  .preset-tool-ranks .tr-ico img {
+    width: 100%; height: 100%; object-fit: cover;
+  }
+  .preset-tool-ranks .tr-name {
+    font-family: 'Inter', sans-serif;
+    font-size: 76px; font-weight: 700; color: #16232B;
+    letter-spacing: -0.02em; flex: 1; min-width: 0;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .preset-tool-ranks .tr-score {
+    font-family: 'Inter', sans-serif;
+    font-size: 82px; font-weight: 700; color: #93A67E;
+    letter-spacing: -0.02em; flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
+  }
+  .preset-tool-ranks .tr-attribution {
+    position: absolute; left: 0; right: 0; bottom: 70px;
+    text-align: center; font-family: 'Inter', sans-serif;
+    font-size: 32px; font-weight: 600; color: #8A959B;
+  }
+
+  /* ============================================================
      PRESET: app_rating — the "rate every app" clone. One giant
      centered app logo per slide over a shared background, and
      nothing else: the rating / verdict is typed as native TikTok
@@ -3851,6 +3985,21 @@ const PRESETS = {
       return out;
     },
   },
+  tool_ranks: {
+    label: 'Tool Ranks',
+    slideClass: 'preset-tool-ranks',
+    showCounter: true,
+    fallbackBg: 'photo',
+    buildSlides(S) {
+      const out = [];
+      // Cover is optional so the deck can start straight on a category.
+      if (S.hook) out.push({ html: buildToolRanksCover(S), bg: (S.hook && S.hook.bg) || S.background });
+      (S.categories || []).forEach((c) => {
+        out.push({ html: buildToolRanksCategory(c, S), bg: (c && c.bg) || S.background });
+      });
+      return out;
+    },
+  },
   app_rating: {
     label: 'App Rating',
     slideClass: 'preset-app-rating',
@@ -5298,6 +5447,67 @@ function buildAppStackApp(a, attribution) {
   const layout = (a.layout === 'stack' || a.layout === 'reverse') ? a.layout : 'row';
   const rowCls = 'as-app-row' + (layout === 'row' ? '' : ' as-layout-' + layout);
   return `<div class="${wrapCls}"${posStyle}><div class="${rowCls}">${icon}<div class="as-app-info">${name}${desc}</div></div></div>${attr}`;
+}
+
+// ============================================================
+// PRESET: tool_ranks builders
+// Editorial "best tools by category" deck: a cover that lists every
+// category as a pill, then one slide per category with three scored
+// tool cards. Category icons accept an emoji (`icon`) or an image
+// (`iconUrl`); per-tool discs take an optional `tint` background.
+// ============================================================
+function trBrand(S) {
+  const name = S.brand || '';
+  if (!name) return '';
+  return `<div class="tr-brand">${name}</div><div class="tr-rule"></div>`;
+}
+
+function trBlobs() {
+  return '<div class="tr-blob tr-blob-a"></div><div class="tr-blob tr-blob-b"></div>';
+}
+
+// A circular icon: image if given, else an emoji, else empty.
+function trIcon(cls, o) {
+  const tint = o && typeof o.tint === 'string' ? o.tint.replace(/[^a-zA-Z0-9#(),.% -]/g, '') : '';
+  const style = tint ? ` style="background:${tint}"` : '';
+  const inner = (o && o.iconUrl)
+    ? `<img src="${String(o.iconUrl).replace(/'/g, "\\'")}" alt="" />`
+    : ((o && o.icon) ? o.icon : '');
+  return `<div class="${cls}"${style}>${inner}</div>`;
+}
+
+function buildToolRanksCover(S) {
+  const h = S.hook || {};
+  // Headline supports an <em> accent (the "2026" in the reference), or a
+  // separate `highlight` appended on its own line.
+  const title = h.headline || '';
+  const hl = h.highlight ? `<br/><em>${h.highlight}</em>` : '';
+  const sub = h.sub
+    ? `<div class="tr-sub-row"><div class="tr-dash"></div><div class="tr-sub">${h.sub}</div><div class="tr-dash right"></div></div>`
+    : '';
+  // The cover previews the deck: one pill per category, derived from the
+  // categories array so it can never drift out of sync with the slides.
+  const pills = (S.categories || []).map((c) =>
+    `<div class="tr-pill">${trIcon('tr-pill-ico', c)}<div class="tr-pill-label">${c.title || ''}</div></div>`
+  ).join('');
+  const pillWrap = pills ? `<div class="tr-pills">${pills}</div>` : '';
+  const swipe = h.swipe ? `<div class="tr-swipe">${h.swipe}</div>` : '';
+  return `${trBlobs()}<div class="tr-inner">${trBrand(S)}` +
+    `<div class="tr-title">${title}${hl}</div>${sub}${pillWrap}${swipe}</div>`;
+}
+
+function buildToolRanksCategory(c, S) {
+  if (!c) return '';
+  const rows = (c.tools || []).map((t) =>
+    `<div class="tr-row">${trIcon('tr-ico', t)}` +
+    `<div class="tr-name">${t.name || ''}</div>` +
+    (t.score ? `<div class="tr-score">${t.score}</div>` : '') +
+    `</div>`
+  ).join('');
+  const attr = S.attribution ? `<div class="tr-attribution">${S.attribution}</div>` : '';
+  return `${trBlobs()}<div class="tr-inner">${trBrand(S)}` +
+    `<div class="tr-cat-title">${c.title || ''}</div>` +
+    `<div class="tr-rows">${rows}</div></div>${attr}`;
 }
 
 // ============================================================
