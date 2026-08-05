@@ -570,6 +570,15 @@ const TOOL_RANKS_JSON = `{
       ]
     },
     {
+      "title": "Learning",
+      "icon": "\uD83D\uDC27",
+      "tools": [
+        { "name": "Iro", "score": "99%", "iconUrl": "", "tint": "#CFEAF6" },
+        { "name": "Coursera", "score": "88%", "iconUrl": "", "tint": "#D8E3F5" },
+        { "name": "Duolingo", "score": "84%", "iconUrl": "", "tint": "#DCF0CE" }
+      ]
+    },
+    {
       "title": "Research",
       "icon": "\uD83D\uDD0D",
       "tools": [
@@ -612,15 +621,6 @@ const TOOL_RANKS_JSON = `{
         { "name": "Figma", "score": "94%", "iconUrl": "", "tint": "#EFEFEF" },
         { "name": "Canva", "score": "91%", "iconUrl": "", "tint": "#D8E6F5" },
         { "name": "Recraft", "score": "90%", "iconUrl": "", "tint": "#ECECEC" }
-      ]
-    },
-    {
-      "title": "Learning",
-      "icon": "\uD83D\uDC27",
-      "tools": [
-        { "name": "Iro", "score": "99%", "iconUrl": "", "tint": "#CFEAF6" },
-        { "name": "Coursera", "score": "88%", "iconUrl": "", "tint": "#D8E3F5" },
-        { "name": "Duolingo", "score": "84%", "iconUrl": "", "tint": "#DCF0CE" }
       ]
     }
   ],
