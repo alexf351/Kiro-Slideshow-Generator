@@ -2362,6 +2362,16 @@
     position: relative; z-index: 1; width: 100%;
     display: flex; flex-direction: column; align-items: center;
   }
+  .preset-tool-ranks .tr-brand-row {
+    display: flex; align-items: center; justify-content: center; gap: 20px;
+  }
+  /* letter-spacing adds a trailing gap after the last glyph; pull it back so
+     the logo + wordmark sit optically centred rather than nudged left. */
+  .preset-tool-ranks .tr-brand-row .tr-brand { margin-right: -0.34em; }
+  .preset-tool-ranks .tr-brand-logo {
+    width: 60px; height: 60px; border-radius: 16px; object-fit: cover;
+    flex-shrink: 0;
+  }
   .preset-tool-ranks .tr-brand {
     font-family: 'Inter', sans-serif;
     font-size: 34px; font-weight: 600; letter-spacing: 0.34em;
@@ -5458,8 +5468,11 @@ function buildAppStackApp(a, attribution) {
 // ============================================================
 function trBrand(S) {
   const name = S.brand || '';
-  if (!name) return '';
-  return `<div class="tr-brand">${name}</div><div class="tr-rule"></div>`;
+  const logo = S.brandLogo
+    ? `<img class="tr-brand-logo" src="${String(S.brandLogo).replace(/'/g, "\\'")}" alt="" />`
+    : '';
+  if (!name && !logo) return '';
+  return `<div class="tr-brand-row">${logo}<div class="tr-brand">${name}</div></div><div class="tr-rule"></div>`;
 }
 
 function trBlobs() {
