@@ -2416,7 +2416,6 @@
     display: flex; align-items: center; gap: 20px;
     background: #FFFFFF; border-radius: 999px;
     padding: 22px 40px 22px 22px;
-    box-shadow: 0 10px 26px rgba(22,35,43,0.07);
   }
   .preset-tool-ranks .tr-pill-ico {
     width: 66px; height: 66px; border-radius: 50%;
@@ -2447,11 +2446,14 @@
     display: flex; flex-direction: column; gap: 40px;
     margin-top: 100px; width: 100%;
   }
+  /* No box-shadow on the cards: html2canvas renders a blurred shadow as a
+     hard offset rectangle in mobile Safari (the QR-to-phone export path),
+     which banded these cards grey. White-on-cream reads as a card without
+     it, and preview now matches the export exactly. */
   .preset-tool-ranks .tr-row {
     display: flex; align-items: center; gap: 40px;
     background: #FFFFFF; border-radius: 46px;
     padding: 40px 56px;
-    box-shadow: 0 14px 34px rgba(22,35,43,0.08);
   }
   .preset-tool-ranks .tr-ico {
     width: 128px; height: 128px; border-radius: 50%;
