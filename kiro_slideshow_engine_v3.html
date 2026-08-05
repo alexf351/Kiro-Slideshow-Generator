@@ -2460,9 +2460,9 @@
   }
   .preset-tool-ranks .tr-name {
     font-family: 'Inter', sans-serif;
-    font-size: 76px; font-weight: 700; color: #16232B;
+    font-weight: 700; color: #16232B;
     letter-spacing: -0.02em; flex: 1; min-width: 0;
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    white-space: nowrap;
   }
   .preset-tool-ranks .tr-score {
     font-family: 'Inter', sans-serif;
@@ -4189,6 +4189,23 @@ function render() {
   // Wire drag-to-reposition (no-op for presets that don't use it).
   if (typeof initAppDrag === 'function') initAppDrag();
   if (typeof initCuratedDrag === 'function') initCuratedDrag();
+  if (typeof fitToolNames === 'function') fitToolNames();
+}
+
+// tool_ranks: shrink any tool name that still overflows its row. The builder
+// picks a starting size from character count, but glyph widths vary a lot, so
+// measure the laid-out element and step down until it actually fits. Cheap:
+// only runs for this preset, and only loops on rows that overflow.
+function fitToolNames() {
+  document.querySelectorAll('.preset-tool-ranks .tr-name').forEach(function (el) {
+    var size = parseFloat(getComputedStyle(el).fontSize) || 76;
+    var guard = 0;
+    while (el.scrollWidth > el.clientWidth && size > 30 && guard < 40) {
+      size -= 2;
+      el.style.fontSize = size + 'px';
+      guard++;
+    }
+  });
 }
 
 // Inline style for the hook sub-line ("save bait"). `e` is 0–100: low
@@ -5511,12 +5528,24 @@ function buildToolRanksCover(S) {
 
 function buildToolRanksCategory(c, S) {
   if (!c) return '';
-  const rows = (c.tools || []).map((t) =>
-    `<div class="tr-row">${trIcon('tr-ico', t)}` +
-    `<div class="tr-name">${t.name || ''}</div>` +
-    (t.score ? `<div class="tr-score">${t.score}</div>` : '') +
-    `</div>`
-  ).join('');
+  const rows = (c.tools || []).map((t) => {
+    // Auto-shrink the name to the ~430px the row leaves between the logo disc
+    // and the score, so long names (ElevenLabs, Midjourney, NotebookLM) render
+    // in full rather than getting ellipsised.
+    const nameLen = String(t.name || '').replace(/<[^>]+>/g, '').length;
+    let fs = 76;
+    if (nameLen >= 15) fs = 46;
+    else if (nameLen >= 13) fs = 52;
+    else if (nameLen >= 11) fs = 60;
+    else if (nameLen >= 9) fs = 66;
+    // fitToolNames() measures the real rendered width afterwards and shrinks
+    // further if needed — character count alone under-estimates wide glyphs
+    // (all-caps runs like "NotebookLM").
+    return `<div class="tr-row">${trIcon('tr-ico', t)}` +
+      `<div class="tr-name" style="font-size:${fs}px">${t.name || ''}</div>` +
+      (t.score ? `<div class="tr-score">${t.score}</div>` : '') +
+      `</div>`;
+  }).join('');
   const attr = S.attribution ? `<div class="tr-attribution">${S.attribution}</div>` : '';
   return `${trBlobs()}<div class="tr-inner">${trBrand(S)}` +
     `<div class="tr-cat-title">${c.title || ''}</div>` +
