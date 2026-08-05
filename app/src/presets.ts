@@ -21,6 +21,7 @@ export const PRESET_KEYS = [
   'handwritten_pack',
   'app_stack',
   'app_rating',
+  'tool_ranks',
   'output_vs_hype',
   'curated_list',
   'tier_list',
@@ -49,7 +50,7 @@ export const FORMAT_CATEGORIES = ['AI', 'List', 'Story', 'Social', 'Facts', 'Tak
 export type FormatCategory = (typeof FORMAT_CATEGORIES)[number];
 
 export const FORMAT_CATEGORY: Record<PresetKey, FormatCategory> = {
-  prompt_pack: 'AI', product_demo: 'AI', handwritten_pack: 'AI', app_stack: 'AI', app_rating: 'AI',
+  prompt_pack: 'AI', product_demo: 'AI', handwritten_pack: 'AI', app_stack: 'AI', app_rating: 'AI', tool_ranks: 'AI',
   checklist: 'List', curated_list: 'List', tier_list: 'List', countdown: 'List', flags: 'List', steps: 'List',
   pain_story: 'Story', aspirational: 'Story', notes: 'Story', storytime: 'Story',
   receipts: 'Social', tweet: 'Social', reddit: 'Social',
@@ -543,6 +544,96 @@ const APP_STACK_JSON = `{
 // the creator types the rating / verdict as native TikTok text after export
 // (the algorithm favours native overlays, and it keeps the deck reusable for
 // any app list). Optional per-app name label via "showNames": true.
+// Tool Ranks — editorial "best tools by category" deck: cream page, sage
+// blob, a small letterspaced brand kicker, one huge category headline, and
+// three white cards each holding a logo disc, the tool name, and a score.
+// The cover's category pills are derived from the categories array, so they
+// can never drift out of sync with the slides.
+const TOOL_RANKS_JSON = `{
+  "preset": "tool_ranks",
+  "brand": "IRO AI LAB",
+  "hook": {
+    "headline": "Best<br/>AI Tools",
+    "highlight": "in 2026",
+    "sub": "Simple picks by category",
+    "swipe": "SWIPE LEFT"
+  },
+  "categories": [
+    {
+      "title": "Writing",
+      "icon": "\u270D\uFE0F",
+      "tools": [
+        { "name": "Claude", "score": "96%", "iconUrl": "", "tint": "#F6D2B6" },
+        { "name": "ChatGPT", "score": "94%", "iconUrl": "", "tint": "#CFDCC7" },
+        { "name": "Gemini", "score": "89%", "iconUrl": "", "tint": "#D3DDF3" }
+      ]
+    },
+    {
+      "title": "Research",
+      "icon": "\uD83D\uDD0D",
+      "tools": [
+        { "name": "Perplexity", "score": "95%", "iconUrl": "", "tint": "#EDEFEA" },
+        { "name": "NotebookLM", "score": "91%", "iconUrl": "", "tint": "#DDE5F0" },
+        { "name": "Elicit", "score": "86%", "iconUrl": "", "tint": "#E6E3EF" }
+      ]
+    },
+    {
+      "title": "Images",
+      "icon": "\uD83D\uDDBC\uFE0F",
+      "tools": [
+        { "name": "Midjourney", "score": "96%", "iconUrl": "", "tint": "#EDEFEA" },
+        { "name": "Ideogram", "score": "93%", "iconUrl": "", "tint": "#DDE5F0" },
+        { "name": "Leonardo", "score": "90%", "iconUrl": "", "tint": "#E9E4DC" }
+      ]
+    },
+    {
+      "title": "Video",
+      "icon": "\u25B6\uFE0F",
+      "tools": [
+        { "name": "Kling", "score": "95%", "iconUrl": "", "tint": "#FFFFFF" },
+        { "name": "Runway", "score": "92%", "iconUrl": "", "tint": "#EDEFEA" },
+        { "name": "Pika", "score": "87%", "iconUrl": "", "tint": "#E6E9E1" }
+      ]
+    },
+    {
+      "title": "Audio",
+      "icon": "\uD83C\uDFA7",
+      "tools": [
+        { "name": "ElevenLabs", "score": "96%", "iconUrl": "", "tint": "#E7E9E4" },
+        { "name": "Murf", "score": "89%", "iconUrl": "", "tint": "#DDE3F2" },
+        { "name": "PlayHT", "score": "87%", "iconUrl": "", "tint": "#D9E8D4" }
+      ]
+    },
+    {
+      "title": "Design",
+      "icon": "\uD83C\uDFA8",
+      "tools": [
+        { "name": "Figma", "score": "94%", "iconUrl": "", "tint": "#EFEFEF" },
+        { "name": "Canva", "score": "91%", "iconUrl": "", "tint": "#D8E6F5" },
+        { "name": "Recraft", "score": "90%", "iconUrl": "", "tint": "#ECECEC" }
+      ]
+    },
+    {
+      "title": "Learning",
+      "icon": "\uD83D\uDC27",
+      "tools": [
+        { "name": "Iro", "score": "99%", "iconUrl": "", "tint": "#CFEAF6" },
+        { "name": "Coursera", "score": "88%", "iconUrl": "", "tint": "#D8E3F5" },
+        { "name": "Duolingo", "score": "84%", "iconUrl": "", "tint": "#DCF0CE" }
+      ]
+    }
+  ],
+  "attribution": ""
+}`;
+
+const TOOL_RANKS_CAPTION = `the best AI tools in 2026, sorted by what you actually need
+
+saved you 40 hours of testing. bookmark this one.
+
+which category should i rank next?
+
+#aitools #ai #chatgpt #claude #aitok`;
+
 const APP_RATING_JSON = `{
   "preset": "app_rating",
   "background": "linear-gradient(160deg, #2b1055 0%, #7597de 100%)",
@@ -1215,6 +1306,15 @@ export const PRESETS: Record<PresetKey, PresetMeta> = {
     defaultJson: APP_STACK_JSON,
     defaultCaption: APP_STACK_CAPTION,
     accent: '#A78BFA', // purple, distinct from other presets
+  },
+  tool_ranks: {
+    key: 'tool_ranks',
+    label: 'Tool Ranks',
+    pitch: 'Editorial "best tools by category" deck — cream cards, logo discs, % scores.',
+    status: 'ready',
+    defaultJson: TOOL_RANKS_JSON,
+    defaultCaption: TOOL_RANKS_CAPTION,
+    accent: '#93A67E',
   },
   app_rating: {
     key: 'app_rating',
