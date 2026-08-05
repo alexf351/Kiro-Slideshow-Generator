@@ -551,7 +551,8 @@ const APP_STACK_JSON = `{
 // can never drift out of sync with the slides.
 const TOOL_RANKS_JSON = `{
   "preset": "tool_ranks",
-  "brand": "IRO AI LAB",
+  "brand": "IRO AI",
+  "brandLogo": "",
   "hook": {
     "headline": "Best<br/>AI Tools",
     "highlight": "in 2026",
@@ -623,7 +624,7 @@ const TOOL_RANKS_JSON = `{
       ]
     }
   ],
-  "attribution": ""
+  "attribution": "@tryiro"
 }`;
 
 const TOOL_RANKS_CAPTION = `the best AI tools in 2026, sorted by what you actually need
