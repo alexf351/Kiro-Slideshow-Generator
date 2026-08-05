@@ -565,7 +565,7 @@ const TOOL_RANKS_JSON = `{
       "icon": "\u270D\uFE0F",
       "tools": [
         { "name": "Claude", "score": "96%", "iconUrl": "", "tint": "#F6D2B6" },
-        { "name": "ChatGPT", "score": "94%", "iconUrl": "", "tint": "#CFDCC7" },
+        { "name": "ChatGPT", "score": "94%", "iconUrl": "", "tint": "#F4E3C4" },
         { "name": "Gemini", "score": "89%", "iconUrl": "", "tint": "#D3DDF3" }
       ]
     },
@@ -573,7 +573,7 @@ const TOOL_RANKS_JSON = `{
       "title": "Research",
       "icon": "\uD83D\uDD0D",
       "tools": [
-        { "name": "Perplexity", "score": "95%", "iconUrl": "", "tint": "#EDEFEA" },
+        { "name": "Perplexity", "score": "95%", "iconUrl": "", "tint": "#FAF0DF" },
         { "name": "NotebookLM", "score": "91%", "iconUrl": "", "tint": "#DDE5F0" },
         { "name": "Elicit", "score": "86%", "iconUrl": "", "tint": "#E6E3EF" }
       ]
@@ -582,7 +582,7 @@ const TOOL_RANKS_JSON = `{
       "title": "Images",
       "icon": "\uD83D\uDDBC\uFE0F",
       "tools": [
-        { "name": "Midjourney", "score": "96%", "iconUrl": "", "tint": "#EDEFEA" },
+        { "name": "Midjourney", "score": "96%", "iconUrl": "", "tint": "#FAF0DF" },
         { "name": "Ideogram", "score": "93%", "iconUrl": "", "tint": "#DDE5F0" },
         { "name": "Leonardo", "score": "90%", "iconUrl": "", "tint": "#E9E4DC" }
       ]
@@ -592,15 +592,15 @@ const TOOL_RANKS_JSON = `{
       "icon": "\u25B6\uFE0F",
       "tools": [
         { "name": "Kling", "score": "95%", "iconUrl": "", "tint": "#FFFFFF" },
-        { "name": "Runway", "score": "92%", "iconUrl": "", "tint": "#EDEFEA" },
-        { "name": "Pika", "score": "87%", "iconUrl": "", "tint": "#E6E9E1" }
+        { "name": "Runway", "score": "92%", "iconUrl": "", "tint": "#FAF0DF" },
+        { "name": "Pika", "score": "87%", "iconUrl": "", "tint": "#F7E7CC" }
       ]
     },
     {
       "title": "Audio",
       "icon": "\uD83C\uDFA7",
       "tools": [
-        { "name": "ElevenLabs", "score": "96%", "iconUrl": "", "tint": "#E7E9E4" },
+        { "name": "ElevenLabs", "score": "96%", "iconUrl": "", "tint": "#FAF0DF" },
         { "name": "Murf", "score": "89%", "iconUrl": "", "tint": "#DDE3F2" },
         { "name": "PlayHT", "score": "87%", "iconUrl": "", "tint": "#D9E8D4" }
       ]
