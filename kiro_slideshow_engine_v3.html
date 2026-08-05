@@ -2341,8 +2341,11 @@
      ============================================================ */
   .preset-tool-ranks .bg-photo-scrim { display: none; }
   .preset-tool-ranks .bg-solid { background: #FAF7F1; }
+  /* Generous top/bottom padding keeps the masthead and handle out of
+     TikTok's chrome: the search bar covers roughly the top 12% of a slide and
+     the caption/dots the bottom 15%. */
   .preset-tool-ranks .frame {
-    padding: 150px 90px 140px 90px;
+    padding: 300px 90px 200px 90px;
     display: flex; flex-direction: column; align-items: center;
     overflow: hidden;
   }
@@ -2386,12 +2389,12 @@
     font-family: 'Inter', sans-serif;
     font-size: 150px; font-weight: 800; line-height: 1.02;
     letter-spacing: -0.035em; color: #16232B;
-    text-align: center; margin-top: 90px;
+    text-align: center; margin-top: 56px;
   }
   .preset-tool-ranks .tr-title em { font-style: normal; color: #D9822B; }
   .preset-tool-ranks .tr-sub-row {
     display: flex; align-items: center; justify-content: center; gap: 26px;
-    margin-top: 56px; width: 100%;
+    margin-top: 44px; width: 100%;
   }
   .preset-tool-ranks .tr-sub {
     font-family: 'Inter', sans-serif;
@@ -2406,7 +2409,7 @@
   }
   .preset-tool-ranks .tr-pills {
     display: flex; flex-wrap: wrap; justify-content: center;
-    gap: 26px; margin-top: 78px; width: 100%;
+    gap: 26px; margin-top: 56px; width: 100%;
   }
   .preset-tool-ranks .tr-pill {
     display: flex; align-items: center; gap: 20px;
@@ -2429,14 +2432,14 @@
     font-family: 'Inter', sans-serif;
     font-size: 40px; font-weight: 800; font-style: italic;
     letter-spacing: 0.06em; color: #16232B;
-    margin-top: 74px; text-align: center;
+    margin-top: 48px; text-align: center;
   }
   /* Category slide */
   .preset-tool-ranks .tr-cat-title {
     font-family: 'Inter', sans-serif;
     font-size: 168px; font-weight: 800; line-height: 1.0;
     letter-spacing: -0.04em; color: #16232B;
-    text-align: center; margin-top: 96px;
+    text-align: center; margin-top: 56px;
   }
   .preset-tool-ranks .tr-rows {
     display: flex; flex-direction: column; gap: 40px;
@@ -2473,7 +2476,7 @@
     font-variant-numeric: tabular-nums;
   }
   .preset-tool-ranks .tr-attribution {
-    position: absolute; left: 0; right: 0; bottom: 70px;
+    position: absolute; left: 0; right: 0; bottom: 300px;
     text-align: center; font-family: 'Inter', sans-serif;
     font-size: 32px; font-weight: 600; color: #8A959B;
   }
