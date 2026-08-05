@@ -278,6 +278,7 @@ function extractSlideMeta(parsed: unknown): SlideMeta[] {
     features?: { headline?: string }[];
     apps?: { name?: string }[];
     tools?: { name?: string }[];
+    categories?: { title?: string; tools?: { name?: string }[] }[];
     cta?: unknown;
   };
   const out: SlideMeta[] = [];
@@ -307,6 +308,19 @@ function extractSlideMeta(parsed: unknown): SlideMeta[] {
     p.features.forEach((f, i) => {
       const t = clean(f?.headline || `Feature ${i + 1}`);
       out.push({ key: `feature:${i}`, label: truncate(`Feature ${i + 1} — ${t}`, 40) });
+    });
+  }
+  // tool_ranks: each category is a slide (its own background) and every tool
+  // in it has a logo disc, so expose a picker for both. Logo keys carry the
+  // `-icon:` marker so bulk "apply to all slides" ops skip them.
+  if (Array.isArray(p.categories)) {
+    p.categories.forEach((c, i) => {
+      const t = clean(c?.title || `Category ${i + 1}`);
+      out.push({ key: `cat:${i}`, label: truncate(`${i + 1}. ${t}`, 40) });
+      (Array.isArray(c?.tools) ? c.tools : []).forEach((tool, j) => {
+        const n = clean(tool?.name || `Tool ${j + 1}`);
+        out.push({ key: `tool-icon:${i}:${j}`, label: truncate(`   ${t} · ${n} logo`, 40) });
+      });
     });
   }
   if (Array.isArray(p.apps)) {
@@ -1076,6 +1090,27 @@ export default function App() {
           const bg = await resolveSlideBg(slideBgs[`${prefix}:${i}`]);
           recordAdjust(`${prefix}:${i}`, bg);
           return bg ? { ...item, bg } : item;
+        }),
+      );
+    }
+
+    // tool_ranks: per-category slide backgrounds + per-tool logo discs.
+    if (Array.isArray(slides['categories'])) {
+      slides['categories'] = await Promise.all(
+        (slides['categories'] as Record<string, unknown>[]).map(async (cat, i) => {
+          const next: Record<string, unknown> = { ...cat };
+          const bg = await resolveSlideBg(slideBgs[`cat:${i}`]);
+          recordAdjust(`cat:${i}`, bg);
+          if (bg) next.bg = bg;
+          if (Array.isArray(cat.tools)) {
+            next.tools = await Promise.all(
+              (cat.tools as Record<string, unknown>[]).map(async (tool, j) => {
+                const iconUrl = await resolveSlideBg(slideBgs[`tool-icon:${i}:${j}`]);
+                return iconUrl ? { ...tool, iconUrl } : tool;
+              }),
+            );
+          }
+          return next;
         }),
       );
     }
