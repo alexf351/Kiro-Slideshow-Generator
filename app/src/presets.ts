@@ -570,6 +570,15 @@ const TOOL_RANKS_JSON = `{
       ]
     },
     {
+      "title": "Coding",
+      "icon": "\uD83D\uDCBB",
+      "tools": [
+        { "name": "Cursor", "score": "96%", "iconUrl": "", "tint": "#FAF0DF" },
+        { "name": "Claude Code", "score": "95%", "iconUrl": "", "tint": "#F6D2B6" },
+        { "name": "Copilot", "score": "88%", "iconUrl": "", "tint": "#E9EDF2" }
+      ]
+    },
+    {
       "title": "Learning",
       "icon": "\uD83D\uDC27",
       "tools": [
