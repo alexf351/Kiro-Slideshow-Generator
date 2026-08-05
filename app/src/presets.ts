@@ -573,9 +573,9 @@ const TOOL_RANKS_JSON = `{
       "title": "Coding",
       "icon": "\uD83D\uDCBB",
       "tools": [
-        { "name": "Cursor", "score": "96%", "iconUrl": "", "tint": "#FAF0DF" },
-        { "name": "Claude Code", "score": "95%", "iconUrl": "", "tint": "#F6D2B6" },
-        { "name": "Copilot", "score": "88%", "iconUrl": "", "tint": "#E9EDF2" }
+        { "name": "Claude Code", "score": "96%", "iconUrl": "", "tint": "#F6D2B6" },
+        { "name": "Cursor", "score": "94%", "iconUrl": "", "tint": "#FAF0DF" },
+        { "name": "Codex", "score": "90%", "iconUrl": "", "tint": "#E4EAE3" }
       ]
     },
     {
