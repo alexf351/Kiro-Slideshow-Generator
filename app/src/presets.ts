@@ -24,6 +24,7 @@ export const PRESET_KEYS = [
   'tool_ranks',
   'output_vs_hype',
   'curated_list',
+  'skill_list',
   'tier_list',
   'myth_fact',
   'hot_take',
@@ -51,7 +52,7 @@ export type FormatCategory = (typeof FORMAT_CATEGORIES)[number];
 
 export const FORMAT_CATEGORY: Record<PresetKey, FormatCategory> = {
   prompt_pack: 'AI', product_demo: 'AI', handwritten_pack: 'AI', app_stack: 'AI', app_rating: 'AI', tool_ranks: 'AI',
-  checklist: 'List', curated_list: 'List', tier_list: 'List', countdown: 'List', flags: 'List', steps: 'List',
+  checklist: 'List', curated_list: 'List', skill_list: 'List', tier_list: 'List', countdown: 'List', flags: 'List', steps: 'List',
   pain_story: 'Story', aspirational: 'Story', notes: 'Story', storytime: 'Story',
   receipts: 'Social', tweet: 'Social', reddit: 'Social',
   output_vs_hype: 'Facts', myth_fact: 'Facts', stat_drop: 'Facts', definition: 'Facts', qa: 'Facts', timeline: 'Facts',
@@ -730,6 +731,115 @@ const CURATED_LIST_JSON = `{
   "attribution": ""
 }`;
 
+// 10/10 Skills — the "10/10 skills you can learn" carousel (Kaja, slow
+// internet club). White page, huge condensed stacked headline (black /
+// colour / black), the real YouTube tutorial's thumbnail + its YouTube row,
+// and a "time to learn" line. Each skill only needs a YouTube link: the
+// editor pulls the thumbnail itself. One skill can be an app slide (`app`
+// instead of `video`) so Iro reads like just another skill.
+const SKILL_LIST_JSON = `{
+  "preset": "skill_list",
+  "hook": {
+    "headline": [
+      "10/10",
+      "skills",
+      "that make you look",
+      "insanely competent",
+      "at work"
+    ],
+    "accentLine": 1,
+    "accentColor": "#D9481C",
+    "sub": "(save this before your next 1:1)"
+  },
+  "skills": [
+    {
+      "headline": [
+        "Write emails",
+        "people answer",
+        "in one read"
+      ],
+      "video": {
+        "youtube": "https://www.youtube.com/watch?v=YgTEEdQBNBI",
+        "title": "How to Write Emails People Actually Respond To",
+        "channel": "Sheshan Dias"
+      },
+      "time": "15 minutes to learn."
+    },
+    {
+      "headline": [
+        "Build a",
+        "pivot table"
+      ],
+      "video": {
+        "youtube": "https://www.youtube.com/watch?v=m0wI61ahfLc",
+        "title": "Pivot Table Excel Tutorial",
+        "channel": "Kevin Stratvert"
+      },
+      "time": "1 evening of practice."
+    },
+    {
+      "headline": [
+        "Learn any skill",
+        "with a path",
+        "built for you"
+      ],
+      "app": {
+        "name": "Iro AI",
+        "tagline": "Learn AI Skills",
+        "cta": "GET",
+        "screenshots": []
+      },
+      "time": "5 minutes a day."
+    },
+    {
+      "headline": [
+        "Read a",
+        "P&L",
+        "in 5 minutes"
+      ],
+      "video": {
+        "youtube": "https://www.youtube.com/watch?v=8oJaADvvKeU",
+        "title": "How to Read a P&L Statement like a Pro",
+        "channel": "Accountants 2 Business"
+      },
+      "time": "1 weekend."
+    },
+    {
+      "headline": [
+        "Present",
+        "without notes"
+      ],
+      "video": {
+        "youtube": "https://www.youtube.com/watch?v=J5ooPvZkowo",
+        "title": "Give a Presentation WITHOUT Notes | Jim Kwik on Public Speaking",
+        "channel": "Jim Kwik"
+      },
+      "time": "a month of practice."
+    },
+    {
+      "headline": [
+        "Negotiate",
+        "your raise"
+      ],
+      "video": {
+        "youtube": "https://www.youtube.com/watch?v=WOXynFn5nTo",
+        "title": "How to Negotiate a Raise Like a Pro | Negotiate X Podcast",
+        "channel": "NEGOTIATEx"
+      },
+      "time": "3 months of prep."
+    }
+  ],
+  "attribution": "@tryiro"
+}`;
+
+const SKILL_LIST_CAPTION = `10/10 skills that make you look insanely competent at work
+
+each one comes with the tutorial that teaches it. they get harder as you swipe.
+
+which one are you learning first?
+
+#careertok #worktok #excel #publicspeaking #learnontiktok`;
+
 const CURATED_LIST_CAPTION = `habits to become disgustingly well-educated (and end brainrot) 📚
 
 small, boring habits compound into a scary-good level of knowledge. save these and actually do them.
@@ -1352,6 +1462,15 @@ export const PRESETS: Record<PresetKey, PresetMeta> = {
     defaultJson: CURATED_LIST_JSON,
     defaultCaption: CURATED_LIST_CAPTION,
     accent: '#F1DF79', // warm highlighter yellow
+  },
+  skill_list: {
+    key: 'skill_list',
+    label: '10/10 Skills',
+    pitch: '"10/10 skills you can learn": big stacked headline, the YouTube tutorial thumbnail, time to learn. One slide can be your app.',
+    status: 'ready',
+    defaultJson: SKILL_LIST_JSON,
+    defaultCaption: SKILL_LIST_CAPTION,
+    accent: '#D9481C', // the burnt-orange accent line
   },
   tier_list: {
     key: 'tier_list',

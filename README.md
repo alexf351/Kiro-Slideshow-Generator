@@ -37,6 +37,7 @@ inside an iframe via `postMessage`.
 | App Stack | "5 apps I use every day" carousel — photo bgs + app icons. |
 | Output vs Hype | One slide per AI tool — brand logo + two bars (Output vs Hype). |
 | Curated List | Aesthetic photo + cream heading + a recommendation card per slide. |
+| 10/10 Skills | "10/10 skills you can learn": stacked condensed headline, the YouTube tutorial thumbnail (pulled from a YouTube link), time to learn. One slide can be your app. |
 | Tier List | S/A/B/C ranking, one colored tier per slide ("I ranked every X"). |
 | Myth vs Fact | Red ✗ MYTH card over a green ✓ FACT card per slide. |
 | Hot Take | Bold full-bleed opinions on a fiery gradient. |

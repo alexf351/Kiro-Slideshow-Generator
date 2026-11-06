@@ -538,7 +538,7 @@ Mixing 1-2 cross/warning items at the end with mostly checks is high-engagement.
 
 ---
 
-## Additional presets (9–23)
+## Additional presets (9–24)
 
 All of these take the standard top-level `hook` (`{ headline, subline }` unless
 noted), `cta` (the shared CTA shape above), and `attribution` (use `""`). They
@@ -569,6 +569,26 @@ differ in the content array. Match the field names exactly.
   `items: [{ flag, type: "green" | "red" }]` (default green).
 - **`steps`** — sequential how-to, one numbered step per slide with a progress
   bar. `items: [{ title, body }]`.
+
+- **`skill_list`** ("10/10 Skills") — the "10/10 skills you can learn"
+  carousel. White page, huge condensed stacked headline, a real YouTube
+  tutorial thumbnail with its YouTube row, then a "time to learn" line. Shape
+  differs from the others:
+  - `hook: { headline: ["10/10", "AI skills", "that make you look", "insanely competent"], accentLine: 1, accentColor?, sub: "(save this before your next 1:1)", grid?: false, images?: [url] }`.
+    Each array item is one line; `accentLine` (0-based) is the coloured line.
+    The cover shows a 2x2 grid of the first four skills' thumbnails unless
+    `grid: false` or you pass `images`.
+  - `skills: [{ headline: ["Whistle", "with two fingers", "loud enough to stop a cab"], accentLine?, accentColor?, video: { youtube, title, channel, views?, age?, duration?, avatar?, thumbnail? }, time: "30 minutes of practice." }]`.
+    `youtube` is a video URL or 11-character id; the editor pulls the
+    thumbnail itself (maxres, then sd, then hq). Copy `title` and `channel`
+    exactly from the real video; only add `views` / `age` (e.g. "7.7M views",
+    "17 years ago") when you read them on the video page. Never invent a video.
+  - App slide (use for the app, usually #3): replace `video` with
+    `app: { name: "Iro AI", tagline: "Learn AI Skills", cta: "GET", icon?, screenshots?: [url, url, url] }`.
+    No screenshots = the app icon shown big. Icon and screenshots can also be
+    picked per slide in the editor.
+  - Optional `cta: { headline, sub, body, icon? }` closing slide; optional
+    `paper: "#FAF7F1"` page colour. No em dashes in slide text.
 
 For any of these, the app also loads a full working example when the format is
 selected — mirror that example's structure exactly. Keep text short and
