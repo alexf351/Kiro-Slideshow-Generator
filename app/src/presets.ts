@@ -742,9 +742,10 @@ const SKILL_LIST_JSON = `{
   "hook": {
     "headline": [
       "10/10",
-      "AI skills",
+      "skills",
       "that make you look",
-      "insanely competent"
+      "insanely competent",
+      "at work"
     ],
     "accentLine": 1,
     "accentColor": "#D9481C",
@@ -753,34 +754,34 @@ const SKILL_LIST_JSON = `{
   "skills": [
     {
       "headline": [
-        "Turn a 40-page doc",
-        "into a 1-page brief"
+        "Write emails",
+        "people answer",
+        "in one read"
       ],
       "video": {
-        "youtube": "https://www.youtube.com/watch?v=K2vLyOINekY",
-        "title": "How to Summarize a 100+ Page PDF in Seconds Using ChatGPT AI (Free)",
-        "channel": "Zeroverse"
+        "youtube": "https://www.youtube.com/watch?v=YgTEEdQBNBI",
+        "title": "How to Write Emails People Actually Respond To",
+        "channel": "Sheshan Dias"
       },
       "time": "15 minutes to learn."
     },
     {
       "headline": [
-        "Turn meeting notes",
-        "into owners",
-        "and deadlines"
+        "Build a",
+        "pivot table"
       ],
       "video": {
-        "youtube": "https://www.youtube.com/watch?v=TAoMw8lfOHs",
-        "title": "Turn Messy Meeting Notes Into Clear Action Items (ChatGPT Trick)",
-        "channel": "WorkSmarterWithTech"
+        "youtube": "https://www.youtube.com/watch?v=m0wI61ahfLc",
+        "title": "Pivot Table Excel Tutorial",
+        "channel": "Kevin Stratvert"
       },
-      "time": "20 minutes to learn."
+      "time": "1 evening of practice."
     },
     {
       "headline": [
-        "Write prompts",
-        "that work",
-        "the first time"
+        "Learn any skill",
+        "with a path",
+        "built for you"
       ],
       "app": {
         "name": "Iro AI",
@@ -792,54 +793,52 @@ const SKILL_LIST_JSON = `{
     },
     {
       "headline": [
-        "Build any",
-        "spreadsheet formula",
-        "by describing it"
+        "Read a",
+        "P&L",
+        "in 5 minutes"
       ],
       "video": {
-        "youtube": "https://www.youtube.com/watch?v=CktjBT__shI",
-        "title": "How to Write Complex Excel Formulas with ChatGPT WITHIN Seconds",
-        "channel": "Simon Sez IT"
-      },
-      "time": "1 evening of practice."
-    },
-    {
-      "headline": [
-        "Set up a",
-        "Claude Project",
-        "that knows your job"
-      ],
-      "video": {
-        "youtube": "https://www.youtube.com/watch?v=GJ5jTgcbRHA",
-        "title": "Getting started with projects in Claude.ai",
-        "channel": "Anthropic"
+        "youtube": "https://www.youtube.com/watch?v=8oJaADvvKeU",
+        "title": "How to Read a P&L Statement like a Pro",
+        "channel": "Accountants 2 Business"
       },
       "time": "1 weekend."
     },
     {
       "headline": [
-        "Automate your",
-        "weekly report",
-        "end to end"
+        "Present",
+        "without notes"
       ],
       "video": {
-        "youtube": "https://www.youtube.com/watch?v=F4__lZ0Tz6o",
-        "title": "How to Automate Your Entire Reporting Process with n8n + AI",
-        "channel": "Aziz Omar"
+        "youtube": "https://www.youtube.com/watch?v=J5ooPvZkowo",
+        "title": "Give a Presentation WITHOUT Notes | Jim Kwik on Public Speaking",
+        "channel": "Jim Kwik"
       },
-      "time": "a few weekends of setup."
+      "time": "a month of practice."
+    },
+    {
+      "headline": [
+        "Negotiate",
+        "your raise"
+      ],
+      "video": {
+        "youtube": "https://www.youtube.com/watch?v=WOXynFn5nTo",
+        "title": "How to Negotiate a Raise Like a Pro | Negotiate X Podcast",
+        "channel": "NEGOTIATEx"
+      },
+      "time": "3 months of prep."
     }
   ],
   "attribution": "@tryiro"
 }`;
 
-const SKILL_LIST_CAPTION = `10/10 AI skills that make you look insanely competent at work
+const SKILL_LIST_CAPTION = `10/10 skills that make you look insanely competent at work
 
 each one comes with the tutorial that teaches it. they get harder as you swipe.
 
 which one are you learning first?
 
-#aiskills #worktok #chatgpt #claude #learnontiktok`;
+#careertok #worktok #excel #publicspeaking #learnontiktok`;
 
 const CURATED_LIST_CAPTION = `habits to become disgustingly well-educated (and end brainrot) 📚
 
