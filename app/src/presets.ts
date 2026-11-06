@@ -778,9 +778,9 @@ const SKILL_LIST_JSON = `{
     },
     {
       "headline": [
-        "Write prompts",
-        "that work",
-        "the first time"
+        "Make",
+        "AI",
+        "do your busywork"
       ],
       "app": {
         "name": "Iro AI: Learn AI Skills",
