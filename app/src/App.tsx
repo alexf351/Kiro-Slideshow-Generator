@@ -28,7 +28,7 @@ import { buildIcs, scheduledCount } from './ics';
 import { postsToCsv } from './csv';
 import { scoreHook, HOOK_TIER_COLOR, HOOK_TIER_TEXT } from './hookScore';
 import { remapOverlays, type OverlayMap } from './overlayRemap';
-import { resolveYouTubeThumb } from './youtubeThumb';
+import { resolveImageUrl, resolveYouTubeThumb } from './youtubeThumb';
 import { loadBrain, saveBrain, brainPrompt, brainHasContent, type BrandBrain } from './brandBrain';
 import { lintHashtags, HASHTAG_TIER_COLOR, HASHTAG_TIER_TEXT } from './hashtagLint';
 import { checkEngagement, captionFold } from './captionSignals';
@@ -1179,12 +1179,16 @@ export default function App() {
           const next: Record<string, unknown> = { ...item };
           if (next.app && typeof next.app === 'object') {
             const app: Record<string, unknown> = { ...(next.app as Record<string, unknown>) };
+            // A picked image wins; otherwise a URL given in the JSON (e.g. an
+            // App Store screenshot) is fetched into a data URL for export.
             const icon = await resolveSlideBg(slideBgs[`skill-icon:${i}`]);
             if (icon) app.icon = icon;
+            else if (app.icon) app.icon = (await resolveImageUrl(app.icon)) || app.icon;
             const given = Array.isArray(app.screenshots) ? [...(app.screenshots as unknown[])] : [];
             for (let j = 0; j < 3; j++) {
               const shot = await resolveSlideBg(slideBgs[`skill-shot:${i}:${j}`]);
               if (shot) given[j] = shot;
+              else if (given[j]) given[j] = (await resolveImageUrl(given[j])) || given[j];
             }
             app.screenshots = given.filter(Boolean);
             next.app = app;

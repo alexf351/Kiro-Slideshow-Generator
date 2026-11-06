@@ -68,6 +68,26 @@ async function resolve(video: Record<string, unknown>): Promise<string | null> {
   return null;
 }
 
+// Any remote image URL (e.g. App Store screenshots or an app icon given in
+// the deck JSON) as a data URL, so the export isn't blocked by CORS. data:
+// URLs and same-origin paths are returned untouched. Null when it can't be
+// fetched; the engine then draws the URL as given (fine for the preview).
+const urlCache = new Map<string, Promise<string | null>>();
+
+export function resolveImageUrl(url: unknown): Promise<string | null> {
+  if (typeof url !== 'string') return Promise.resolve(null);
+  const u = url.trim();
+  if (!u) return Promise.resolve(null);
+  if (!/^https?:\/\//i.test(u)) return Promise.resolve(u);
+  let p = urlCache.get(u);
+  if (!p) {
+    p = fetchImage(u).then((b) => (b ? blobToDataUrl(b) : null)).catch(() => null);
+    urlCache.set(u, p);
+    p.then((v) => { if (!v) urlCache.delete(u); });
+  }
+  return p;
+}
+
 export function resolveYouTubeThumb(video: Record<string, unknown>): Promise<string | null> {
   const key = String(video.thumbnail || '') || `yt:${youTubeId(video.youtube) || youTubeId(video.url) || youTubeId(video.id)}`;
   if (key === 'yt:') return Promise.resolve(null);
