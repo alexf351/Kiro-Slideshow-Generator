@@ -28,6 +28,7 @@ import { buildIcs, scheduledCount } from './ics';
 import { postsToCsv } from './csv';
 import { scoreHook, HOOK_TIER_COLOR, HOOK_TIER_TEXT } from './hookScore';
 import { remapOverlays, type OverlayMap } from './overlayRemap';
+import { resolveYouTubeThumb } from './youtubeThumb';
 import { loadBrain, saveBrain, brainPrompt, brainHasContent, type BrandBrain } from './brandBrain';
 import { lintHashtags, HASHTAG_TIER_COLOR, HASHTAG_TIER_TEXT } from './hashtagLint';
 import { checkEngagement, captionFold } from './captionSignals';
@@ -283,7 +284,8 @@ function extractSlideMeta(parsed: unknown): SlideMeta[] {
   };
   const out: SlideMeta[] = [];
   if (p.hook) {
-    const h = clean(p.hook.headline || p.hook.text || 'Hook');
+    const hh = p.hook.headline as unknown;
+    const h = clean((Array.isArray(hh) ? hh.join(' ') : (p.hook.headline as string | undefined)) || p.hook.text || 'Hook');
     out.push({ key: 'hook', label: truncate(`Hook — ${h}`, 40) });
   }
   if (Array.isArray(p.prompts)) {
@@ -342,6 +344,25 @@ function extractSlideMeta(parsed: unknown): SlideMeta[] {
       const t = clean(pk?.headline || `Item ${i + 1}`);
       out.push({ key: `pick:${i}`, label: truncate(`${i + 1}. ${t}`, 40) });
       out.push({ key: `pick-card:${i}`, label: truncate(`${i + 1}. ${t} · card`, 40) });
+    });
+  }
+  // skill_list: one slide per skill. Each skill also gets a thumbnail slot
+  // (overrides the YouTube thumbnail) and, on the app slide, an icon slot and
+  // three screenshot slots. Sub-slot keys use the -thumb/-shot/-icon markers
+  // so "apply to all slides" skips them.
+  if (Array.isArray((p as { skills?: unknown[] }).skills)) {
+    (p as { skills: { headline?: string | string[]; app?: unknown }[] }).skills.forEach((sk, i) => {
+      const head = Array.isArray(sk?.headline) ? sk.headline.join(' ') : (sk?.headline || '');
+      const t = clean(head || `Skill ${i + 1}`);
+      out.push({ key: `skill:${i}`, label: truncate(`${i + 1}. ${t}`, 40) });
+      if (sk && sk.app) {
+        out.push({ key: `skill-icon:${i}`, label: truncate(`${i + 1}. ${t} · icon`, 40) });
+        for (let j = 0; j < 3; j++) {
+          out.push({ key: `skill-shot:${i}:${j}`, label: truncate(`${i + 1}. ${t} · screenshot ${j + 1}`, 40) });
+        }
+      } else {
+        out.push({ key: `skill-thumb:${i}`, label: truncate(`${i + 1}. ${t} · thumbnail`, 40) });
+      }
     });
   }
   if (Array.isArray((p as { items?: { text?: string }[] }).items)) {
@@ -1074,6 +1095,7 @@ export default function App() {
       { field: 'tools', prefix: 'tool' },
       { field: 'picks', prefix: 'pick' },
       { field: 'tiers', prefix: 'tier' },
+      { field: 'skills', prefix: 'skill' },
       // New social / broadcast formats — photo sits behind the card / chyron.
       { field: 'reviews', prefix: 'review' },
       { field: 'tweets', prefix: 'tweet' },
@@ -1143,6 +1165,40 @@ export default function App() {
         (slides['picks'] as Record<string, unknown>[]).map(async (item, i) => {
           const cardUrl = await resolveSlideBg(slideBgs[`pick-card:${i}`]);
           return cardUrl ? { ...item, cardUrl } : item;
+        }),
+      );
+    }
+
+    // skill_list: a picked thumbnail / icon / screenshots win; otherwise each
+    // skill's YouTube link is turned into its thumbnail automatically
+    // (maxres → sd → hq) as a data URL, so html2canvas exports never hit CORS.
+    if (Array.isArray(slides['skills'])) {
+      slides['skills'] = await Promise.all(
+        (slides['skills'] as Record<string, unknown>[]).map(async (item, i) => {
+          if (!item || typeof item !== 'object') return item;
+          const next: Record<string, unknown> = { ...item };
+          if (next.app && typeof next.app === 'object') {
+            const app: Record<string, unknown> = { ...(next.app as Record<string, unknown>) };
+            const icon = await resolveSlideBg(slideBgs[`skill-icon:${i}`]);
+            if (icon) app.icon = icon;
+            const given = Array.isArray(app.screenshots) ? [...(app.screenshots as unknown[])] : [];
+            for (let j = 0; j < 3; j++) {
+              const shot = await resolveSlideBg(slideBgs[`skill-shot:${i}:${j}`]);
+              if (shot) given[j] = shot;
+            }
+            app.screenshots = given.filter(Boolean);
+            next.app = app;
+          } else {
+            const video: Record<string, unknown> = { ...((next.video as Record<string, unknown>) || {}) };
+            const picked = await resolveSlideBg(slideBgs[`skill-thumb:${i}`]);
+            if (picked) video.thumbUrl = picked;
+            else {
+              const auto = await resolveYouTubeThumb(video);
+              if (auto) video.thumbUrl = auto;
+            }
+            next.video = video;
+          }
+          return next;
         }),
       );
     }
@@ -1224,7 +1280,7 @@ export default function App() {
   function handleApplyBgToAll(sourceKey: string) {
     const src = slideBgs[sourceKey];
     if (!src) { ui.notify('Set a background on this slide first.', { type: 'info' }); return; }
-    const targets = slideMetas.map((m) => m.key).filter((k) => !/-(icon|logo|card):/.test(k));
+    const targets = slideMetas.map((m) => m.key).filter((k) => !/-(icon|logo|card|thumb|shot):/.test(k));
     setSlideBgs((prev) => {
       const next = { ...prev };
       for (const k of targets) next[k] = src;
@@ -1282,7 +1338,7 @@ export default function App() {
   // have one, in one tap. Leaves slides the creator already set alone, and
   // skips the icon/logo/card sub-slots. Assigns in one batch at the end.
   async function handleAutoFillStockBgs() {
-    const slots = slideMetas.filter((m) => !/-(icon|logo|card):/.test(m.key) && !slideBgs[m.key]);
+    const slots = slideMetas.filter((m) => !/-(icon|logo|card|thumb|shot):/.test(m.key) && !slideBgs[m.key]);
     if (!slots.length) { ui.notify('Every slide already has a background.', { type: 'info' }); return; }
     setAutoBgBusy(`0/${slots.length}`);
     const updates: SlideBgMap = {};
@@ -3494,6 +3550,8 @@ export default function App() {
                       ? 'Rendered — set each app’s icon + background below, then add the ratings as native text in TikTok. Drag a logo to nudge it off-center.'
                       : preset === 'curated_list'
                         ? 'Rendered — drag the heading, label, or card on a slide to place them; drag the card’s corner to resize it.'
+                      : preset === 'skill_list'
+                        ? 'Rendered — thumbnails come from each skill’s YouTube link; set a thumbnail or the app screenshots below to override.'
                         : 'Rendered — use “Add text” or Download in the top bar.'}
                   </span>
                 </div>

@@ -24,6 +24,7 @@ export const PRESET_KEYS = [
   'tool_ranks',
   'output_vs_hype',
   'curated_list',
+  'skill_list',
   'tier_list',
   'myth_fact',
   'hot_take',
@@ -51,7 +52,7 @@ export type FormatCategory = (typeof FORMAT_CATEGORIES)[number];
 
 export const FORMAT_CATEGORY: Record<PresetKey, FormatCategory> = {
   prompt_pack: 'AI', product_demo: 'AI', handwritten_pack: 'AI', app_stack: 'AI', app_rating: 'AI', tool_ranks: 'AI',
-  checklist: 'List', curated_list: 'List', tier_list: 'List', countdown: 'List', flags: 'List', steps: 'List',
+  checklist: 'List', curated_list: 'List', skill_list: 'List', tier_list: 'List', countdown: 'List', flags: 'List', steps: 'List',
   pain_story: 'Story', aspirational: 'Story', notes: 'Story', storytime: 'Story',
   receipts: 'Social', tweet: 'Social', reddit: 'Social',
   output_vs_hype: 'Facts', myth_fact: 'Facts', stat_drop: 'Facts', definition: 'Facts', qa: 'Facts', timeline: 'Facts',
@@ -730,6 +731,116 @@ const CURATED_LIST_JSON = `{
   "attribution": ""
 }`;
 
+// 10/10 Skills — the "10/10 skills you can learn" carousel (Kaja, slow
+// internet club). White page, huge condensed stacked headline (black /
+// colour / black), the real YouTube tutorial's thumbnail + its YouTube row,
+// and a "time to learn" line. Each skill only needs a YouTube link: the
+// editor pulls the thumbnail itself. One skill can be an app slide (`app`
+// instead of `video`) so Iro reads like just another skill.
+const SKILL_LIST_JSON = `{
+  "preset": "skill_list",
+  "hook": {
+    "headline": [
+      "10/10",
+      "AI skills",
+      "that make you look",
+      "insanely competent"
+    ],
+    "accentLine": 1,
+    "accentColor": "#D9481C",
+    "sub": "(save this before your next 1:1)"
+  },
+  "skills": [
+    {
+      "headline": [
+        "Turn a 40-page doc",
+        "into a 1-page brief"
+      ],
+      "video": {
+        "youtube": "https://www.youtube.com/watch?v=K2vLyOINekY",
+        "title": "How to Summarize a 100+ Page PDF in Seconds Using ChatGPT AI (Free)",
+        "channel": "Zeroverse"
+      },
+      "time": "15 minutes to learn."
+    },
+    {
+      "headline": [
+        "Turn meeting notes",
+        "into owners",
+        "and deadlines"
+      ],
+      "video": {
+        "youtube": "https://www.youtube.com/watch?v=TAoMw8lfOHs",
+        "title": "Turn Messy Meeting Notes Into Clear Action Items (ChatGPT Trick)",
+        "channel": "WorkSmarterWithTech"
+      },
+      "time": "20 minutes to learn."
+    },
+    {
+      "headline": [
+        "Write prompts",
+        "that work",
+        "the first time"
+      ],
+      "app": {
+        "name": "Iro AI",
+        "tagline": "Learn AI Skills",
+        "cta": "GET",
+        "screenshots": []
+      },
+      "time": "5 minutes a day."
+    },
+    {
+      "headline": [
+        "Build any",
+        "spreadsheet formula",
+        "by describing it"
+      ],
+      "video": {
+        "youtube": "https://www.youtube.com/watch?v=CktjBT__shI",
+        "title": "How to Write Complex Excel Formulas with ChatGPT WITHIN Seconds",
+        "channel": "Simon Sez IT"
+      },
+      "time": "1 evening of practice."
+    },
+    {
+      "headline": [
+        "Set up a",
+        "Claude Project",
+        "that knows your job"
+      ],
+      "video": {
+        "youtube": "https://www.youtube.com/watch?v=GJ5jTgcbRHA",
+        "title": "Getting started with projects in Claude.ai",
+        "channel": "Anthropic"
+      },
+      "time": "1 weekend."
+    },
+    {
+      "headline": [
+        "Automate your",
+        "weekly report",
+        "end to end"
+      ],
+      "video": {
+        "youtube": "https://www.youtube.com/watch?v=F4__lZ0Tz6o",
+        "title": "How to Automate Your Entire Reporting Process with n8n + AI",
+        "channel": "Aziz Omar"
+      },
+      "time": "a few weekends of setup."
+    }
+  ],
+  "attribution": "@tryiro"
+}`;
+
+const SKILL_LIST_CAPTION = `10/10 AI skills that make you look insanely competent at work
+
+each one comes with the tutorial that teaches it. they get harder as you swipe.
+
+which one are you learning first?
+
+#aiskills #worktok #chatgpt #claude #learnontiktok`;
+
 const CURATED_LIST_CAPTION = `habits to become disgustingly well-educated (and end brainrot) 📚
 
 small, boring habits compound into a scary-good level of knowledge. save these and actually do them.
@@ -1352,6 +1463,15 @@ export const PRESETS: Record<PresetKey, PresetMeta> = {
     defaultJson: CURATED_LIST_JSON,
     defaultCaption: CURATED_LIST_CAPTION,
     accent: '#F1DF79', // warm highlighter yellow
+  },
+  skill_list: {
+    key: 'skill_list',
+    label: '10/10 Skills',
+    pitch: '"10/10 skills you can learn": big stacked headline, the YouTube tutorial thumbnail, time to learn. One slide can be your app.',
+    status: 'ready',
+    defaultJson: SKILL_LIST_JSON,
+    defaultCaption: SKILL_LIST_CAPTION,
+    accent: '#D9481C', // the burnt-orange accent line
   },
   tier_list: {
     key: 'tier_list',
