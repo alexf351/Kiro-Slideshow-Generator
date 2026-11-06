@@ -748,8 +748,7 @@ const SKILL_LIST_JSON = `{
       "at work"
     ],
     "accentLine": 1,
-    "accentColor": "#D9481C",
-    "sub": "(save this before your next 1:1)"
+    "accentColor": "#D9481C"
   },
   "skills": [
     {
@@ -779,15 +778,19 @@ const SKILL_LIST_JSON = `{
     },
     {
       "headline": [
-        "Learn any skill",
-        "with a path",
-        "built for you"
+        "Write prompts",
+        "that work",
+        "the first time"
       ],
       "app": {
-        "name": "Iro AI",
-        "tagline": "Learn AI Skills",
+        "name": "Iro AI: Learn AI Skills",
+        "tagline": "The 5-minute AI learning game",
         "cta": "GET",
-        "screenshots": []
+        "screenshots": [
+          "https://is1-ssl.mzstatic.com/image/thumb/PurpleSource221/v4/e4/ed/8f/e4ed8fda-c3a9-4918-132f-cd54550abcdb/01-device-bottom.png/600x1300bb.jpg",
+          "https://is1-ssl.mzstatic.com/image/thumb/PurpleSource221/v4/55/5b/dc/555bdc99-e8b7-4a65-6305-ca6f36aed2f9/02-device-bottom.png/600x1300bb.jpg",
+          "https://is1-ssl.mzstatic.com/image/thumb/PurpleSource211/v4/cd/02/5f/cd025f5a-8974-4d96-004a-e6ea77795531/03-device-bottom.png/600x1300bb.jpg"
+        ]
       },
       "time": "5 minutes a day."
     },

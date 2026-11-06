@@ -584,7 +584,7 @@ differ in the content array. Match the field names exactly.
     exactly from the real video; only add `views` / `age` (e.g. "7.7M views",
     "17 years ago") when you read them on the video page. Never invent a video.
   - App slide (use for the app, usually #3): replace `video` with
-    `app: { name: "Iro AI", tagline: "Learn AI Skills", cta: "GET", icon?, screenshots?: [url, url, url] }`.
+    `app: { name: "Iro AI: Learn AI Skills", tagline: "The 5-minute AI learning game", cta: "GET", icon?, screenshots?: [url, url, url] }`. Screenshot and icon URLs (e.g. the App Store listing's) are fetched into the export automatically.
     No screenshots = the app icon shown big. Icon and screenshots can also be
     picked per slide in the editor.
   - Optional `cta: { headline, sub, body, icon? }` closing slide; optional
