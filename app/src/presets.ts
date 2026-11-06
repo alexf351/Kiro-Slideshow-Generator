@@ -788,8 +788,8 @@ const SKILL_LIST_JSON = `{
         "cta": "GET",
         "screenshots": [
           "https://is1-ssl.mzstatic.com/image/thumb/PurpleSource221/v4/e4/ed/8f/e4ed8fda-c3a9-4918-132f-cd54550abcdb/01-device-bottom.png/600x1300bb.jpg",
-          "https://is1-ssl.mzstatic.com/image/thumb/PurpleSource221/v4/55/5b/dc/555bdc99-e8b7-4a65-6305-ca6f36aed2f9/02-device-bottom.png/600x1300bb.jpg",
-          "https://is1-ssl.mzstatic.com/image/thumb/PurpleSource211/v4/cd/02/5f/cd025f5a-8974-4d96-004a-e6ea77795531/03-device-bottom.png/600x1300bb.jpg"
+          "https://is1-ssl.mzstatic.com/image/thumb/PurpleSource211/v4/cd/02/5f/cd025f5a-8974-4d96-004a-e6ea77795531/03-device-bottom.png/600x1300bb.jpg",
+          "https://is1-ssl.mzstatic.com/image/thumb/PurpleSource221/v4/8d/33/71/8d3371b4-fef1-6b11-ab6a-49cb4c8db52d/07-device-bottom.png/600x1300bb.jpg"
         ]
       },
       "time": "5 minutes a day."

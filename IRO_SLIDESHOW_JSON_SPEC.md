@@ -585,6 +585,9 @@ differ in the content array. Match the field names exactly.
     "17 years ago") when you read them on the video page. Never invent a video.
   - App slide (use for the app, usually #3): replace `video` with
     `app: { name: "Iro AI: Learn AI Skills", tagline: "The 5-minute AI learning game", cta: "GET", icon?, screenshots?: [url, url, url] }`. Screenshot and icon URLs (e.g. the App Store listing's) are fetched into the export automatically.
+    Iro's own App Store images also ship with the app: `/iro/app-icon.png` and `/iro/app-store-01.jpg` to `/iro/app-store-08.jpg`
+    (01 Learn AI Like A Game, 02 Master The Top AI Tools, 03 Practice In 5 Minutes, 04 Turn Any Goal Into Training,
+    05 Build Your AI Operator, 06 Compete In AI Duels, 07 Know What To Do Next (AI coach), 08 Earn AI Certificates).
     No screenshots = the app icon shown big. Icon and screenshots can also be
     picked per slide in the editor.
   - Optional `cta: { headline, sub, body, icon? }` closing slide; optional
