@@ -12,6 +12,7 @@ import { addStockItem, blobToDataUrl, getItem } from './mediaBank';
 import { addPost, listPosts, type CloneAnalysisSnapshot, type PostPrediction } from './posts';
 import { PRESETS, PRESET_KEYS, FORMAT_CATEGORIES, FORMAT_CATEGORY, type PresetKey, type FormatCategory } from './presets';
 import CloneFromTikTok from './CloneFromTikTok';
+import FastlanePanel from './FastlanePanel';
 import PredictPanel from './PredictPanel';
 import DesignPanel from './DesignPanel';
 import QuickEdit from './QuickEdit';
@@ -4658,6 +4659,10 @@ export default function App() {
                 Needs a one-time setup: a TikTok developer app + Vercel Blob storage. See <code className="text-gray-500">TIKTOK_SETUP.md</code>.
               </div>
             </div>
+          </Group>
+
+          <Group open={!!openGroups.fastlane} onToggle={() => toggleGroup('fastlane')} title="Fastlane" accent="#FF7A1A" hint="post stats · schedule">
+            <FastlanePanel defaultCaption={caption} />
           </Group>
 
           <Group open={!!openGroups.settings} onToggle={() => toggleGroup('settings')} title="Settings" accent="#94a3b8" hint="API keys · backup · model">
