@@ -432,5 +432,24 @@ const eq = (n, a, b) => ok(n + ` (got ${JSON.stringify(a)})`, JSON.stringify(a) 
   ok('brain prompt is prependable (trailing blank line)', p.endsWith('\n\n'));
 }
 
+// ---- fastlane (panel normalizers) ----
+{
+  const { normalizeAnalytics, normalizePost, normalizeConnection, normalizeContent, localToUtcIso, compactNumber } = await load('fastlane.ts');
+  const arr = normalizeAnalytics({ data: [{ postId: 'p1', metrics: { views: 4443, likes: 162, saves: 132, shares: 9 } }, { id: 'p2', viewCount: '1,121', saveCount: 28 }] });
+  eq('fl analytics nested metrics', arr.p1, { views: 4443, likes: 162, saves: 132, shares: 9 });
+  eq('fl analytics flat + string numbers', arr.p2, { views: 1121, saves: 28 });
+  const keyed = normalizeAnalytics({ p3: { stats: { plays: 10, comments: 2 } } });
+  eq('fl analytics keyed object', keyed.p3, { views: 10, comments: 2 });
+  eq('fl analytics junk', normalizeAnalytics(null), {});
+  const post = normalizePost({ id: 'p1', platform: 'TikTok', status: 'scheduled', caption: 'hi', scheduledAt: '2026-11-09T18:00:00Z' });
+  ok('fl post normalized', post.platform === 'tiktok' && post.status === 'SCHEDULED' && post.when === '2026-11-09T18:00:00Z');
+  ok('fl post without id dropped', normalizePost({ platform: 'tiktok' }) === null);
+  ok('fl connection name fallback', normalizeConnection({ id: 'c1', platform: 'instagram', account: { username: 'tryiro' } }).name === 'tryiro');
+  ok('fl content thumb from files', normalizeContent({ id: 'k1', type: 'slideshow', status: 'created', files: [{ url: 'https://x/y.png' }] }).thumbnail === 'https://x/y.png');
+  ok('fl local->utc is UTC ISO', /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(localToUtcIso('2026-11-09T10:00')));
+  eq('fl local->utc bad', localToUtcIso('tomorrow'), '');
+  eq('fl compact', [compactNumber(undefined), compactNumber(950), compactNumber(4443), compactNumber(26600), compactNumber(1500000)], ['–', '950', '4.4K', '27K', '1.5M']);
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
