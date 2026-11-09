@@ -442,12 +442,21 @@ const eq = (n, a, b) => ok(n + ` (got ${JSON.stringify(a)})`, JSON.stringify(a) 
   eq('fl analytics keyed object', keyed.p3, { views: 10, comments: 2 });
   eq('fl analytics junk', normalizeAnalytics(null), {});
   const post = normalizePost({ id: 'p1', platform: 'TikTok', status: 'scheduled', caption: 'hi', scheduledAt: '2026-11-09T18:00:00Z' });
-  ok('fl post normalized', post.platform === 'tiktok' && post.status === 'SCHEDULED' && post.when === '2026-11-09T18:00:00Z');
+  ok('fl post normalized', post.platform === 'tiktok' && post.status === 'SCHEDULED' && post.when === '2026-11-09T18:00:00.000Z');
   ok('fl post without id dropped', normalizePost({ platform: 'tiktok' }) === null);
   ok('fl connection name fallback', normalizeConnection({ id: 'c1', platform: 'instagram', account: { username: 'tryiro' } }).name === 'tryiro');
   ok('fl content thumb from files', normalizeContent({ id: 'k1', type: 'slideshow', status: 'created', files: [{ url: 'https://x/y.png' }] }).thumbnail === 'https://x/y.png');
   ok('fl local->utc is UTC ISO', /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(localToUtcIso('2026-11-09T10:00')));
   eq('fl local->utc bad', localToUtcIso('tomorrow'), '');
+  // Real Fastlane shapes: Mongo `_id`, epoch-ms timestamps, platformUsername.
+  const real = normalizeAnalytics({ data: [{ _id: 'm1', platform: 'tiktok', status: 'POSTED', views: 4443, likes: 162, comments: 7, postUrl: 'https://www.tiktok.com/@tryiro/video/1' }, { _id: 'm2', notFound: true }] });
+  eq('fl analytics _id rows', real.m1, { views: 4443, likes: 162, comments: 7, url: 'https://www.tiktok.com/@tryiro/video/1' });
+  eq('fl analytics notFound', real.m2, { notFound: true });
+  const rp = normalizePost({ _id: 'm1', platform: 'tiktok', status: 'POSTED', postedAt: 1794000000000, createdAt: 1793900000000 });
+  ok('fl post _id + epoch ms', rp.id === 'm1' && rp.when === new Date(1794000000000).toISOString());
+  ok('fl post epoch seconds', normalizePost({ _id: 'x', scheduledAt: 1794000000 }).when === new Date(1794000000000).toISOString());
+  ok('fl connection platformUsername', normalizeConnection({ _id: 'c9', platform: 'tiktok', platformUserId: 'u', platformUsername: 'tryiro' }).name === 'tryiro');
+  ok('fl content epoch createdAt', normalizeContent({ _id: 'k2', type: 'slideshow', status: 'CREATED', createdAt: 1794000000000 }).createdAt === new Date(1794000000000).toISOString());
   eq('fl compact', [compactNumber(undefined), compactNumber(950), compactNumber(4443), compactNumber(26600), compactNumber(1500000)], ['–', '950', '4.4K', '27K', '1.5M']);
 }
 

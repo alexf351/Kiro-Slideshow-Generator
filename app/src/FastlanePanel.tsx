@@ -25,7 +25,11 @@ import {
   type FlPost,
 } from './fastlane';
 
-const PLATFORM_LABEL: Record<string, string> = { tiktok: 'TikTok', instagram: 'Instagram', youtube: 'YouTube' };
+const PLATFORM_LABEL: Record<string, string> = { tiktok: 'TikTok', instagram: 'Instagram', youtube: 'YouTube', reddit: 'Reddit' };
+const SCHEDULE_PLATFORMS = ['tiktok', 'instagram', 'youtube'];
+
+// Only ever link out to a plain http(s) URL from Fastlane's data.
+const safeHref = (u: string) => (/^https?:\/\//i.test(u) ? u : '');
 const label = (p: string) => PLATFORM_LABEL[p] || p;
 
 function fmtWhen(iso: string): string {
@@ -135,7 +139,7 @@ export default function FastlanePanel({ defaultCaption }: { defaultCaption: stri
   }
 
   const platforms = useMemo(() => {
-    const set = new Set((connections || []).map((c) => c.platform).filter((p) => p in PLATFORM_LABEL));
+    const set = new Set((connections || []).map((c) => c.platform).filter((p) => SCHEDULE_PLATFORMS.includes(p)));
     return set.size ? Array.from(set) : ['tiktok', 'instagram', 'youtube'];
   }, [connections]);
   const accountsForPlatform = (connections || []).filter((c) => c.platform === platform);
@@ -276,26 +280,41 @@ export default function FastlanePanel({ defaultCaption }: { defaultCaption: stri
             <div className="flex flex-col gap-1.5">
               <span className={cap}>Recent posts</span>
               {metricsNote && <span className="text-[10px] text-[#FFD98A]">{metricsNote}</span>}
+              {posts.length > 0 && (
+                <span className="text-[10px] text-gray-600 leading-relaxed">
+                  Fastlane reports views, likes and comments. It doesn't give saves or shares, so check those in the TikTok app.
+                </span>
+              )}
               {posts.length === 0 && <span className="text-[11px] text-gray-500">No posts yet.</span>}
               {posts.map((p) => {
-                const m = metrics[p.id] || {};
+                const m = metrics[p.id];
+                const href = safeHref(p.url || m?.url || '');
+                const posted = p.status === 'POSTED';
                 return (
                   <div key={p.id} className="p-2.5 rounded-lg border border-white/[0.08] bg-white/[0.02] flex flex-col gap-1">
                     <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.1em]">
                       <span className="font-bold text-gray-300">{label(p.platform)}</span>
                       <span className={p.status === 'FAILED' ? 'text-red-400' : p.status === 'SCHEDULED' ? 'text-[#FFC857]' : 'text-gray-500'}>{p.status.toLowerCase()}</span>
                       {p.when && <span className="text-gray-600 normal-case tracking-normal">{fmtWhen(p.when)}</span>}
-                      {p.url && <a href={p.url} target="_blank" rel="noreferrer noopener" className="ml-auto text-[#00E5FF] normal-case tracking-normal">open ↗</a>}
+                      {href && <a href={href} target="_blank" rel="noreferrer noopener" className="ml-auto text-[#00E5FF] normal-case tracking-normal">open ↗</a>}
                     </div>
                     {p.caption && <div className="text-[12px] text-gray-300 truncate" title={p.caption}>{p.caption}</div>}
-                    <div className="grid grid-cols-4 gap-1 text-center">
-                      {(['views', 'likes', 'saves', 'shares'] as const).map((k) => (
-                        <div key={k} className="rounded-md bg-black/20 py-1">
-                          <div className="text-[13px] font-bold text-gray-200">{compactNumber(m[k])}</div>
-                          <div className="text-[9px] uppercase tracking-[0.12em] text-gray-600">{k}</div>
-                        </div>
-                      ))}
-                    </div>
+                    {posted && m && !m.notFound && (
+                      <div className="grid grid-cols-3 gap-1 text-center">
+                        {(['views', 'likes', 'comments'] as const).map((k) => (
+                          <div key={k} className="rounded-md bg-black/20 py-1">
+                            <div className="text-[13px] font-bold text-gray-200">{m[k] === undefined ? 'n/a' : compactNumber(m[k])}</div>
+                            <div className="text-[9px] uppercase tracking-[0.12em] text-gray-600">{k}</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {posted && m?.notFound && (
+                      <div className="text-[10px] text-[#FFD98A]">Fastlane can't find this post on {label(p.platform)} anymore, so it has no stats.</div>
+                    )}
+                    {posted && !m && !metricsNote && (
+                      <div className="text-[10px] text-gray-600">No stats from Fastlane for this post yet. New posts can take a while to sync.</div>
+                    )}
                     {isAdmin && p.status === 'SCHEDULED' && (
                       <button type="button" onClick={() => void cancelPost(p)} disabled={!!busy} className="self-start text-[10px] font-bold uppercase tracking-[0.12em] text-gray-500 hover:text-[#ff4d7d]">
                         Cancel this post
@@ -327,7 +346,7 @@ export default function FastlanePanel({ defaultCaption }: { defaultCaption: stri
                     <select value={contentId} onChange={(e) => setContentId(e.target.value)} className={field}>
                       <option value="">Pick an item…</option>
                       {schedulable.map((c) => (
-                        <option key={c.id} value={c.id}>{(c.title || c.id).slice(0, 70)} · {c.type}</option>
+                        <option key={c.id} value={c.id}>{c.title ? `${c.title.slice(0, 60)} · ${c.type}` : `${c.type}${c.createdAt ? ` · made ${fmtWhen(c.createdAt)}` : ` · ${c.id}`}`}</option>
                       ))}
                     </select>
                   </label>
