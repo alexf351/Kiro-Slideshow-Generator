@@ -1,0 +1,78 @@
+{
+  "title": "10/10 skills you can learn in one day",
+  "preset": "skill_list",
+  "hook": {
+    "headline": [],
+    "grid": false
+  },
+  "skills": [
+    {
+      "headline": ["Multiply", "in your head"],
+      "accentLine": 1,
+      "accentColor": "#C70201",
+      "video": {
+        "title": "How to Calculate Faster than a Calculator - Mental Math #1",
+        "channel": "Brain Station",
+        "views": "6.8M views",
+        "duration": "5:04",
+        "thumbUrl": "./2026-11-09-skills-one-day.multiply.jpg"
+      },
+      "time": "5 minutes. Starts with ×11."
+    },
+    {
+      "headline": ["Count to 1,000", "on two hands"],
+      "accentLine": 1,
+      "accentColor": "#E33900",
+      "video": {
+        "youtube": "https://www.youtube.com/watch?v=UixU1oRW64Q",
+        "title": "How high can you count on your fingers? (Spoiler: much higher than 10) - James Tanton",
+        "channel": "TED-Ed",
+        "views": "4.5M views",
+        "duration": "4:30",
+        "thumbUrl": "./2026-11-09-skills-one-day.count.jpg"
+      },
+      "time": "4 minutes. Ten fingers."
+    },
+    {
+      "headline": ["Make AI your", "second brain"],
+      "accentLine": 1,
+      "accentColor": "#8E3F86",
+      "app": {
+        "name": "Iro AI: Learn AI Skills",
+        "tagline": "The 5-minute AI learning game",
+        "cta": "GET",
+        "screenshots": ["/iro/app-store-01.jpg", "/iro/app-store-02.jpg", "/iro/app-store-03.jpg"]
+      },
+      "time": "5 minutes a day. One app."
+    },
+    {
+      "headline": ["Find north", "without a compass"],
+      "accentLine": 1,
+      "accentColor": "#506D2D",
+      "video": {
+        "youtube": "https://www.youtube.com/watch?v=kZL0qGkoJIk",
+        "title": "Find North with Sticks and Shadows - The Primitive Compass",
+        "channel": "AlfieAesthetics",
+        "views": "1.9M views",
+        "duration": "2:05",
+        "thumbUrl": "./2026-11-09-skills-one-day.north.jpg"
+      },
+      "time": "2 minutes. A stick and the sun."
+    },
+    {
+      "headline": ["Read the clouds", "like a forecast"],
+      "accentLine": 1,
+      "accentColor": "#2543C7",
+      "video": {
+        "title": "How To Predict The Weather By Looking At The Clouds",
+        "channel": "ZoneA",
+        "views": "1.5M views",
+        "duration": "6:56",
+        "thumbUrl": "./2026-11-09-skills-one-day.clouds.jpg"
+      },
+      "time": "6 minutes. Eight clouds."
+    }
+  ],
+  "attribution": "",
+  "caption": "10/10 Skills You Can Learn In One Day #learnontiktok #learning #skills #selfmastery"
+}

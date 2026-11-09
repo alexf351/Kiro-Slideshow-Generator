@@ -170,6 +170,16 @@ const eq = (n, a, b) => ok(n + ` (got ${JSON.stringify(a)})`, JSON.stringify(a) 
   const [m] = buildReadyDecks({ 'decks/m.json': deck({ prompts: [{ title: 'a', prompt: 'p', bg: './missing.jpg' }] }) }, {});
   eq('ready missing file dropped, no cover', [JSON.parse(m.json).prompts[0].bg, m.hasCover], [undefined, false]);
   eq('ready skips broken + sorts newest first', buildReadyDecks({ 'decks/2026-01-01.json': deck(), 'decks/2026-02-01.json': deck(), 'decks/bad.json': '{nope' }, {}).map((x) => x.slug), ['2026-02-01', '2026-01-01']);
+  const sk = JSON.stringify({ preset: 'skill_list', hook: { headline: [], grid: false }, skills: [
+    { headline: ['a'], video: { title: 't', thumbUrl: './t.jpg', avatar: './gone.jpg' } },
+    { headline: ['b'], app: { icon: './i.png', screenshots: ['./s.jpg', '/iro/x.jpg', './nope.jpg'] } },
+    { headline: ['c'], video: { youtube: 'https://youtu.be/abcdefghijk', thumbUrl: './nope.jpg' } }] });
+  const [k] = buildReadyDecks({ 'decks/k.json': sk }, { 'decks/k.cover.jpg': '/c.jpg', 'decks/t.jpg': '/t-1.jpg', 'decks/i.png': '/i-1.png', 'decks/s.jpg': '/s-1.jpg' });
+  const kj = JSON.parse(k.json);
+  eq('ready ./ thumb + missing avatar', [kj.skills[0].video.thumbUrl, kj.skills[0].video.avatar], ['/t-1.jpg', undefined]);
+  eq('ready ./ app icon + screenshots', [kj.skills[1].app.icon, kj.skills[1].app.screenshots], ['/i-1.png', ['/s-1.jpg', '/iro/x.jpg']]);
+  eq('ready missing thumb falls back to youtube', [kj.skills[2].video.thumbUrl, kj.skills[2].video.youtube], [undefined, 'https://youtu.be/abcdefghijk']);
+  eq('ready array headline: title fallback + cover', [k.name, kj.hook.bg], ['k', '/c.jpg']);
   // Every committed deck parses and lists.
   const { readdirSync, readFileSync } = await import('node:fs');
   const folder = new URL('../../decks/', import.meta.url).pathname;

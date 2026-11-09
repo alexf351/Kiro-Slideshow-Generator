@@ -6,7 +6,9 @@
 //                                  plus optional "title" and "caption")
 //   decks/<slug>.cover.<jpg|png|webp>  optional cover photo, used as the hook
 //                                  background when the hook has no bg
-// A slide's "bg" may also point at a file in the folder ("./name.jpg").
+// A slide's "bg" may also point at a file in the folder ("./name.jpg"), and so
+// may the images inside a slide: video.thumbUrl / video.avatar and
+// app.icon / app.screenshots (skill_list decks with their own thumbnails).
 //
 // App.tsx gathers the files with Vite's import.meta.glob and hands the raw
 // JSON text + bundled image URLs to buildReadyDecks. Pure + tested.
@@ -71,11 +73,26 @@ export function buildReadyDecks(
     }
 
     const slides = slideObjects(deck);
-    // Resolve "./file.jpg" backgrounds to their bundled URLs.
+    // Resolve "./file.jpg" paths to their bundled URLs; a missing file is
+    // dropped so the engine falls back (YouTube thumbnail, default icon).
+    const local = (v: unknown): string | null | undefined =>
+      typeof v === 'string' && v.startsWith('./') ? images[v.slice(2)] || null : undefined;
+    const fix = (o: Record<string, unknown>, key: string) => {
+      const url = local(o[key]);
+      if (url === null) delete o[key]; else if (url) o[key] = url;
+    };
     for (const s of slides) {
-      if (typeof s.bg === 'string' && s.bg.startsWith('./')) {
-        const url = images[s.bg.slice(2)];
-        if (url) s.bg = url; else delete s.bg;
+      fix(s, 'bg');
+      const video = s.video && typeof s.video === 'object' ? (s.video as Record<string, unknown>) : null;
+      if (video) { fix(video, 'thumbUrl'); fix(video, 'avatar'); }
+      const app = s.app && typeof s.app === 'object' ? (s.app as Record<string, unknown>) : null;
+      if (app) {
+        fix(app, 'icon');
+        if (Array.isArray(app.screenshots)) {
+          app.screenshots = app.screenshots
+            .map((x) => { const url = local(x); return url === undefined ? x : url; })
+            .filter((x) => x !== null);
+        }
       }
     }
     // The cover file fills the hook background unless the deck set one.
