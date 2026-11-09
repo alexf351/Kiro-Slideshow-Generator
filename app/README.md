@@ -97,3 +97,13 @@ Any slide object (`hook`, `cta`, or an item in `prompts[]` and the other content
 ```
 
 `darken` is 0 to 0.85, a flat black layer so white text stays readable. A darken set in the sidebar's Adjust panel for that photo wins. Set `"hideMascot": true` at the top level so a slide with no photo gets a plain dark background instead of the mascot.
+
+## Ready decks
+
+Finished posts live in the repo's top-level `decks/` folder and show up in the sidebar under **Ready decks**. One tap loads a deck's JSON, caption, format and chat style, with its photos.
+
+- `decks/<slug>.json`: the deck, same JSON as the editor box, plus optional `title` (list name) and `caption`.
+- `decks/<slug>.cover.jpg` (or `.png` / `.webp`): optional cover photo, used as the hook background when the hook has no `bg`.
+- A slide's `bg` can also point at a file in the folder, like `"./office.jpg"`.
+
+The files are bundled at build time, so a new deck appears after the next deploy.

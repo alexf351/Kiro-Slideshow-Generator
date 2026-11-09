@@ -1,6 +1,14 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import engineHtml from '../../kiro_slideshow_engine_v3.html?raw';
 import { applyDeckDarken } from './deckPhotos';
+import { buildReadyDecks, type ReadyDeck } from './readyDecks';
+
+// Finished decks committed to the repo's decks/ folder (JSON + optional
+// cover photo), bundled at build time so the list needs no network call.
+const READY_DECKS: ReadyDeck[] = buildReadyDecks(
+  import.meta.glob('../../decks/*.json', { eager: true, query: '?raw', import: 'default' }) as Record<string, string>,
+  import.meta.glob('../../decks/*.{jpg,jpeg,png,webp}', { eager: true, query: '?url', import: 'default' }) as Record<string, string>,
+);
 import Library from './Library';
 import Analytics from './Analytics';
 import Patterns from './Patterns';
@@ -2571,6 +2579,30 @@ export default function App() {
     ui.notify(`Loaded "${d.name}".`, { type: 'success' });
   }
 
+  // Bumped by handleLoadReadyDeck; the effect renders with the freshly
+  // committed JSON (a setTimeout would capture the old jsonText).
+  const [readyRenderNonce, setReadyRenderNonce] = useState(0);
+  useEffect(() => {
+    if (readyRenderNonce) void handleRender({ switchView: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [readyRenderNonce]);
+
+  // Load a ready deck: its JSON (photos included), caption, format and chat
+  // style. Sidebar background picks are cleared so the deck's own photos show.
+  async function handleLoadReadyDeck(d: ReadyDeck) {
+    if (!isExampleJson(jsonText) && !(await ui.confirm({ message: `Load "${d.name}"? Your current unsaved edits will be replaced.`, confirmLabel: 'Load' }))) return;
+    setJsonText(d.json);
+    setCaption(d.caption);
+    if ((PRESET_KEYS as readonly string[]).includes(d.preset)) setPreset(d.preset as PresetKey);
+    if (d.platform === 'claude' || d.platform === 'chatgpt') setPlatform(d.platform);
+    setSlideBgs({});
+    setSlideBgAdjust({});
+    setActiveDraftName('');
+    iframeRef.current?.contentWindow?.postMessage({ type: 'clearOverlays' }, '*');
+    setReadyRenderNonce((n) => n + 1); // render after the new JSON commits
+    ui.notify(d.hasCover ? `Loaded "${d.name}".` : `Loaded "${d.name}". Add the cover photo on the Hook slide under Backgrounds.`, { type: 'success' });
+  }
+
   async function handleDeleteDraft(d: Draft) {
     if (!(await ui.confirm({ message: `Delete draft "${d.name}"?`, confirmLabel: 'Delete' }))) return;
     setDrafts(await deleteDraft(d.id));
@@ -3197,6 +3229,30 @@ export default function App() {
               </label>
             </div>
           </Group>
+
+          {READY_DECKS.length > 0 && (
+            <Group open={!!openGroups.ready} onToggle={() => toggleGroup('ready')} title="Ready decks" accent="#34D399" hint={`${READY_DECKS.length} ready`}>
+              <p className="text-xs text-gray-500 leading-relaxed mb-3">
+                Finished posts with their photos. Tap one to load it, check the preview, then export.
+              </p>
+              <div className="space-y-2">
+                {READY_DECKS.map((d) => (
+                  <button
+                    key={d.slug}
+                    type="button"
+                    onClick={() => void handleLoadReadyDeck(d)}
+                    className="w-full text-left p-3 rounded-xl border border-[#34D399]/20 bg-[#34D399]/[0.06] hover:border-[#34D399]/50 transition-colors"
+                    title={`Load ${d.slug}`}
+                  >
+                    <div className="text-[12px] font-bold text-gray-100 leading-snug">{d.name}</div>
+                    <div className="text-[10px] text-gray-500 mt-1">
+                      {d.slideCount} slides · {d.photoCount} photos · {d.hasCover ? 'cover included' : 'add cover on Hook'}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </Group>
+          )}
 
           <Group open={!!openGroups.format} onToggle={() => toggleGroup('format')} title="Format" hint={PRESETS[preset].label}>
             <input

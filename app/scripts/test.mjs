@@ -149,6 +149,34 @@ const eq = (n, a, b) => ok(n + ` (got ${JSON.stringify(a)})`, JSON.stringify(a) 
   eq('adjust panel wins', applyDeckDarken(deck, ['prompts'], panel)['https://x/h.jpg'], panel['https://x/h.jpg']);
   eq('empty deck', applyDeckDarken({}, ['prompts'], {}), {});
 }
+// ---- readyDecks.buildReadyDecks ----
+{
+  const { buildReadyDecks } = await load('readyDecks.ts');
+  const deck = (extra) => JSON.stringify({ preset: 'prompt_pack', platform: 'claude', title: 'My deck', caption: 'cap #ai',
+    hook: { headline: '<strong>7</strong> prompts' }, prompts: [{ title: 'a', prompt: 'p', bg: 'https://x/a.jpg' }, { title: 'b', prompt: 'p', bg: './b.jpg' }],
+    cta: { headline: 'c' }, ...extra });
+  const [d] = buildReadyDecks({ '../../decks/2026-01-01-a.json': deck() }, {
+    '../../decks/2026-01-01-a.cover.jpg': '/assets/cover-1.jpg', '../../decks/b.jpg': '/assets/b-1.jpg',
+  });
+  const j = JSON.parse(d.json);
+  eq('ready name from title', d.name, 'My deck');
+  eq('ready caption split out', [d.caption, j.caption, j.title], ['cap #ai', undefined, undefined]);
+  eq('ready cover fills hook', j.hook.bg, '/assets/cover-1.jpg');
+  eq('ready ./ bg resolved', j.prompts[1].bg, '/assets/b-1.jpg');
+  eq('ready counts', [d.slideCount, d.photoCount, d.hasCover], [4, 3, true]);
+  const [n] = buildReadyDecks({ 'decks/x.json': deck({ title: undefined, hook: { headline: '<b>Hi</b> there', bg: 'https://x/h.jpg' } }) },
+    { 'decks/x.cover.png': '/c.png', 'decks/other.png': '/o.png' });
+  eq('ready headline name + own hook bg kept', [n.name, JSON.parse(n.json).hook.bg], ['Hi there', 'https://x/h.jpg']);
+  const [m] = buildReadyDecks({ 'decks/m.json': deck({ prompts: [{ title: 'a', prompt: 'p', bg: './missing.jpg' }] }) }, {});
+  eq('ready missing file dropped, no cover', [JSON.parse(m.json).prompts[0].bg, m.hasCover], [undefined, false]);
+  eq('ready skips broken + sorts newest first', buildReadyDecks({ 'decks/2026-01-01.json': deck(), 'decks/2026-02-01.json': deck(), 'decks/bad.json': '{nope' }, {}).map((x) => x.slug), ['2026-02-01', '2026-01-01']);
+  // Every committed deck parses and lists.
+  const { readdirSync, readFileSync } = await import('node:fs');
+  const folder = new URL('../../decks/', import.meta.url).pathname;
+  const files = Object.fromEntries(readdirSync(folder).filter((f) => f.endsWith('.json')).map((f) => [f, readFileSync(folder + f, 'utf8')]));
+  const listed = buildReadyDecks(files, {});
+  ok('committed decks all list', listed.length === Object.keys(files).length && listed.every((x) => x.preset && x.slideCount > 2));
+}
 // ---- zip ----
 {
   const { crc32, dataUrlToBytes } = await load('zip.ts');
