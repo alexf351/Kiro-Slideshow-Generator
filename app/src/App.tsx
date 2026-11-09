@@ -21,7 +21,8 @@ import { addStockItem, blobToDataUrl, getItem } from './mediaBank';
 import { addPost, listPosts, type CloneAnalysisSnapshot, type PostPrediction } from './posts';
 import { PRESETS, PRESET_KEYS, FORMAT_CATEGORIES, FORMAT_CATEGORY, type PresetKey, type FormatCategory } from './presets';
 import CloneFromTikTok from './CloneFromTikTok';
-import FastlanePanel from './FastlanePanel';
+import FastlanePanel, { type RemixLoad } from './FastlanePanel';
+import { remapIndexedKeys, type DeckSource } from './remixWinner';
 import GeneratePanel from './GeneratePanel';
 import PredictPanel from './PredictPanel';
 import DesignPanel from './DesignPanel';
@@ -33,7 +34,7 @@ import { coerceDesign, DEFAULT_DESIGN, designPayload, ASPECT_KEYS, ASPECTS, type
 import { listDrafts, saveDraft, deleteDraft, duplicateDraft, renameDraft, setDraftSchedule, setDraftPosted, clearPostedDrafts, uniqueCopyName, type Draft } from './drafts';
 import { exportBackup, importBackup, downloadBlob, timestampSlug } from './backup';
 import { suggestHashtags, parseHashtags } from './insights';
-import { findSimilarHooks } from './similarity';
+import { findSimilarHooks, hookLine } from './similarity';
 import { wouldFatigueStreak } from './recentFormats';
 import { buildIcs, scheduledCount } from './ics';
 import { postsToCsv } from './csv';
@@ -401,7 +402,11 @@ function extractSlideMeta(parsed: unknown): SlideMeta[] {
       out.push({ key: `${prefix}:${i}`, label: truncate(`${i + 1}. ${t}`, 40) });
     });
   }
-  if (p.cta) out.push({ key: 'cta', label: 'CTA' });
+  if (p.cta) {
+    // A remix can move the CTA mid-deck (`ctaAt`); say where it renders.
+    const at = Math.floor(Number(p2.ctaAt));
+    out.push({ key: 'cta', label: Number.isFinite(at) && at >= 2 ? `CTA (Iro slide, shows as slide ${at})` : 'CTA' });
+  }
   return out;
 }
 
@@ -2603,6 +2608,58 @@ export default function App() {
     ui.notify(d.hasCover ? `Loaded "${d.name}".` : `Loaded "${d.name}". Add the cover photo on the Hook slide under Backgrounds.`, { type: 'success' });
   }
 
+  // Remix the winner (Fastlane panel): every deck this browser knows about,
+  // for matching the top post back to its JSON.
+  async function getRemixSources(): Promise<DeckSource[]> {
+    const out: DeckSource[] = [];
+    try {
+      for (const p of await listPosts()) {
+        if (!p.jsonSnapshot) continue;
+        out.push({ kind: 'history', name: hookLine(p.caption).slice(0, 48) || 'Posted deck', caption: p.caption, json: p.jsonSnapshot, url: p.tiktokUrl || undefined, preset: p.preset });
+      }
+    } catch { /* history unavailable: drafts + Ready decks still work */ }
+    try {
+      for (const d of await listDrafts()) {
+        out.push({ kind: 'draft', name: d.name, caption: d.state.caption, json: d.state.jsonText, preset: d.state.preset, slideBgs: d.state.slideBgs, slideBgAdjust: d.state.slideBgAdjust });
+      }
+    } catch { /* ignore */ }
+    for (const r of READY_DECKS) out.push({ kind: 'ready', name: r.name, caption: r.caption, json: r.json, preset: r.preset });
+    return out;
+  }
+
+  // Load a remix into the editor and save it as a draft. Draft photo picks
+  // come along (re-indexed if the Iro item moved); on-slide overlays don't,
+  // since their slide numbers no longer line up. Returns false if the user
+  // keeps their current edits.
+  async function handleLoadRemix(r: RemixLoad): Promise<boolean> {
+    if (!isExampleJson(jsonText) && !(await ui.confirm({ message: `Load "${r.name}"? Your current unsaved edits will be replaced.`, confirmLabel: 'Load remix' }))) return false;
+    const move = r.remix.move;
+    const bgs = (r.source.slideBgs || {}) as SlideBgMap;
+    const adj = (r.source.slideBgAdjust || {}) as Record<string, CropValue>;
+    const nextBgs = move ? remapIndexedKeys(bgs, move.from, move.to) : { ...bgs };
+    const nextAdj = move ? remapIndexedKeys(adj, move.from, move.to) : { ...adj };
+    let platformOut: string | undefined;
+    try { platformOut = (JSON.parse(r.json) as { platform?: string }).platform; } catch { /* remixDeck emits valid JSON */ }
+    setJsonText(r.json);
+    setCaption(r.caption);
+    const presetKey = (PRESET_KEYS as readonly string[]).includes(r.preset) ? (r.preset as PresetKey) : preset;
+    setPreset(presetKey);
+    if (platformOut === 'claude' || platformOut === 'chatgpt') setPlatform(platformOut);
+    setSlideBgs(nextBgs);
+    setSlideBgAdjust(nextAdj);
+    iframeRef.current?.contentWindow?.postMessage({ type: 'clearOverlays' }, '*');
+    try {
+      setDrafts(await saveDraft(r.name, { jsonText: r.json, caption: r.caption, preset: presetKey, slideBgs: nextBgs, slideBgAdjust: nextAdj, attribution, attrPresets }));
+      setActiveDraftName(r.name);
+    } catch {
+      setActiveDraftName('');
+      ui.notify('Loaded the remix, but saving it to Drafts failed. Save it by hand.', { type: 'info' });
+    }
+    setReadyRenderNonce((n) => n + 1); // render after the new JSON commits
+    ui.notify(`Loaded "${r.name}". Iro slide is slide ${r.remix.slot} of ${r.remix.total}.`, { type: 'success' });
+    return true;
+  }
+
   async function handleDeleteDraft(d: Draft) {
     if (!(await ui.confirm({ message: `Delete draft "${d.name}"?`, confirmLabel: 'Delete' }))) return;
     setDrafts(await deleteDraft(d.id));
@@ -4747,7 +4804,7 @@ export default function App() {
           </Group>
 
           <Group open={!!openGroups.fastlane} onToggle={() => toggleGroup('fastlane')} title="Fastlane" accent="#FF7A1A" hint="post stats · schedule">
-            <FastlanePanel defaultCaption={caption} />
+            <FastlanePanel defaultCaption={caption} getDeckSources={getRemixSources} onRemix={handleLoadRemix} onCloneUrl={handleCloneAgain} />
           </Group>
 
           <Group open={!!openGroups.settings} onToggle={() => toggleGroup('settings')} title="Settings" accent="#94a3b8" hint="API keys · backup · model">
