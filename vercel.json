@@ -5,6 +5,9 @@
   "installCommand": "npm install --prefix . && cd app && npm install",
   "framework": null,
   "functions": {
+    "api/generate.ts": {
+      "maxDuration": 60
+    },
     "api/**/*.ts": {
       "maxDuration": 30
     }

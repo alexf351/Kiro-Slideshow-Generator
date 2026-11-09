@@ -80,6 +80,7 @@ inside an iframe via `postMessage`.
 - Export: PNG slides, **MP4 video** (with pacing), **PDF**, **QR to phone**, and
   **Send to TikTok inbox** (see [`TIKTOK_SETUP.md`](TIKTOK_SETUP.md)).
 - **Fastlane panel** — post stats (views / likes / saves / shares) and scheduling to TikTok, Reels and Shorts through [Fastlane](https://usefastlane.ai); the API key stays in Vercel (see [`FASTLANE_SETUP.md`](FASTLANE_SETUP.md)).
+- **AI generate panel** — cover images through OpenAI or [Sume](https://www.sume.com/sume-api), short Sume video clips and a ChatGPT box; keys stay in Vercel (see [`GENERATE_SETUP.md`](GENERATE_SETUP.md)).
 - Output aspect ratios: 9:16, 4:5, 1:1, 16:9.
 
 ## API keys

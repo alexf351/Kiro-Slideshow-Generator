@@ -13,6 +13,7 @@ import { addPost, listPosts, type CloneAnalysisSnapshot, type PostPrediction } f
 import { PRESETS, PRESET_KEYS, FORMAT_CATEGORIES, FORMAT_CATEGORY, type PresetKey, type FormatCategory } from './presets';
 import CloneFromTikTok from './CloneFromTikTok';
 import FastlanePanel from './FastlanePanel';
+import GeneratePanel from './GeneratePanel';
 import PredictPanel from './PredictPanel';
 import DesignPanel from './DesignPanel';
 import QuickEdit from './QuickEdit';
@@ -1732,6 +1733,27 @@ export default function App() {
     });
     setSlideBgs((prev) => ({ ...prev, [slideKey]: { type: 'media', mediaId: item.id } }));
   }
+
+  // The AI generation panel hands back a finished image (made on the server
+  // with the Vercel-held Sume / OpenAI keys). Save it to the media bank and
+  // put it on the cover slide or on every slide.
+  async function handleUseGeneratedImage(blob: Blob, target: 'cover' | 'all', name: string) {
+    const slots = slideMetas.filter((m) => !/-(icon|logo|card|thumb|shot):/.test(m.key));
+    if (slots.length === 0) throw new Error('Render a post first.');
+    const item = await addStockItem({ blob, mimeType: blob.type || 'image/jpeg', name, source: { provider: 'upload' } });
+    setSlideBgs((prev) => {
+      const next = { ...prev };
+      (target === 'cover' ? slots.slice(0, 1) : slots).forEach((m) => { next[m.key] = { type: 'media', mediaId: item.id }; });
+      return next;
+    });
+    setTimeout(() => void handleRender({ switchView: false }), 80);
+  }
+
+  // A plain-text hook for prompt drafting ("Hook — " label prefix removed).
+  const generateHook = (() => {
+    const first = slideMetas[0];
+    return first && first.key === 'hook' ? first.label.replace(/^Hook — /, '') : '';
+  })();
 
   // Generate ONE background and apply it to every slide — a cohesive AI deck
   // from a single prompt + a single API call.
@@ -4659,6 +4681,10 @@ export default function App() {
                 Needs a one-time setup: a TikTok developer app + Vercel Blob storage. See <code className="text-gray-500">TIKTOK_SETUP.md</code>.
               </div>
             </div>
+          </Group>
+
+          <Group open={!!openGroups.generate} onToggle={() => toggleGroup('generate')} title="AI generate" accent="#A78BFA" hint="covers · video · ChatGPT">
+            <GeneratePanel hook={generateHook} onUseImage={handleUseGeneratedImage} />
           </Group>
 
           <Group open={!!openGroups.fastlane} onToggle={() => toggleGroup('fastlane')} title="Fastlane" accent="#FF7A1A" hint="post stats · schedule">

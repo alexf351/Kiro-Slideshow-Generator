@@ -460,5 +460,156 @@ const eq = (n, a, b) => ok(n + ` (got ${JSON.stringify(a)})`, JSON.stringify(a) 
   eq('fl compact', [compactNumber(undefined), compactNumber(950), compactNumber(4443), compactNumber(26600), compactNumber(1500000)], ['–', '950', '4.4K', '27K', '1.5M']);
 }
 
+// ---- generate (client helpers) ----
+{
+  const { catalogModels, fmtUsd } = await load('generate.ts');
+  const cat = { data: [
+    { model_id: 'bytedance-seed/seedream-4.5', api_type: 'model_api', capability: 'image', model_pricing: [{ estimated_usd: 0.04, unit: 'image' }] },
+    { model_id: 'wan-3.0', capability: 'video', model_pricing: [{ price: 0.05, unit: 'second' }] },
+  ] };
+  eq('gen catalog image', catalogModels(cat, 'image').map((m) => m.id), ['bytedance-seed/seedream-4.5']);
+  eq('gen catalog video', catalogModels(cat, 'video'), [{ id: 'wan-3.0', note: '$0.050 / second' }]);
+  eq('gen catalog junk', catalogModels(null, 'image'), []);
+  eq('gen usd fmt', [fmtUsd(null), fmtUsd(0.0042), fmtUsd(0.063), fmtUsd(2.5)], ['unknown', '$0.0042', '$0.063', '$2.50']);
+}
+
+// ---- /api/generate (server route, mocked upstreams; no real API calls) ----
+{
+  // Bundle the serverless handler. @vercel/blob is stubbed; nothing leaves
+  // this process because every fetch goes to the mock below.
+  const blobStub = {
+    name: 'blob-stub',
+    setup(build) {
+      build.onResolve({ filter: /^@vercel\/(blob|node)$/ }, (a) => ({ path: a.path, namespace: 'blob-stub' }));
+      build.onLoad({ filter: /.*/, namespace: 'blob-stub' }, () => ({ contents: 'export async function put(){ throw new Error("blob disabled in tests"); }', loader: 'js' }));
+    },
+  };
+  const out = await esbuild.build({
+    entryPoints: [new URL('../../api/generate.ts', import.meta.url).pathname],
+    bundle: true, platform: 'node', format: 'esm', write: false, plugins: [blobStub],
+  });
+  const file = join(dir, 'api_generate.mjs');
+  writeFileSync(file, out.outputFiles[0].text);
+  const { handle } = await import(pathToFileURL(file).href);
+
+  const SUME = 'sume_test_key_123456';
+  const OPENAI = 'sk-test-openai-abcdef123456';
+  const TOKEN = 'a-long-panel-password-123';
+  const env = { sumeKey: SUME, openaiKey: OPENAI, panelToken: TOKEN, panelTokenSource: 'FASTLANE_ADMIN_TOKEN', maxUsd: 1.5 };
+  const calls = [];
+  const jsonRes = (status, body) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
+  let estimateUsd = 0.04;
+  const mockFetch = async (url, init = {}) => {
+    calls.push({ url: String(url), init });
+    const u = String(url);
+    if (u.endsWith('/v1/open/estimate')) return jsonRes(200, { data: { estimated_usd: estimateUsd, estimated_credits: 4 } });
+    if (u.endsWith('/v1/image-router/generate') || u.endsWith('/v1/video-router/generate')) return jsonRes(202, { data: { request_id: 'job_abc', job: { id: 'job_abc', status: 'queued' }, terminal: false, next_poll_after_seconds: 2 } });
+    if (u.endsWith('/v1/jobs/job_abc/status')) return jsonRes(200, { data: { sume_status: 'completed', terminal: true, result_ready: true } });
+    if (u.endsWith('/v1/jobs/job_abc/result')) return jsonRes(200, { id: 'job_abc', status: 'completed', result: { artifacts: [{ id: 'artf_1', url: 'https://media.sume.com/artifacts/x.mp4', type: 'video', content_type: 'video/mp4' }] } });
+    if (u.endsWith('/v1/images/generations') || u.endsWith('/v1/images/edits')) return jsonRes(200, { data: [{ b64_json: 'QUJD' }], usage: { input_tokens: 50, output_tokens: 1568, input_tokens_details: { text_tokens: 50, image_tokens: 0 } } });
+    if (u.endsWith('/v1/responses')) return jsonRes(200, { output: [{ type: 'message', content: [{ type: 'output_text', text: 'clay penguin on a cliff' }] }], usage: { input_tokens: 100, output_tokens: 40 } });
+    return jsonRes(404, { error: { code: 'not_found', message: 'nope' } });
+  };
+  async function call(op, { method = 'POST', body, query = {}, token = TOKEN, envOverride } = {}) {
+    let status = 0, payload = null;
+    const headers = {};
+    const res = {
+      setHeader: (k, v) => { headers[k] = v; },
+      status(s) { status = s; return this; },
+      json(b) { payload = b; return this; },
+    };
+    const req = { method, query: { op, ...query }, headers: token ? { 'x-generate-panel-token': token } : {}, body };
+    await handle(req, res, { fetchImpl: mockFetch, env: envOverride || env, uploadRef: async () => 'https://x.public.blob.vercel-storage.com/ref.jpg' });
+    return { status, payload, headers, text: JSON.stringify(payload) };
+  }
+  const noLeak = (r) => !r.text.includes(SUME) && !r.text.includes(OPENAI) && !r.text.includes(TOKEN);
+
+  const st = await call('status', { method: 'GET', token: '' });
+  ok('gen status open without token', st.status === 200 && st.payload.data.authorized === false && st.payload.data.sumeKeySet === true);
+  ok('gen status never echoes secrets', noLeak(st) && st.headers['Cache-Control'] === 'no-store');
+  ok('gen status authorized with token', (await call('status', { method: 'GET' })).payload.data.authorized === true);
+
+  const before = calls.length;
+  const locked = await call('image', { body: { confirm: true, provider: 'openai', prompt: 'x' }, token: 'wrong-password-wrong-pw' });
+  ok('gen wrong token 401, no upstream call', locked.status === 401 && calls.length === before);
+  const noLock = await call('image', { body: { confirm: true, provider: 'openai', prompt: 'x' }, envOverride: { ...env, panelToken: '' } });
+  ok('gen no lock set -> 503', noLock.status === 503 && noLock.payload.error.code === 'missing_panel_token');
+  const shortLock = await call('image', { body: { confirm: true, provider: 'openai', prompt: 'x' }, token: 'short', envOverride: { ...env, panelToken: 'short' } });
+  ok('gen too-short lock refuses', shortLock.status === 401);
+
+  const noConfirm = await call('image', { body: { provider: 'openai', prompt: 'x' } });
+  ok('gen paid op needs confirm', noConfirm.status === 400 && noConfirm.payload.error.code === 'needs_confirm' && calls.length === before);
+  ok('gen text needs confirm', (await call('text', { body: { prompt: 'hi' } })).payload.error.code === 'needs_confirm');
+  ok('gen GET on paid op refused', (await call('image', { method: 'GET' })).status === 405);
+
+  // OpenAI image: key only in Authorization, jpeg out, cost from usage.
+  const oi = await call('image', { body: { confirm: true, provider: 'openai', model: 'gpt-image-2', prompt: 'penguin', aspect: '9:16', quality: 'medium' } });
+  const oiCall = calls.at(-1);
+  ok('gen openai image ok', oi.status === 200 && oi.payload.data.images[0].dataUrl === 'data:image/jpeg;base64,QUJD');
+  ok('gen openai image request', oiCall.url === 'https://api.openai.com/v1/images/generations' && JSON.parse(oiCall.init.body).size === '1024x1536' && oiCall.init.headers.Authorization === `Bearer ${OPENAI}`);
+  ok('gen openai cost from usage', Math.abs(oi.payload.data.costUsd - 0.0237) < 0.001);
+  ok('gen openai response has no key', noLeak(oi));
+  ok('gen openai unknown model refused', (await call('image', { body: { confirm: true, provider: 'openai', model: 'dall-e-9', prompt: 'x' } })).status === 400);
+
+  // OpenAI with a reference → multipart edits.
+  const refPng = 'data:image/png;base64,' + Buffer.from('fakepng').toString('base64');
+  const oe = await call('image', { body: { confirm: true, provider: 'openai', prompt: 'penguin', refs: [{ dataUrl: refPng }] } });
+  const oeCall = calls.at(-1);
+  ok('gen openai refs -> edits multipart', oe.status === 200 && oeCall.url.endsWith('/images/edits') && oeCall.init.body instanceof FormData && oeCall.init.body.getAll('image[]').length === 1);
+  ok('gen openai refuses url refs (no server fetch)', (await call('image', { body: { confirm: true, provider: 'openai', prompt: 'x', refs: [{ url: 'https://evil.example/x.png' }] } })).payload.error.code === 'bad_refs');
+
+  // Sume image: estimate first, then async submit with refs + idempotency.
+  const n0 = calls.length;
+  const si = await call('image', { body: { confirm: true, provider: 'sume', model: 'bytedance-seed/seedream-4.5', prompt: 'penguin', aspect: '9:16', refs: [{ url: 'https://kiro.example.app/iro/penguin-clay-reference.jpg' }, { dataUrl: refPng }], idempotencyKey: 'iro-abcdef123456' } });
+  const sCalls = calls.slice(n0);
+  ok('gen sume estimate before submit', sCalls[0].url.endsWith('/v1/open/estimate') && sCalls[1].url.endsWith('/v1/image-router/generate'));
+  const sb = JSON.parse(sCalls[1].init.body);
+  ok('gen sume body shape', sb.model === 'bytedance-seed/seedream-4.5' && sb.mode === 'async' && sb.aspect_ratio === '9:16' && sb.input_references.length === 2 && sb.input_references[0].type === 'image_url');
+  ok('gen sume uploaded data ref', sb.input_references[1].image_url.url === 'https://x.public.blob.vercel-storage.com/ref.jpg');
+  ok('gen sume idempotency + auth', sCalls[1].init.headers['Idempotency-Key'] === 'iro-abcdef123456' && sCalls[1].init.headers.Authorization === `Bearer ${SUME}`);
+  ok('gen sume job relayed', si.status === 200 && si.payload.data.job.id === 'job_abc' && si.payload.data.estimateUsd === 0.04 && noLeak(si));
+  ok('gen sume refuses private ref url', (await call('image', { body: { confirm: true, provider: 'sume', model: 'm', prompt: 'x', refs: [{ url: 'http://localhost/x.png' }] } })).payload.error.code === 'bad_refs');
+
+  // Spend cap: over-cap estimate never submits.
+  estimateUsd = 4.2;
+  const n1 = calls.length;
+  const cap = await call('video', { body: { confirm: true, model: 'seedance-2.5', prompt: 'penguin waves', duration: 30, resolution: '1080p' } });
+  ok('gen over cap refused', cap.status === 400 && cap.payload.error.code === 'over_cap' && calls.slice(n1).every((c) => !c.url.includes('video-router')));
+  ok('gen video duration clamped to 15', JSON.parse(calls.at(-1).init.body).input.duration === 15);
+  estimateUsd = null;
+  const unk = await call('video', { body: { confirm: true, model: 'wan-3.0', prompt: 'penguin waves' } });
+  ok('gen unknown price needs second confirm', unk.status === 409 && unk.payload.error.code === 'unknown_cost');
+  const unk2 = await call('video', { body: { confirm: true, acceptUnknownCost: true, model: 'wan-3.0', prompt: 'penguin waves', duration: 5 } });
+  ok('gen unknown price accepted runs', unk2.status === 200 && calls.at(-1).url.endsWith('/v1/video-router/generate'));
+  estimateUsd = 0.25;
+
+  // Job polling returns artifacts once completed.
+  const jb = await call('job', { method: 'GET', query: { id: 'job_abc' } });
+  ok('gen job completed with artifact', jb.status === 200 && jb.payload.data.job.terminal && jb.payload.data.artifacts[0].url === 'https://media.sume.com/artifacts/x.mp4');
+  ok('gen job bad id', (await call('job', { method: 'GET', query: { id: '../etc' } })).status === 400);
+
+  // Quote is free: estimate only, no generate.
+  const n2 = calls.length;
+  const qt = await call('quote', { body: { provider: 'sume', kind: 'video', model: 'wan-3.0', prompt: 'x', duration: 5 } });
+  ok('gen quote sume', qt.payload.data.estimateUsd === 0.25 && calls.slice(n2).length === 1);
+  const qo = await call('quote', { body: { provider: 'openai', model: 'gpt-image-2', quality: 'low' } });
+  ok('gen quote openai approximate', qo.payload.data.approximate === true && qo.payload.data.estimateUsd > 0 && qo.payload.data.estimateUsd < 0.02);
+
+  // ChatGPT text via the Responses API.
+  const tx = await call('text', { body: { confirm: true, model: 'gpt-6-luna', prompt: 'cover idea', purpose: 'image-prompt' } });
+  ok('gen text ok', tx.status === 200 && tx.payload.data.text === 'clay penguin on a cliff' && calls.at(-1).url === 'https://api.openai.com/v1/responses');
+
+  // Upstream auth failure is reported without the key.
+  const badFetch = async () => jsonRes(401, { error: { message: `Incorrect API key provided: ${OPENAI}` } });
+  let st401 = 0, p401 = null;
+  await handle({ method: 'POST', query: { op: 'image' }, headers: { 'x-generate-panel-token': TOKEN }, body: { confirm: true, provider: 'openai', prompt: 'x' } },
+    { setHeader() {}, status(s) { st401 = s; return this; }, json(b) { p401 = b; return this; } }, { fetchImpl: badFetch, env });
+  ok('gen upstream 401 -> 502, key scrubbed', st401 === 502 && !JSON.stringify(p401).includes(OPENAI));
+
+  // Missing provider key.
+  const nk = await call('image', { body: { confirm: true, provider: 'sume', model: 'm', prompt: 'x' }, envOverride: { ...env, sumeKey: '' } });
+  ok('gen missing sume key 503', nk.status === 503 && nk.payload.error.code === 'missing_sume_key');
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
