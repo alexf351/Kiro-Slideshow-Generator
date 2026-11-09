@@ -1,0 +1,68 @@
+{
+  "title": "7 Claude prompts that make you look 10 years more senior at work",
+  "preset": "prompt_pack",
+  "platform": "claude",
+  "mascot": "platinum",
+  "hideMascot": true,
+  "hook": {
+    "headline": "<strong>7</strong> Claude Prompts<br/>That Make You Look<br/><strong>10 Years</strong> More<br/>Senior At Work",
+    "sub": "",
+    "darken": 0,
+    "position": "top"
+  },
+  "prompts": [
+    {
+      "title": "1. Lead With The <strong>Answer</strong>",
+      "prompt": "Here's my update: [paste]. Rewrite it so line one is the decision or ask, then 3 bullets of why. Cut anything my boss wouldn't miss.",
+      "bg": "https://images.unsplash.com/photo-1758691736545-5c33b6255dca?w=1080&h=1920&fit=crop&crop=faces,center&q=80&fm=jpg",
+      "darken": 0.5
+    },
+    {
+      "title": "2. Imagine It <strong>Failed</strong>",
+      "prompt": "It's 6 months from now and [project] failed. Give me the 5 most likely reasons, ranked, and one thing I can check this week for each.",
+      "bg": "https://images.unsplash.com/photo-1758520145147-c30bc656f314?w=1080&h=1920&fit=crop&crop=faces,center&q=80&fm=jpg",
+      "darken": 0.3
+    },
+    {
+      "title": "3. Read The <strong>Room</strong> First",
+      "prompt": "I'm pitching [idea] to [names + roles]. For each person: what do they care about, what will they push back on, and what one line wins them over?",
+      "bg": "https://images.unsplash.com/photo-1758518730083-4c12527b6742?w=1080&h=1920&fit=crop&crop=faces,center&q=80&fm=jpg",
+      "darken": 0.5
+    },
+    {
+      "title": "4. Rehearse The <strong>Tough</strong> Questions",
+      "prompt": "Act as a skeptical VP reviewing this: [paste]. Ask me the 5 hardest questions you'd ask in the meeting, then give me a 2-sentence answer to each.",
+      "bg": "https://images.unsplash.com/photo-1758518730384-be3d205838e8?w=1080&h=1920&fit=crop&crop=faces,center&q=80&fm=jpg",
+      "darken": 0.5
+    },
+    {
+      "title": "5. Say <strong>No</strong> Like A Director",
+      "prompt": "I've been asked to take on [task] but I'm full with [projects]. Write a reply that backs the goal, offers 2 trade-offs, and asks which one to drop.",
+      "bg": "https://images.unsplash.com/photo-1758876204242-787309002a8f?w=1080&h=1920&fit=crop&crop=faces,center&q=80&fm=jpg",
+      "darken": 0.35
+    },
+    {
+      "title": "6. Give Every Task An <strong>Owner</strong>",
+      "prompt": "Here's a messy thread: [paste]. List what was decided, what's still open, and who owns each next step by when. Flag anything nobody owns.",
+      "bg": "https://images.unsplash.com/photo-1758876203195-69a51e4145f0?w=1080&h=1920&fit=crop&crop=faces,center&q=80&fm=jpg",
+      "darken": 0.5
+    },
+    {
+      "title": "7. Make The <strong>Numbers</strong> Talk",
+      "prompt": "Here's my data: [paste]. What are the 3 things a CFO would notice first, and what's the one chart that makes my point?",
+      "bg": "https://images.unsplash.com/photo-1763038311036-6d18805537e5?w=1080&h=1920&fit=crop&crop=faces,center&q=80&fm=jpg",
+      "darken": 0.45
+    }
+  ],
+  "cta": {
+    "headline": "Want to actually <strong>learn AI</strong><br/>instead of just<br/>collecting prompts?",
+    "instructionAbove": "search:",
+    "searchTerm": "Iro AI",
+    "instructionBelow": "on the App Store.",
+    "slogan": "the 5-minute AI learning game",
+    "bg": "https://images.unsplash.com/photo-1766021736652-f6593f02cc7a?w=1080&h=1920&fit=crop&crop=faces,center&q=80&fm=jpg",
+    "darken": 0.35
+  },
+  "attribution": "",
+  "caption": "7 Claude prompts that make you look 10 years more senior at work #claudeai #aitips #careertok #corporatelife #worksmarter"
+}

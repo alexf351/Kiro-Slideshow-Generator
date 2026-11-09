@@ -87,3 +87,24 @@ In **Score this draft**, "Generate 3 variations" produces distinct hook + captio
 - The **Score over time** sparkline + sort (Newest / Top / Lowest) in Performance.
 - Caption **emoji picker** + live character counter; one-tap **Bold** in Quick Edit.
 - In-app toasts + dialogs (no native popups), and a one-time onboarding you can reopen via the palette.
+
+## Photos in the deck JSON
+
+Any slide object (`hook`, `cta`, or an item in `prompts[]` and the other content arrays) can carry its own background photo and darkening:
+
+```json
+{ "title": "1. Lead With The <strong>Answer</strong>", "prompt": "...", "bg": "https://images.unsplash.com/photo-...?w=1080&h=1920&fit=crop", "darken": 0.5 }
+```
+
+`darken` is 0 to 0.85, a flat black layer so white text stays readable. A darken set in the sidebar's Adjust panel for that photo wins. Set `"hideMascot": true` at the top level so a slide with no photo gets a plain dark background instead of the mascot.
+
+## Ready decks
+
+Finished posts live in the repo's top-level `decks/` folder and show up in the sidebar under **Ready decks**. One tap loads a deck's JSON, caption, format and chat style, with its photos.
+
+- `decks/<slug>.json`: the deck, same JSON as the editor box, plus optional `title` (list name) and `caption`.
+- `decks/<slug>.cover.jpg` (or `.png` / `.webp`): optional cover photo, used as the hook background when the hook has no `bg`.
+- A slide's `bg` can also point at a file in the folder, like `"./office.jpg"`.
+- `hook.position` can be `"top"` or `"bottom"` to move the headline off a cover photo's subject.
+
+The files are bundled at build time, so a new deck appears after the next deploy.
