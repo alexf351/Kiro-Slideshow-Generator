@@ -4434,7 +4434,11 @@ function buildHook(h) {
   const sub = h.sub
     ? `<div class="hook-sub" style="${subEmphasisStyle(h.subEmphasis == null ? 30 : h.subEmphasis)}">${h.sub}</div>`
     : '';
-  return `<div class="body">
+  // Optional `position: "top" | "bottom"` moves the headline out of the
+  // middle, e.g. so a cover photo's subject stays visible.
+  const posStyle = h.position === 'top' ? ' style="justify-content: flex-start;"'
+    : h.position === 'bottom' ? ' style="justify-content: flex-end;"' : '';
+  return `<div class="body"${posStyle}>
     <div class="hook" style="font-size: ${fontSize}px;">${headline}</div>
     ${sub}
   </div>`;

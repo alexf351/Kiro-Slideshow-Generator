@@ -7,7 +7,8 @@
   "hook": {
     "headline": "<strong>7</strong> Claude Prompts<br/>That Make You Look<br/><strong>10 Years</strong> More<br/>Senior At Work",
     "sub": "",
-    "darken": 0.35
+    "darken": 0,
+    "position": "top"
   },
   "prompts": [
     {

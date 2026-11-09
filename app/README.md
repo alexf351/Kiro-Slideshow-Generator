@@ -105,5 +105,6 @@ Finished posts live in the repo's top-level `decks/` folder and show up in the s
 - `decks/<slug>.json`: the deck, same JSON as the editor box, plus optional `title` (list name) and `caption`.
 - `decks/<slug>.cover.jpg` (or `.png` / `.webp`): optional cover photo, used as the hook background when the hook has no `bg`.
 - A slide's `bg` can also point at a file in the folder, like `"./office.jpg"`.
+- `hook.position` can be `"top"` or `"bottom"` to move the headline off a cover photo's subject.
 
 The files are bundled at build time, so a new deck appears after the next deploy.
