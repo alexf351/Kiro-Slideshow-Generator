@@ -149,7 +149,8 @@ export async function handle(req: VercelRequest, res: VercelResponse, fetchImpl:
         if (posts.status < 200 || posts.status >= 300) { relay(res, posts, key); return; }
         const pj = (posts.json || {}) as { data?: unknown; pagination?: unknown };
         const list = Array.isArray(pj.data) ? (pj.data as Record<string, unknown>[]) : [];
-        const ids = list.map((p) => safeId(p.id ?? p.postId)).filter(Boolean);
+        // Fastlane ids are Mongo-style `_id`; keep the other spellings as fallbacks.
+        const ids = list.map((p) => safeId(p._id ?? p.id ?? p.postId)).filter(Boolean);
         let analytics: unknown = [];
         let analyticsError: unknown = null;
         if (ids.length) {

@@ -3,8 +3,9 @@
 // The browser holds just the panel token (FASTLANE_ADMIN_TOKEN or the
 // read-only FASTLANE_READ_TOKEN), like the other keys in Settings.
 //
-// Fastlane's field names aren't fully documented, so the normalizers below
-// read a few likely spellings and fall back gracefully. The panel also has a
+// Fastlane returns Mongo-style `_id`s and epoch-number timestamps; its post
+// analytics only carry views, likes and comments (no saves or shares). The
+// normalizers read those first and keep a few other spellings as fallbacks. The panel also has a
 // "raw JSON" view for anything they miss.
 
 export const PANEL_TOKEN_KEY = 'kiro_fastlane_panel_token';
@@ -29,7 +30,7 @@ export type FlPost = {
   url: string;
   raw: unknown;
 };
-export type FlMetrics = { views?: number; likes?: number; saves?: number; shares?: number; comments?: number };
+export type FlMetrics = { views?: number; likes?: number; saves?: number; shares?: number; comments?: number; notFound?: boolean; url?: string };
 export type FlContent = { id: string; type: string; status: string; title: string; thumbnail: string; createdAt: string; raw: unknown };
 
 export class FastlaneError extends Error {
@@ -56,6 +57,22 @@ function str(o: Obj, keys: string[]): string {
   return '';
 }
 
+// Fastlane timestamps are epoch numbers; accept ms, seconds or ISO strings.
+// Returns an ISO string, or '' when nothing parses.
+function time(o: Obj, keys: string[]): string {
+  for (const k of keys) {
+    const v = o[k];
+    if (typeof v === 'number' && Number.isFinite(v) && v > 0) {
+      return new Date(v < 1e12 ? v * 1000 : v).toISOString();
+    }
+    if (typeof v === 'string' && v.trim()) {
+      const t = /^\d+$/.test(v.trim()) ? Number(v) : Date.parse(v);
+      if (Number.isFinite(t) && t > 0) return new Date(t < 1e12 ? t * 1000 : t).toISOString();
+    }
+  }
+  return '';
+}
+
 function num(o: Obj, keys: string[]): number | undefined {
   for (const k of keys) {
     const v = o[k];
@@ -67,27 +84,27 @@ function num(o: Obj, keys: string[]): number | undefined {
 
 export function normalizeConnection(raw: unknown): FlConnection | null {
   if (!isObj(raw)) return null;
-  const id = str(raw, ['id', 'connectionId', '_id']);
+  const id = str(raw, ['_id', 'id', 'connectionId']);
   if (!id) return null;
   const account = isObj(raw.account) ? raw.account : {};
   return {
     id,
     platform: (str(raw, ['platform', 'provider', 'type', 'network']) || 'unknown').toLowerCase(),
-    name: str(raw, ['username', 'handle', 'displayName', 'name', 'accountName']) || str(account, ['username', 'handle', 'name']) || id,
+    name: str(raw, ['platformUsername', 'username', 'handle', 'displayName', 'name', 'accountName']) || str(account, ['username', 'handle', 'name']) || id,
     raw,
   };
 }
 
 export function normalizePost(raw: unknown): FlPost | null {
   if (!isObj(raw)) return null;
-  const id = str(raw, ['id', 'postId', '_id']);
+  const id = str(raw, ['_id', 'id', 'postId']);
   if (!id) return null;
   return {
     id,
     platform: (str(raw, ['platform', 'provider', 'network']) || 'unknown').toLowerCase(),
     status: (str(raw, ['status', 'state']) || 'unknown').toUpperCase(),
     caption: str(raw, ['caption', 'title', 'description', 'text']),
-    when: str(raw, ['publishedAt', 'postedAt', 'scheduledAt', 'scheduledFor', 'utc_datetime', 'utcDatetime', 'createdAt']),
+    when: time(raw, ['postedAt', 'publishedAt', 'scheduledAt', 'scheduledFor', 'utc_datetime', 'utcDatetime', 'createdAt']),
     contentId: str(raw, ['contentId', 'content_id']),
     url: str(raw, ['url', 'postUrl', 'permalink', 'shareUrl']),
     raw,
@@ -96,7 +113,7 @@ export function normalizePost(raw: unknown): FlPost | null {
 
 export function normalizeContent(raw: unknown): FlContent | null {
   if (!isObj(raw)) return null;
-  const id = str(raw, ['id', 'contentId', '_id']);
+  const id = str(raw, ['_id', 'id', 'contentId']);
   if (!id) return null;
   const files = Array.isArray(raw.files) ? raw.files : [];
   const firstFile = files.find((f) => typeof f === 'string' || isObj(f));
@@ -107,12 +124,12 @@ export function normalizeContent(raw: unknown): FlContent | null {
     status: (str(raw, ['status', 'state']) || 'unknown').toUpperCase(),
     title: str(raw, ['title', 'hook', 'suggestion', 'caption', 'text', 'name']),
     thumbnail: str(raw, ['thumbnail', 'thumbnailUrl', 'coverUrl', 'previewUrl']) || fileUrl,
-    createdAt: str(raw, ['createdAt', 'updatedAt']),
+    createdAt: time(raw, ['createdAt', 'updatedAt']),
     raw,
   };
 }
 
-const METRIC_KEYS: Record<keyof FlMetrics, string[]> = {
+const METRIC_KEYS: Record<'views' | 'likes' | 'saves' | 'shares' | 'comments', string[]> = {
   views: ['views', 'viewCount', 'view_count', 'plays', 'playCount', 'impressions'],
   likes: ['likes', 'likeCount', 'like_count', 'hearts', 'diggCount'],
   saves: ['saves', 'saveCount', 'save_count', 'bookmarks', 'collectCount', 'favorites'],
@@ -124,12 +141,15 @@ function metricsFrom(o: Obj): FlMetrics {
   const pools = [o, isObj(o.metrics) ? o.metrics : null, isObj(o.stats) ? o.stats : null, isObj(o.analytics) ? o.analytics : null]
     .filter(Boolean) as Obj[];
   const m: FlMetrics = {};
-  for (const k of Object.keys(METRIC_KEYS) as (keyof FlMetrics)[]) {
+  for (const k of Object.keys(METRIC_KEYS) as (keyof typeof METRIC_KEYS)[]) {
     for (const p of pools) {
       const v = num(p, METRIC_KEYS[k]);
       if (v !== undefined) { m[k] = v; break; }
     }
   }
+  if (o.notFound === true) m.notFound = true;
+  const url = str(o, ['postUrl', 'url', 'permalink']);
+  if (url) m.url = url;
   return m;
 }
 
@@ -141,7 +161,7 @@ export function normalizeAnalytics(raw: unknown): Record<string, FlMetrics> {
   if (Array.isArray(data)) {
     for (const row of data) {
       if (!isObj(row)) continue;
-      const id = str(row, ['postId', 'id', 'post_id']);
+      const id = str(row, ['_id', 'postId', 'id', 'post_id']);
       if (id) out[id] = metricsFrom(row);
     }
   } else if (isObj(data)) {
