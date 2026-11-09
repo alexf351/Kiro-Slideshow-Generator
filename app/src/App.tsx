@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import engineHtml from '../../kiro_slideshow_engine_v3.html?raw';
+import { applyDeckDarken } from './deckPhotos';
 import Library from './Library';
 import Analytics from './Analytics';
 import Patterns from './Patterns';
@@ -1209,7 +1210,9 @@ export default function App() {
       );
     }
 
-    slides.bgAdjust = bgAdjust;
+    // A deck can carry its own per-slide `darken` next to each `bg` photo;
+    // honour it unless the Adjust panel already set that photo.
+    slides.bgAdjust = applyDeckDarken(slides, contentArrays.map((c) => c.field), bgAdjust);
     iframe.contentWindow.postMessage({ type: 'render', slides, design: designPayload(design) }, '*');
     engineReadyRef.current = true;
     // On a user-initiated render, jump to the preview so they see the result

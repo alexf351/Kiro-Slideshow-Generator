@@ -4331,7 +4331,9 @@ function render() {
       }
       bgLayer = `<div class="bg-photo" style="background-image: url('${safeBg}');${bgExtra}"></div>
                  <div class="bg-photo-scrim"></div>${darkenLayer}`;
-    } else if (preset.fallbackBg === 'mascot') {
+    } else if (preset.fallbackBg === 'mascot' && !SLIDES.hideMascot) {
+      // `hideMascot: true` in the deck drops the mascot fallback, so a slide
+      // with no photo gets the plain dark background below instead.
       const mascotKey = SLIDES.mascot || 'platinum';
       const mascotUrl = MASCOTS[mascotKey] || MASCOTS.platinum;
       bgLayer = `<div class="bg-mascot" style="background-image: url('${mascotUrl}')"></div>

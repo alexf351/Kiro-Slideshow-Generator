@@ -131,6 +131,24 @@ const eq = (n, a, b) => ok(n + ` (got ${JSON.stringify(a)})`, JSON.stringify(a) 
     { provider: 'pixabay', photographer: 'Ana' },
   ]), '📸 Photos: Ana (Pixabay)');
 }
+// ---- deckPhotos.applyDeckDarken ----
+{
+  const { applyDeckDarken } = await load('deckPhotos.ts');
+  const deck = {
+    hook: { headline: 'h', bg: 'https://x/h.jpg', darken: 0.45 },
+    prompts: [{ title: 'a', bg: 'https://x/a.jpg', darken: 2 }, { title: 'b', bg: 'https://x/b.jpg' }, { title: 'c', darken: 0.5 }],
+    cta: { headline: 'c', bg: 'https://x/c.jpg', darken: '0.3' },
+  };
+  const adj = applyDeckDarken(deck, ['prompts'], {});
+  eq('darken hook', adj['https://x/h.jpg'], { pos: '50% 50%', zoom: 1, darken: 0.45 });
+  eq('darken capped', adj['https://x/a.jpg'].darken, 0.85);
+  ok('no darken field skipped', !adj['https://x/b.jpg']);
+  eq('darken numeric string', adj['https://x/c.jpg'].darken, 0.3);
+  eq('only photos with darken', Object.keys(adj).length, 3);
+  const panel = { 'https://x/h.jpg': { pos: '20% 40%', zoom: 1.2, darken: 0.1 } };
+  eq('adjust panel wins', applyDeckDarken(deck, ['prompts'], panel)['https://x/h.jpg'], panel['https://x/h.jpg']);
+  eq('empty deck', applyDeckDarken({}, ['prompts'], {}), {});
+}
 // ---- zip ----
 {
   const { crc32, dataUrlToBytes } = await load('zip.ts');
