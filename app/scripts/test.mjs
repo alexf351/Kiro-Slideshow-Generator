@@ -657,5 +657,75 @@ const eq = (n, a, b) => ok(n + ` (got ${JSON.stringify(a)})`, JSON.stringify(a) 
   ok('gen missing sume key 503', nk.status === 503 && nk.payload.error.code === 'missing_sume_key');
 }
 
+// ---- remixWinner ----
+{
+  const { rankWinners, engagementScore, findWinnerDeck, tiktokId, remixDeck, remapIndexedKeys, remixSlug, readyDeckFile, IRO_HEADLINE } = await load('remixWinner.ts');
+  const now = Date.parse('2026-11-09T17:00:00Z');
+  const day = 86400000;
+  const post = (id, daysAgo, caption = id, status = 'POSTED', url = '') => ({ id, platform: 'tiktok', status, caption, when: new Date(now - daysAgo * day).toISOString(), contentId: '', url, raw: null });
+  const posts = [post('a', 1), post('b', 2), post('c', 3), post('old', 9), post('sched', -1, 'x', 'SCHEDULED'), post('tiny', 1)];
+  const metrics = {
+    a: { views: 10000, likes: 400, comments: 20 },  // 4.4%
+    b: { views: 2000, likes: 150, comments: 10 },   // 8.5%  <- winner
+    c: { views: 50000, likes: 1000, comments: 50 }, // 2.2%
+    old: { views: 900, likes: 500, comments: 0 },   // outside the window
+    tiny: { views: 40, likes: 30, comments: 5 },    // under the floor
+  };
+  const r = rankWinners(posts, metrics, { now });
+  eq('remix rank order', r.ranked.map((x) => x.post.id), ['b', 'a', 'c']);
+  ok('remix basis engagement', r.basis === 'engagement' && r.considered === 4 && r.belowFloor === 1);
+  ok('remix score comments x2', Math.abs(engagementScore({ views: 100, likes: 2, comments: 1 }) - 0.04) < 1e-9);
+  const low = rankWinners([post('p', 1), post('q', 2)], { p: { views: 100, likes: 50 }, q: { views: 300, likes: 3 } }, { now });
+  ok('remix falls back to views under floor', low.basis === 'views' && low.ranked[0].post.id === 'q');
+  ok('remix skips notFound', rankWinners([post('n', 1)], { n: { views: 9000, notFound: true } }, { now }).ranked.length === 0);
+
+  eq('tiktok id', tiktokId('https://www.tiktok.com/@tryiro/photo/7571234567890123456?lang=en'), '7571234567890123456');
+  const srcs = [
+    { kind: 'ready', name: 'R', caption: '7 Claude prompts that make you look senior #ai', json: '{}' },
+    { kind: 'draft', name: 'D', caption: '7 Claude prompts that make you look senior #work', json: '{}' },
+    { kind: 'history', name: 'H', caption: 'something else', json: '{}', url: 'https://www.tiktok.com/@x/video/1234567890123' },
+  ];
+  ok('match by link', findWinnerDeck({ caption: 'zzz', url: 'https://tiktok.com/@x/video/1234567890123' }, srcs)?.source.name === 'H');
+  const cm = findWinnerDeck({ caption: '7 Claude prompts that make you look senior #claudeai' }, srcs);
+  ok('match by caption, draft wins tie', cm?.how === 'caption' && cm.source.name === 'D');
+  ok('no match', findWinnerDeck({ caption: 'totally unrelated words here' }, srcs) === null);
+
+  // prompt_pack: the closing CTA is the Iro slide -> ctaAt
+  const pp = { preset: 'prompt_pack', hook: { headline: 'h' }, prompts: [1, 2, 3, 4, 5].map((i) => ({ title: `${i}`, prompt: 'p', bg: `img${i}` })), cta: { headline: 'old', searchTerm: 'Iro AI', bg: 'ctaimg' } };
+  const r1 = remixDeck(JSON.stringify(pp), 3);
+  const d1 = r1.ok && JSON.parse(r1.json);
+  ok('remix cta -> ctaAt 3', r1.ok && r1.how === 'moved-cta' && d1.ctaAt === 3 && r1.slot === 3 && r1.total === 7);
+  ok('remix cta headline swapped, photo kept', d1.cta.headline === IRO_HEADLINE && d1.cta.bg === 'ctaimg' && d1.prompts[0].bg === 'img1');
+  const r1b = remixDeck(JSON.stringify(pp), 4);
+  ok('remix slot 4', r1b.ok && JSON.parse(r1b.json).ctaAt === 4);
+  const short = { preset: 'prompt_pack', hook: { headline: 'h' }, prompts: [{ title: '1' }], cta: { headline: 'x' } };
+  const r2 = remixDeck(JSON.stringify(short), 4);
+  ok('remix never last on a short deck', r2.ok && r2.slot === 2 && r2.total === 3);
+  ok('remix too short fails', !remixDeck(JSON.stringify({ preset: 'prompt_pack', prompts: [{ title: '1' }], cta: { headline: 'x' } }), 3).ok);
+  ok('remix bad json fails', !remixDeck('{nope', 3).ok);
+  ok('remix const wrapper ok', remixDeck('const SLIDES = ' + JSON.stringify(pp) + ';', 3).ok);
+
+  // skill_list: the app card is the Iro slide -> moved in the list
+  const sk = { preset: 'skill_list', hook: { headline: ['10/10'] }, skills: [{ headline: ['a'] }, { headline: ['b'] }, { headline: ['c'] }, { headline: ['d'] }, { headline: ['Make', 'AI', 'work'], app: { name: 'Iro AI: Learn AI Skills' } }], cta: { headline: 'learn on Iro', body: 'x' } };
+  const r3 = remixDeck(JSON.stringify(sk), 3);
+  const d3 = r3.ok && JSON.parse(r3.json);
+  ok('remix skill app moved to slide 3', r3.ok && r3.how === 'moved-item' && d3.skills[1].app && r3.slot === 3);
+  ok('remix skill drops Iro outro', r3.ok && !d3.cta && r3.total === 6 && r3.move.from === 4 && r3.move.to === 1);
+  eq('remix skill headline', d3.skills[1].headline, ['How to', 'make money', 'with AI']);
+
+  // app_stack: no CTA, Iro is one of the apps
+  const as = { preset: 'app_stack', hook: { headline: 'apps' }, apps: [{ name: 'Iro AI' }, { name: 'x' }, { name: 'y' }, { name: 'z' }] };
+  const r4 = remixDeck(JSON.stringify(as), 4);
+  ok('remix app_stack Iro to slide 4', r4.ok && JSON.parse(r4.json).apps[2].name === 'Iro AI' && r4.slot === 4);
+  ok('remix no Iro slide fails', !remixDeck(JSON.stringify({ preset: 'app_stack', apps: [{ name: 'x' }, { name: 'y' }, { name: 'z' }] }), 3).ok);
+
+  eq('remap keys forward', remapIndexedKeys({ hook: 'h', 'skill:4': 'iro', 'skill:1': 'b', 'skill-shot:4:2': 's', cta: 'c' }, 4, 1),
+    { hook: 'h', 'skill:1': 'iro', 'skill:2': 'b', 'skill-shot:1:2': 's', cta: 'c' });
+  eq('remap keys back', remapIndexedKeys({ 'app:0': 'iro', 'app:2': 'y' }, 0, 2), { 'app:2': 'iro', 'app:1': 'y' });
+  ok('remix slug', /^\d{4}-\d{2}-\d{2}-remix-7-claude-prompts$/.test(remixSlug('7 Claude <strong>Prompts</strong>!')));
+  const rf = JSON.parse(readyDeckFile(r1.json, 'T', 'cap'));
+  ok('ready deck file', rf.title === 'T' && rf.caption === 'cap' && rf.ctaAt === 3);
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

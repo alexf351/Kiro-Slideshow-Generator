@@ -108,3 +108,13 @@ Finished posts live in the repo's top-level `decks/` folder and show up in the s
 - `hook.position` can be `"top"` or `"bottom"` to move the headline off a cover photo's subject.
 
 The files are bundled at build time, so a new deck appears after the next deploy.
+
+## Remix the winner
+
+In the **Fastlane** panel, **Remix the winner** ranks your last 7 days of posted slideshows and loads a remix of the best one.
+
+- **Ranking:** Fastlane reports views, likes and comments (no saves or shares), so each post scores `(likes + 2 × comments) / views`. Posts under 500 views are skipped as too noisy; if none reach 500, it ranks by views instead.
+- **Finding the deck:** it matches the winning post to a deck in this browser by its TikTok link, then by the caption's first line: post history, drafts (with their sidebar photos), then Ready decks. If nothing matches, it offers Clone from TikTok with the post's link.
+- **The remix:** same slides and photos, with the Iro slide moved to slide 3 or 4 (your pick, never last) and its headline set to "How to make money with AI". It loads into the editor and saves to Drafts as "Remix · …". **Download as a Ready deck file** gives a `decks/<slug>.json` to commit.
+
+Under the hood the deck gets a top-level `"ctaAt": 3` (or 4), which tells the engine to render the closing CTA slide at that position instead of last. In formats with no closing CTA (App Stack, Tool Ranks, App Rating) and in 10/10 Skills, the Iro item in the list is moved instead.

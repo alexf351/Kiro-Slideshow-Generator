@@ -4268,6 +4268,9 @@ const PRESETS = {
   },
 };
 
+// Formats whose build has no closing CTA slide (the Iro slide is a list item).
+const NO_CTA_PRESETS = new Set(['app_stack', 'tool_ranks', 'app_rating']);
+
 function render() {
   // Any cached files from a previous "tap again to save" reflect the OLD
   // slides; invalidate now so the next save tap captures fresh.
@@ -4278,10 +4281,24 @@ function render() {
   const preset = PRESETS[presetKey];
   const slides = preset.buildSlides(SLIDES);
 
+  // Optional `ctaAt` (1-based): move the closing Iro CTA slide into the
+  // middle of the deck, e.g. 3 or 4, so the deck doesn't end on the pitch.
+  // Only for formats whose build ends on the CTA, and never onto the last
+  // slot or the cover. Without `ctaAt` nothing changes.
+  let ctaIndex = slides.length - 1;
+  const ctaAt = Math.floor(Number(SLIDES.ctaAt));
+  if (SLIDES.cta && typeof SLIDES.cta === 'object' && !NO_CTA_PRESETS.has(presetKey)
+      && Number.isFinite(ctaAt) && ctaAt >= 2 && ctaAt <= slides.length - 1) {
+    const [ctaSlide] = slides.splice(slides.length - 1, 1);
+    slides.splice(ctaAt - 1, 0, ctaSlide);
+    ctaIndex = ctaAt - 1;
+  }
+
   const total = slides.length;
   slides.forEach(({ html: slideHTML, bg }, i) => {
     const slide = document.createElement('div');
-    const isCTA = i === total - 1;
+    const isCTA = i === ctaIndex;
+    const isLast = i === total - 1;
     const cls = ['slide'];
     if (preset.slideClass) cls.push(preset.slideClass);
     if (isCTA) cls.push('slide-cta');
@@ -4353,7 +4370,7 @@ function render() {
       : '';
     // Opt-in "swipe →" cue on every slide except the last — a known
     // completion-rate booster on TikTok carousels. Part of the exported PNG.
-    const swipeHtml = (SLIDES.swipeHint && !isCTA)
+    const swipeHtml = (SLIDES.swipeHint && !isLast)
       ? '<div class="swipe-hint"><span>swipe</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg></div>'
       : '';
     slide.innerHTML = `

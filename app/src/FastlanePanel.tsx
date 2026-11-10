@@ -24,6 +24,30 @@ import {
   type FlMetrics,
   type FlPost,
 } from './fastlane';
+import {
+  MIN_VIEWS,
+  WINDOW_DAYS,
+  findWinnerDeck,
+  pct,
+  rankWinners,
+  readyDeckFile,
+  remixDeck,
+  remixSlug,
+  type DeckMatch,
+  type DeckSource,
+  type RankedPost,
+  type Ranking,
+  type RemixResult,
+} from './remixWinner';
+
+export type RemixLoad = {
+  name: string;
+  json: string;
+  caption: string;
+  preset: string;
+  source: DeckSource;
+  remix: Extract<RemixResult, { ok: true }>;
+};
 
 const PLATFORM_LABEL: Record<string, string> = { tiktok: 'TikTok', instagram: 'Instagram', youtube: 'YouTube', reddit: 'Reddit' };
 const SCHEDULE_PLATFORMS = ['tiktok', 'instagram', 'youtube'];
@@ -52,7 +76,24 @@ const btnAccent = btn + ' border-[#FF7A1A]/30 bg-[#FF7A1A]/15 text-[#FF9A4D] hov
 const field = 'bg-[#070b18] border border-white/[0.10] rounded-md px-3 py-2 text-sm text-gray-200 focus:border-[#FF7A1A]/40 focus:outline-none';
 const cap = 'text-[10px] font-bold uppercase tracking-[0.16em] text-gray-500';
 
-export default function FastlanePanel({ defaultCaption }: { defaultCaption: string }) {
+type Props = {
+  defaultCaption: string;
+  // Remix the winner: where to look for the winning post's deck in this
+  // browser, what to do with the remix, and the Clone-from-TikTok fallback.
+  getDeckSources?: () => Promise<DeckSource[]>;
+  onRemix?: (r: RemixLoad) => Promise<boolean>;
+  onCloneUrl?: (url: string) => void;
+};
+
+type RemixState = {
+  ranking: Ranking;
+  pickedId: string;
+  match: DeckMatch | null;
+  result: RemixResult | null;
+  loaded: RemixLoad | null;
+};
+
+export default function FastlanePanel({ defaultCaption, getDeckSources, onRemix, onCloneUrl }: Props) {
   const ui = useUI();
   const [token, setToken] = useState<string>(() => {
     try { return localStorage.getItem(PANEL_TOKEN_KEY) || ''; } catch { return ''; }
@@ -69,6 +110,10 @@ export default function FastlanePanel({ defaultCaption }: { defaultCaption: stri
   const [metricsNote, setMetricsNote] = useState('');
   const [rawStats, setRawStats] = useState<unknown>(null);
   const [content, setContent] = useState<FlContent[] | null>(null);
+
+  // remix the winner
+  const [remixSlot, setRemixSlot] = useState<3 | 4>(3);
+  const [remix, setRemix] = useState<RemixState | null>(null);
 
   // schedule form
   const [contentId, setContentId] = useState('');
@@ -124,6 +169,59 @@ export default function FastlanePanel({ defaultCaption }: { defaultCaption: stri
       setMetrics(normalizeAnalytics(s.data.analytics));
       setMetricsNote(s.data.analyticsError ? `Metrics unavailable: ${s.data.analyticsError.message || 'unknown error'}` : '');
     });
+  }
+
+  // Rank the last 7 days of posts, find the top one's deck in this browser
+  // and load a remix of it with the Iro slide at slide 3 or 4. `pickId`
+  // remixes a runner-up instead of re-ranking.
+  async function remixTheWinner(pickId?: string) {
+    if (!getDeckSources || !onRemix) return;
+    await run(pickId ? 'Building the remix…' : 'Ranking last week’s posts…', async () => {
+      let ranking = remix?.ranking;
+      if (!pickId || !ranking) {
+        const s = await fastlaneCall<{ data: { posts: unknown[]; analytics: unknown; analyticsError: { message?: string } | null } }>('stats', token, { query: { limit: 50 } });
+        if (s.data.analyticsError) throw new Error(`Fastlane didn't return post stats: ${s.data.analyticsError.message || 'unknown error'}`);
+        const ps = (s.data.posts || []).map(normalizePost).filter(Boolean) as FlPost[];
+        ranking = rankWinners(ps, normalizeAnalytics(s.data.analytics));
+      }
+      const pick: RankedPost | undefined = pickId ? ranking.ranked.find((r) => r.post.id === pickId) : ranking.ranked[0];
+      if (!pick) {
+        setRemix({ ranking, pickedId: '', match: null, result: null, loaded: null });
+        return;
+      }
+      const match = findWinnerDeck({ caption: pick.post.caption, url: pick.post.url }, await getDeckSources());
+      if (!match) {
+        setRemix({ ranking, pickedId: pick.post.id, match: null, result: null, loaded: null });
+        return;
+      }
+      const result = remixDeck(match.source.json, remixSlot);
+      let loaded: RemixLoad | null = null;
+      if (result.ok) {
+        const parsed = JSON.parse(result.json) as { preset?: string };
+        const load: RemixLoad = {
+          name: `Remix · ${match.source.name}`.slice(0, 60),
+          json: result.json,
+          caption: match.source.caption || pick.post.caption,
+          preset: parsed.preset || match.source.preset || '',
+          source: match.source,
+          remix: result,
+        };
+        if (await onRemix(load)) loaded = load;
+      }
+      setRemix({ ranking, pickedId: pick.post.id, match, result, loaded });
+    });
+  }
+
+  // The remix as a decks/<slug>.json file: commit it to the repo's decks/
+  // folder and it shows up under Ready decks for one-tap loading.
+  function downloadReadyDeck(l: RemixLoad) {
+    const slug = remixSlug(l.source.name);
+    const blob = new Blob([readyDeckFile(l.json, l.name, l.caption)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `${slug}.json`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   }
 
   async function loadContent() {
@@ -329,6 +427,108 @@ export default function FastlanePanel({ defaultCaption }: { defaultCaption: stri
                   <pre className="mt-1 max-h-60 overflow-auto whitespace-pre-wrap break-all bg-black/30 rounded-md p-2">{JSON.stringify(rawStats, null, 2)}</pre>
                 </details>
               )}
+            </div>
+          )}
+
+          {getDeckSources && onRemix && (
+            <div className="p-3 rounded-xl border border-[#FF7A1A]/20 bg-[#FF7A1A]/[0.04] flex flex-col gap-2.5">
+              <span className={cap}>Remix the winner</span>
+              <span className="text-[10px] text-gray-500 leading-relaxed">
+                Ranks your last {WINDOW_DAYS} days of posts by (likes + 2×comments) per view, skipping posts under {MIN_VIEWS} views,
+                then loads the top post’s deck with the Iro slide moved to slide {remixSlot} and saves it to Drafts.
+              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] text-gray-500">Iro slide at</span>
+                {([3, 4] as const).map((n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    onClick={() => setRemixSlot(n)}
+                    className={`px-2.5 py-1 rounded-md text-[11px] font-bold border ${remixSlot === n ? 'border-[#FF7A1A]/50 bg-[#FF7A1A]/20 text-[#FF9A4D]' : 'border-white/10 bg-white/[0.03] text-gray-400'}`}
+                  >
+                    slide {n}
+                  </button>
+                ))}
+              </div>
+              <button type="button" onClick={() => void remixTheWinner()} disabled={!!busy} className={btnAccent}>
+                Remix the winner
+              </button>
+
+              {remix && (() => {
+                const { ranking, pickedId, match, result, loaded } = remix;
+                const picked = ranking.ranked.find((r) => r.post.id === pickedId);
+                if (!ranking.ranked.length) {
+                  return (
+                    <div className="text-[11px] text-gray-400 leading-relaxed">
+                      No posted slideshows with stats in the last {WINDOW_DAYS} days. New posts can take a while to sync in Fastlane.
+                    </div>
+                  );
+                }
+                const others = ranking.ranked.filter((r) => r.post.id !== pickedId).slice(0, 2);
+                const href = picked ? safeHref(picked.post.url) : '';
+                return (
+                  <div className="flex flex-col gap-2">
+                    {ranking.basis === 'views' && (
+                      <span className="text-[10px] text-[#FFD98A] leading-relaxed">
+                        No post this week reached {MIN_VIEWS} views, so this ranks by views instead of engagement.
+                      </span>
+                    )}
+                    {picked && (
+                      <div className="p-2.5 rounded-lg border border-[#FF7A1A]/30 bg-black/20 flex flex-col gap-1">
+                        <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.1em]">
+                          <span className="font-bold text-[#FF9A4D]">{picked === ranking.ranked[0] ? 'Winner' : 'Picked'}</span>
+                          <span className="text-gray-400 normal-case tracking-normal">
+                            {pct(picked.score)} engagement · {compactNumber(picked.views)} views · {compactNumber(picked.likes)} likes · {compactNumber(picked.comments)} comments
+                          </span>
+                          {href && <a href={href} target="_blank" rel="noreferrer noopener" className="ml-auto text-[#00E5FF] normal-case tracking-normal">open ↗</a>}
+                        </div>
+                        {picked.post.caption && <div className="text-[12px] text-gray-300 truncate" title={picked.post.caption}>{picked.post.caption}</div>}
+                      </div>
+                    )}
+                    {picked && !match && (
+                      <div className="text-[11px] text-[#FFD98A] leading-relaxed flex flex-col gap-1.5">
+                        <span>Couldn’t find this post’s deck in this browser (post history, drafts or Ready decks), so there’s nothing to remix yet.</span>
+                        {onCloneUrl && href && (
+                          <button type="button" onClick={() => onCloneUrl(href)} className={btnGhost}>Clone it from TikTok instead</button>
+                        )}
+                      </div>
+                    )}
+                    {match && result && !result.ok && (
+                      <div className="text-[11px] text-red-400 leading-relaxed">Found its deck ({match.source.name}) but couldn’t remix it: {result.reason}</div>
+                    )}
+                    {match && result?.ok && !loaded && (
+                      <div className="text-[11px] text-gray-400">Remix not loaded, your current edits are untouched.</div>
+                    )}
+                    {loaded && (
+                      <div className="text-[11px] text-[#22C55E] leading-relaxed flex flex-col gap-1">
+                        <span>
+                          Loaded “{loaded.name}” from your {loaded.source.kind === 'history' ? 'post history' : loaded.source.kind === 'draft' ? 'drafts' : 'Ready decks'}
+                          {match?.how === 'link' ? ' (matched by TikTok link)' : ' (matched by caption)'}.
+                          The Iro slide is slide {loaded.remix.slot} of {loaded.remix.total}. Saved to Drafts.
+                        </span>
+                        {loaded.remix.notes.map((n) => <span key={n} className="text-[#FFD98A]">{n}</span>)}
+                        <button type="button" onClick={() => downloadReadyDeck(loaded)} className="self-start text-[10px] font-bold uppercase tracking-[0.12em] text-gray-500 hover:text-[#FF9A4D]">
+                          Download as a Ready deck file
+                        </button>
+                      </div>
+                    )}
+                    {others.length > 0 && (
+                      <div className="flex flex-col gap-1">
+                        <span className="text-[10px] text-gray-600">Runners-up</span>
+                        {others.map((r) => (
+                          <div key={r.post.id} className="flex items-center gap-2 text-[11px] text-gray-400">
+                            <span className="truncate flex-1 min-w-0" title={r.post.caption}>{r.post.caption || '(no caption)'}</span>
+                            <span className="shrink-0 text-gray-500">{pct(r.score)} · {compactNumber(r.views)}</span>
+                            <button type="button" onClick={() => void remixTheWinner(r.post.id)} disabled={!!busy} className="shrink-0 text-[10px] font-bold uppercase tracking-[0.12em] text-gray-500 hover:text-[#FF9A4D]">
+                              Remix
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           )}
 
