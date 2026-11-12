@@ -3393,6 +3393,73 @@
     font-family: 'Inter', sans-serif; font-size: 30px; font-weight: 500;
     color: #A2A2A2;
   }
+  /* ============================================================
+     PRESET: habit_list — the "6 habits to stop wasting your life"
+     photo carousel. White page, plain black Inter text, left-aligned.
+     Cover = title, one big square photo, a small parenthetical sub.
+     Each habit = "1.Title" heading, then a photo and a short body
+     side by side (photo side alternates). A habit can show a tall
+     phone screenshot instead of a square photo (`shape: "phone"`),
+     which is how the Iro habit sits in the list like any other.
+     Padding keeps every line inside TikTok's safe zone: clear of the
+     search bar (top), the button column (right) and the caption
+     (bottom).
+     ============================================================ */
+  .preset-habit-list .bg-photo-scrim { display: none; }
+  .preset-habit-list .bg-solid { background: var(--hl-paper, #FFFFFF); }
+  .preset-habit-list .frame {
+    padding: 300px 150px 460px 96px;
+    display: flex; flex-direction: column; justify-content: center;
+    align-items: stretch; overflow: hidden;
+  }
+  .preset-habit-list .hl-wrap { width: 100%; transform-origin: left center; }
+  .preset-habit-list .hl-title {
+    font-family: 'Inter', sans-serif; font-weight: 400; color: #0B0B0B;
+    font-size: calc(var(--hl-k, 1) * 88px); line-height: 1.12; letter-spacing: -0.015em;
+    margin: 0 0 calc(var(--hl-k, 1) * 48px) 0;
+  }
+  .preset-habit-list .hl-cover-photo {
+    width: calc(var(--hl-k, 1) * 620px); height: calc(var(--hl-k, 1) * 620px); max-width: 100%;
+    background-color: #E9E9E9; background-size: cover; background-position: center;
+  }
+  .preset-habit-list .hl-sub {
+    font-family: 'Inter', sans-serif; font-weight: 400; color: #0B0B0B;
+    font-size: calc(var(--hl-k, 1) * 40px); line-height: 1.3; margin-top: calc(var(--hl-k, 1) * 40px);
+  }
+  .preset-habit-list .hl-head {
+    font-family: 'Inter', sans-serif; font-weight: 400; color: #0B0B0B;
+    font-size: calc(var(--hl-k, 1) * 64px); line-height: 1.14; letter-spacing: -0.012em;
+    margin: 0 0 calc(var(--hl-k, 1) * 44px) 0;
+  }
+  .preset-habit-list .hl-row {
+    display: flex; flex-direction: row; align-items: flex-start; gap: calc(var(--hl-k, 1) * 40px);
+  }
+  .preset-habit-list .hl-row.photo-left { flex-direction: row; }
+  .preset-habit-list .hl-row.photo-right { flex-direction: row-reverse; }
+  .preset-habit-list .hl-photo {
+    flex: 0 0 auto; width: calc(var(--hl-k, 1) * 400px); height: calc(var(--hl-k, 1) * 400px);
+    background-color: #E9E9E9; background-size: cover; background-position: center;
+  }
+  .preset-habit-list .hl-photo.phone {
+    width: calc(var(--hl-k, 1) * 320px); height: calc(var(--hl-k, 1) * 616px); border-radius: calc(var(--hl-k, 1) * 26px);
+    background-position: center top;
+  }
+  .preset-habit-list .hl-body {
+    flex: 1 1 auto; min-width: 0;
+    font-family: 'Inter', sans-serif; font-weight: 400; color: #0B0B0B;
+    font-size: calc(var(--hl-k, 1) * 40px); line-height: 1.4;
+  }
+  .preset-habit-list .hl-body p { margin: 0 0 calc(var(--hl-k, 1) * 22px) 0; }
+  .preset-habit-list .hl-body p:last-child { margin-bottom: 0; }
+  /* Optional closing slide */
+  .preset-habit-list .hl-outro-head {
+    font-family: 'Inter', sans-serif; font-weight: 400; color: #0B0B0B;
+    font-size: calc(var(--hl-k, 1) * 72px); line-height: 1.15; letter-spacing: -0.015em;
+  }
+  .preset-habit-list .hl-outro-body {
+    font-family: 'Inter', sans-serif; font-weight: 400; color: #0B0B0B;
+    font-size: calc(var(--hl-k, 1) * 40px); line-height: 1.4; margin-top: calc(var(--hl-k, 1) * 36px);
+  }
 </style>
 </head>
 <body>
@@ -4266,6 +4333,26 @@ const PRESETS = {
       return out;
     },
   },
+  habit_list: {
+    label: 'Habit List',
+    slideClass: 'preset-habit-list',
+    // TikTok draws its own "n / total" pill on photo carousels.
+    showCounter: false,
+    fallbackBg: 'photo',
+    buildSlides(S) {
+      const out = [];
+      // The page stays plain paper; each item's `bg` (from the picker) is
+      // the inline photo, not a full-bleed background.
+      const p = typeof S.paper === 'string' && S.paper ? S.paper : '#FFFFFF';
+      const paper = `linear-gradient(${p}, ${p})`;
+      if (S.hook) out.push({ html: buildHabitCover(S.hook), bg: paper });
+      (S.habits || []).forEach((it, i) => {
+        out.push({ html: buildHabitSlide(it, i), bg: paper });
+      });
+      if (S.cta) out.push({ html: buildHabitOutro(S.cta), bg: paper });
+      return out;
+    },
+  },
 };
 
 // Formats whose build has no closing CTA slide (the Iro slide is a list item).
@@ -4391,6 +4478,10 @@ function render() {
   if (typeof initAppDrag === 'function') initAppDrag();
   if (typeof initCuratedDrag === 'function') initCuratedDrag();
   if (typeof fitToolNames === 'function') fitToolNames();
+  if (typeof fitHabitBlocks === 'function' && presetKey === 'habit_list') {
+    fitHabitBlocks();
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitHabitBlocks, function () {});
+  }
   if (typeof fitSkillHeads === 'function') {
     fitSkillHeads();
     // Re-fit once Anton has decoded: measuring against the fallback face
@@ -6339,6 +6430,74 @@ function fitSkillHeads() {
         var s = parseFloat(el.style.fontSize) || 180;
         el.style.fontSize = Math.max(36, Math.floor(s * ratio)) + 'px';
       });
+    }
+  });
+}
+
+// ============================================================
+// PRESET: habit_list — "6 habits to stop wasting your life" carousel.
+// Data: { hook: {title, sub, bg}, habits: [{title, body, bg, side, shape,
+// number}], cta? }. `bg` is the inline photo. `side` is "left" or "right"
+// (default alternates, starting right). `shape: "phone"` shows a tall
+// rounded screenshot instead of a square photo.
+// ============================================================
+function hlPhoto(url, cls) {
+  const style = url ? ` style="background-image:url('${skUrl(url)}')"` : '';
+  return `<div class="${cls}"${style}></div>`;
+}
+
+// Body: a string (blank lines split paragraphs) or an array of paragraphs.
+function hlBody(b) {
+  const parts = Array.isArray(b)
+    ? b.map((x) => String(x == null ? '' : x))
+    : String(b || '').split(/\n\s*\n/);
+  return parts.filter((x) => x.trim() !== '').map((x) => `<p>${x}</p>`).join('');
+}
+
+function buildHabitCover(h) {
+  if (!h) return '';
+  const title = h.title || h.headline || '';
+  const photo = h.bg || h.photo || '';
+  const sub = h.sub ? `<div class="hl-sub">${h.sub}</div>` : '';
+  return `<div class="hl-wrap"><div class="hl-title">${title}</div>` +
+    `${hlPhoto(photo, 'hl-cover-photo')}${sub}</div>`;
+}
+
+function buildHabitSlide(item, idx) {
+  if (!item) return '';
+  const n = item.number != null ? item.number : idx + 1;
+  const head = `<div class="hl-head">${n}.${item.title || item.headline || ''}</div>`;
+  const side = item.side === 'left' || item.side === 'right'
+    ? item.side
+    : (idx % 2 === 0 ? 'right' : 'left');
+  const photoUrl = item.bg || item.photo || '';
+  const shape = item.shape === 'phone' ? ' phone' : '';
+  const photo = (photoUrl || item.photo !== false) ? hlPhoto(photoUrl, `hl-photo${shape}`) : '';
+  const body = `<div class="hl-body">${hlBody(item.body)}</div>`;
+  return `<div class="hl-wrap">${head}<div class="hl-row photo-${side}">${photo}${body}</div></div>`;
+}
+
+function buildHabitOutro(c) {
+  if (!c) return '';
+  const head = c.headline ? `<div class="hl-outro-head">${c.headline}</div>` : '';
+  const body = c.body ? `<div class="hl-outro-body">${hlBody(c.body)}</div>` : '';
+  return `<div class="hl-wrap">${head}${body}</div>`;
+}
+
+// Long copy: scale the whole block down until it fits inside the frame's
+// safe area, so a wordy habit never runs into TikTok's caption.
+function fitHabitBlocks() {
+  document.querySelectorAll('.preset-habit-list .frame').forEach(function (frame) {
+    var wrap = frame.querySelector('.hl-wrap');
+    if (!wrap) return;
+    wrap.style.removeProperty('--hl-k');
+    var cs = getComputedStyle(frame);
+    var avail = frame.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+    var k = 1, guard = 0;
+    while (avail > 0 && wrap.offsetHeight > avail && k > 0.6 && guard < 20) {
+      k = Math.max(0.6, k * Math.max(0.9, avail / wrap.offsetHeight));
+      wrap.style.setProperty('--hl-k', k.toFixed(3));
+      guard++;
     }
   });
 }

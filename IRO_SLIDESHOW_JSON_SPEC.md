@@ -593,6 +593,24 @@ differ in the content array. Match the field names exactly.
   - Optional `cta: { headline, sub, body, icon? }` closing slide; optional
     `paper: "#FAF7F1"` page colour. No em dashes in slide text.
 
+- **`habit_list`** ("Habit List") — the "6 habits to stop wasting your life"
+  carousel. White page, plain black type: a cover with the title, a square
+  photo and a small subline, then one numbered habit per slide with a square
+  photo beside a short paragraph. Text sits in the TikTok safe zone (nothing
+  above 300px, clear of the right button column and the bottom caption) and
+  scales down by itself if a habit runs long.
+  - `hook: { headline: "6 habits to stop wasting your life", sub: "(for chronic procrastinators)", bg?: url }`. `bg` is the cover photo (or pick it in the editor).
+  - `habits: [{ headline: "Do nothing or do the work", body: "One short paragraph.", bg?: url, side?: "left" | "right", shape?: "phone", number? }]`.
+    The heading renders as "1.Do nothing or do the work". `body` can be a
+    string (blank lines split paragraphs) or an array of paragraphs. `bg` is
+    the habit's photo, shown beside the text, not full-bleed; `side` puts it
+    left or right (default alternates, starting right). `shape: "phone"`
+    makes it a tall rounded phone screen, for an app screenshot (e.g.
+    `/iro/habit-screen-path.jpg`, an Iro lesson screen that ships with the app).
+  - Put the app habit at #3, written as an outcome, never last.
+  - Optional `cta: { headline, body }` closing slide; optional `paper` page
+    colour. No em dashes in slide text.
+
 For any of these, the app also loads a full working example when the format is
 selected — mirror that example's structure exactly. Keep text short and
 scroll-stopping; 1–3 emphasized `<strong>` words per slide max.
