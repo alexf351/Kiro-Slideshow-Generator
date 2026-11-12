@@ -377,7 +377,7 @@ function extractSlideMeta(parsed: unknown): SlideMeta[] {
       }
     });
   }
-  // habit_list: one slide per habit; its picker photo sits beside the text
+  // habit_list / disciplined_list: one slide per habit; its picker photo sits beside the text
   // (or, with shape "phone", is the app screenshot) rather than full-bleed.
   if (Array.isArray((p as { habits?: unknown[] }).habits)) {
     (p as { habits: { headline?: string; title?: string }[] }).habits.forEach((hb, i) => {
@@ -3706,6 +3706,8 @@ export default function App() {
                         ? 'Rendered — thumbnails come from each skill’s YouTube link; set a thumbnail or the app screenshots below to override.'
                       : preset === 'habit_list'
                         ? 'Rendered — each habit’s photo sits beside its text; set them below. The Iro habit shows the app screen.'
+                      : preset === 'disciplined_list'
+                        ? 'Rendered — wrap a phrase in _underscores_ to underline it. Each habit’s photo sits beside its side note; the Iro habit shows the app screen.'
                         : 'Rendered — use “Add text” or Download in the top bar.'}
                   </span>
                 </div>

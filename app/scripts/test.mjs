@@ -718,6 +718,11 @@ const eq = (n, a, b) => ok(n + ` (got ${JSON.stringify(a)})`, JSON.stringify(a) 
   const r5 = remixDeck(JSON.stringify(hl), 3);
   ok('remix habit Iro to slide 3', r5.ok && r5.how === 'moved-item' && JSON.parse(r5.json).habits[1].headline === 'One AI lesson' && r5.slot === 3);
 
+  // disciplined_list: same habits array, Iro habit moved to slide 4
+  const dl = { preset: 'disciplined_list', hook: { headline: '10/10 habits' }, habits: [{ headline: 'a' }, { headline: 'b' }, { headline: 'c' }, { headline: 'd' }, { headline: 'learn ai', body: 'until i found iro' }] };
+  const r6 = remixDeck(JSON.stringify(dl), 4);
+  ok('remix disciplined Iro to slide 4', r6.ok && r6.how === 'moved-item' && JSON.parse(r6.json).habits[2].headline === 'learn ai' && r6.slot === 4);
+
   // app_stack: no CTA, Iro is one of the apps
   const as = { preset: 'app_stack', hook: { headline: 'apps' }, apps: [{ name: 'Iro AI' }, { name: 'x' }, { name: 'y' }, { name: 'z' }] };
   const r4 = remixDeck(JSON.stringify(as), 4);

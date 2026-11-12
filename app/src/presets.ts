@@ -26,6 +26,7 @@ export const PRESET_KEYS = [
   'curated_list',
   'skill_list',
   'habit_list',
+  'disciplined_list',
   'tier_list',
   'myth_fact',
   'hot_take',
@@ -53,7 +54,7 @@ export type FormatCategory = (typeof FORMAT_CATEGORIES)[number];
 
 export const FORMAT_CATEGORY: Record<PresetKey, FormatCategory> = {
   prompt_pack: 'AI', product_demo: 'AI', handwritten_pack: 'AI', app_stack: 'AI', app_rating: 'AI', tool_ranks: 'AI',
-  checklist: 'List', curated_list: 'List', skill_list: 'List', habit_list: 'List', tier_list: 'List', countdown: 'List', flags: 'List', steps: 'List',
+  checklist: 'List', curated_list: 'List', skill_list: 'List', habit_list: 'List', disciplined_list: 'List', tier_list: 'List', countdown: 'List', flags: 'List', steps: 'List',
   pain_story: 'Story', aspirational: 'Story', notes: 'Story', storytime: 'Story',
   receipts: 'Social', tweet: 'Social', reddit: 'Social',
   output_vs_hype: 'Facts', myth_fact: 'Facts', stat_drop: 'Facts', definition: 'Facts', qa: 'Facts', timeline: 'Facts',
@@ -875,6 +876,52 @@ const HABIT_LIST_CAPTION = `save this. Number 3 changed how I spend my breaks. S
 
 #productivity #procrastination #selfimprovement #habits #ai #studytok`;
 
+const DISCIPLINED_LIST_JSON = `{
+  "preset": "disciplined_list",
+  "hook": {
+    "headline": "10/10 habits that make you scary disciplined",
+    "sub": "(no motivation needed)"
+  },
+  "habits": [
+    {
+      "headline": "walk _without your phone_",
+      "why": "your brain does its best thinking when it's _a little bored_",
+      "body": ["20 minutes. no podcast, no music, _no checking_.", "just you and your own thoughts"],
+      "outro": "most people haven't been alone with their thoughts _in years_"
+    },
+    {
+      "headline": "keep _tiny promises_ to yourself",
+      "why": "every time you skip what you said you'd do, you learn _your word doesn't count_",
+      "body": ["write down one thing for tomorrow.", "make it so small _you can't fail_"],
+      "outro": "confidence is just a long list of _kept promises_"
+    },
+    {
+      "headline": "learn one skill _before you scroll_",
+      "why": "you say you want to _get good at ai_, then spend every break _scrolling_",
+      "body": "i used to be the same until i found iro which _turns learning ai into 5 minute games_",
+      "outro": "now my breaks _make me sharper_ instead of more tired",
+      "bg": "/iro/habit-screen-path.jpg",
+      "shape": "phone"
+    },
+    {
+      "headline": "start _before you feel ready_",
+      "why": "motivation usually shows up _after_ you start, almost never before",
+      "body": ["set a 5 minute timer and start.", "you're _allowed to quit_ when it rings"],
+      "outro": "you almost never do. _that's the trick_"
+    },
+    {
+      "headline": "train on the days _you don't want to_",
+      "why": "anyone can show up when they feel good. _the bad days_ are the ones that count",
+      "body": ["go anyway and do half.", "a bad workout still _keeps the streak alive_"],
+      "outro": "that's when you stop being someone who _tries_ and become someone who _does_"
+    }
+  ]
+}`;
+
+const DISCIPLINED_LIST_CAPTION = `save this. Number 4 saved me. Search Iro on the App Store
+
+#discipline #selfimprovement #habits #productivity #ai`;
+
 const SKILL_LIST_CAPTION = `10/10 skills that make you look insanely competent at work
 
 each one comes with the tutorial that teaches it. they get harder as you swipe.
@@ -1523,6 +1570,15 @@ export const PRESETS: Record<PresetKey, PresetMeta> = {
     defaultJson: HABIT_LIST_JSON,
     defaultCaption: HABIT_LIST_CAPTION,
     accent: '#0B0B0B', // plain black type on white
+  },
+  disciplined_list: {
+    key: 'disciplined_list',
+    label: 'Disciplined Habits',
+    pitch: '"10/10 habits that make you scary disciplined": white page, lowercase black text with _underlined_ phrases, a photo with a short note beside it and a closing line. One habit can show your app on a phone screen.',
+    status: 'ready',
+    defaultJson: DISCIPLINED_LIST_JSON,
+    defaultCaption: DISCIPLINED_LIST_CAPTION,
+    accent: '#111111', // plain black type on white
   },
   tier_list: {
     key: 'tier_list',
