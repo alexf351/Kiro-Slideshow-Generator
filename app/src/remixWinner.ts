@@ -147,7 +147,7 @@ export const IRO_SKILL_HEADLINE = ['How to', 'make money', 'with AI'];
 // is one of the list items (an app in the stack, the app card in 10/10 Skills).
 const NO_CTA_PRESETS = new Set(['app_stack', 'tool_ranks', 'app_rating']);
 // Formats where the closing slide is optional in the engine.
-const OPTIONAL_CTA_PRESETS = new Set(['meme_pov', 'skill_list']);
+const OPTIONAL_CTA_PRESETS = new Set(['meme_pov', 'skill_list', 'habit_list']);
 // Formats with no hook slide in front of the list.
 const NO_HOOK_PRESETS = new Set(['meme_pov']);
 

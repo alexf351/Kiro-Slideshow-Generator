@@ -25,6 +25,7 @@ export const PRESET_KEYS = [
   'output_vs_hype',
   'curated_list',
   'skill_list',
+  'habit_list',
   'tier_list',
   'myth_fact',
   'hot_take',
@@ -52,7 +53,7 @@ export type FormatCategory = (typeof FORMAT_CATEGORIES)[number];
 
 export const FORMAT_CATEGORY: Record<PresetKey, FormatCategory> = {
   prompt_pack: 'AI', product_demo: 'AI', handwritten_pack: 'AI', app_stack: 'AI', app_rating: 'AI', tool_ranks: 'AI',
-  checklist: 'List', curated_list: 'List', skill_list: 'List', tier_list: 'List', countdown: 'List', flags: 'List', steps: 'List',
+  checklist: 'List', curated_list: 'List', skill_list: 'List', habit_list: 'List', tier_list: 'List', countdown: 'List', flags: 'List', steps: 'List',
   pain_story: 'Story', aspirational: 'Story', notes: 'Story', storytime: 'Story',
   receipts: 'Social', tweet: 'Social', reddit: 'Social',
   output_vs_hype: 'Facts', myth_fact: 'Facts', stat_drop: 'Facts', definition: 'Facts', qa: 'Facts', timeline: 'Facts',
@@ -835,6 +836,45 @@ const SKILL_LIST_JSON = `{
   "attribution": "@tryiro"
 }`;
 
+const HABIT_LIST_JSON = `{
+  "preset": "habit_list",
+  "hook": {
+    "headline": "6 habits to stop wasting your life",
+    "sub": "(for chronic procrastinators)"
+  },
+  "habits": [
+    {
+      "headline": "Do nothing or do the work",
+      "body": "If you don't feel like working, fine. But don't reach for your phone either. Just sit there until working feels better than being bored."
+    },
+    {
+      "headline": "Pair boring tasks with something fun",
+      "body": "Save your favorite podcast for when you're cleaning, walking or working out. Pairing something you enjoy with something hard makes it easier to stick to."
+    },
+    {
+      "headline": "Trade one scroll for one AI lesson",
+      "body": "Next time you grab your phone on a break, do a 5-minute AI lesson instead of scrolling. I use Iro. It feels like a game, but you come back with a skill you'll actually use at work.",
+      "bg": "/iro/habit-screen-path.jpg",
+      "shape": "phone",
+      "side": "left"
+    },
+    {
+      "headline": "Record yourself working or studying",
+      "body": "Prop up your phone and record yourself working like you're filming a vlog. Boring tasks feel more interesting, and your phone is busy recording instead of distracting you.",
+      "side": "left"
+    },
+    {
+      "headline": "Make time audible",
+      "body": "Set a soft chime to go off every 30 or 60 minutes. It reminds you that time is passing when you're lost in something.",
+      "side": "right"
+    }
+  ]
+}`;
+
+const HABIT_LIST_CAPTION = `save this. Number 3 changed how I spend my breaks. Search Iro on the App Store
+
+#productivity #procrastination #selfimprovement #habits #ai #studytok`;
+
 const SKILL_LIST_CAPTION = `10/10 skills that make you look insanely competent at work
 
 each one comes with the tutorial that teaches it. they get harder as you swipe.
@@ -1474,6 +1514,15 @@ export const PRESETS: Record<PresetKey, PresetMeta> = {
     defaultJson: SKILL_LIST_JSON,
     defaultCaption: SKILL_LIST_CAPTION,
     accent: '#D9481C', // the burnt-orange accent line
+  },
+  habit_list: {
+    key: 'habit_list',
+    label: 'Habit List',
+    pitch: '"6 habits to stop wasting your life": white page, plain black text, a numbered habit with a square photo beside it. One habit can show your app on a phone screen.',
+    status: 'ready',
+    defaultJson: HABIT_LIST_JSON,
+    defaultCaption: HABIT_LIST_CAPTION,
+    accent: '#0B0B0B', // plain black type on white
   },
   tier_list: {
     key: 'tier_list',

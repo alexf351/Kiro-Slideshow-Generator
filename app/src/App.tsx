@@ -244,7 +244,7 @@ function stripJsonWrappers(t: string): string {
     .trim();
 }
 
-const CONTENT_KEYS = ['hook', 'prompts', 'beats', 'panels', 'features', 'items', 'apps', 'tools', 'picks', 'tiers', 'reviews', 'tweets', 'notes', 'posts', 'stories', 'searches'];
+const CONTENT_KEYS = ['hook', 'prompts', 'beats', 'panels', 'features', 'items', 'apps', 'tools', 'picks', 'tiers', 'habits', 'reviews', 'tweets', 'notes', 'posts', 'stories', 'searches'];
 
 // Formats whose copy sits directly over the photo (no solid card/box behind
 // it). When auto-assigning a stock background to these, we drop in a default
@@ -297,7 +297,7 @@ function extractSlideMeta(parsed: unknown): SlideMeta[] {
   const out: SlideMeta[] = [];
   if (p.hook) {
     const hh = p.hook.headline as unknown;
-    const h = clean((Array.isArray(hh) ? hh.join(' ') : (p.hook.headline as string | undefined)) || p.hook.text || 'Hook');
+    const h = clean((Array.isArray(hh) ? hh.join(' ') : (p.hook.headline as string | undefined)) || p.hook.text || (p.hook as { title?: string }).title || 'Hook');
     out.push({ key: 'hook', label: truncate(`Hook — ${h}`, 40) });
   }
   if (Array.isArray(p.prompts)) {
@@ -375,6 +375,14 @@ function extractSlideMeta(parsed: unknown): SlideMeta[] {
       } else {
         out.push({ key: `skill-thumb:${i}`, label: truncate(`${i + 1}. ${t} · thumbnail`, 40) });
       }
+    });
+  }
+  // habit_list: one slide per habit; its picker photo sits beside the text
+  // (or, with shape "phone", is the app screenshot) rather than full-bleed.
+  if (Array.isArray((p as { habits?: unknown[] }).habits)) {
+    (p as { habits: { headline?: string; title?: string }[] }).habits.forEach((hb, i) => {
+      const t = clean(hb?.headline || hb?.title || `Habit ${i + 1}`);
+      out.push({ key: `habit:${i}`, label: truncate(`${i + 1}. ${t}`, 40) });
     });
   }
   if (Array.isArray((p as { items?: { text?: string }[] }).items)) {
@@ -1112,6 +1120,7 @@ export default function App() {
       { field: 'picks', prefix: 'pick' },
       { field: 'tiers', prefix: 'tier' },
       { field: 'skills', prefix: 'skill' },
+      { field: 'habits', prefix: 'habit' },
       // New social / broadcast formats — photo sits behind the card / chyron.
       { field: 'reviews', prefix: 'review' },
       { field: 'tweets', prefix: 'tweet' },
@@ -3695,6 +3704,8 @@ export default function App() {
                         ? 'Rendered — drag the heading, label, or card on a slide to place them; drag the card’s corner to resize it.'
                       : preset === 'skill_list'
                         ? 'Rendered — thumbnails come from each skill’s YouTube link; set a thumbnail or the app screenshots below to override.'
+                      : preset === 'habit_list'
+                        ? 'Rendered — each habit’s photo sits beside its text; set them below. The Iro habit shows the app screen.'
                         : 'Rendered — use “Add text” or Download in the top bar.'}
                   </span>
                 </div>
