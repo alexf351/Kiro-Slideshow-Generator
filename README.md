@@ -39,6 +39,7 @@ inside an iframe via `postMessage`.
 | Curated List | Aesthetic photo + cream heading + a recommendation card per slide. |
 | 10/10 Skills | "10/10 skills you can learn": stacked condensed headline, the YouTube tutorial thumbnail (pulled from a YouTube link), time to learn. One slide can be your app. |
 | Habit List | "6 habits to stop wasting your life": white page, a numbered habit with a short paragraph and a square photo beside it. One habit can show your app on a phone screen. |
+| Disciplined Habits | "10/10 habits that make you scary disciplined": white page, lowercase text with underlined phrases, a photo with a short side note and a closing line. One habit can show your app on a phone screen. |
 | Tier List | S/A/B/C ranking, one colored tier per slide ("I ranked every X"). |
 | Myth vs Fact | Red ✗ MYTH card over a green ✓ FACT card per slide. |
 | Hot Take | Bold full-bleed opinions on a fiery gradient. |

@@ -3460,6 +3460,87 @@
     font-family: 'Inter', sans-serif; font-weight: 400; color: #0B0B0B;
     font-size: calc(var(--hl-k, 1) * 40px); line-height: 1.4; margin-top: calc(var(--hl-k, 1) * 36px);
   }
+  /* ============================================================
+     PRESET: disciplined_list — the "10/10 habits to make you dangerously
+     disciplined" carousel. White page, plain black lowercase Inter, the
+     only styling is underlines (write _like this_ in any text field).
+     Cover = title, one photo, a small right-aligned sub under it.
+     Each habit = heading, a one-line "why", then a photo with a short
+     side note beside it, then a closing line. A habit with
+     `shape: "phone"` puts all its text in one column next to a tall
+     app screenshot (the product slide). Padding keeps every line in
+     TikTok's safe zone: below the search bar, clear of the right button
+     column and above the caption.
+     ============================================================ */
+  .preset-disciplined-list .bg-photo-scrim { display: none; }
+  .preset-disciplined-list .bg-solid { background: var(--dl-paper, #FFFFFF); }
+  .preset-disciplined-list .frame {
+    padding: 300px 150px 460px 84px;
+    display: flex; flex-direction: column; justify-content: center;
+    align-items: stretch; overflow: hidden;
+  }
+  .preset-disciplined-list .dl-wrap {
+    width: 100%; color: #111111;
+    font-family: 'Inter', sans-serif; font-weight: 400;
+  }
+  .preset-disciplined-list u {
+    text-decoration: underline; text-decoration-thickness: 2px;
+    text-underline-offset: 0.16em; text-decoration-skip-ink: auto;
+  }
+  .preset-disciplined-list .dl-title {
+    font-size: calc(var(--dl-k, 1) * 64px); line-height: 1.16; letter-spacing: -0.01em;
+    margin: 0 0 calc(var(--dl-k, 1) * 44px) 0;
+  }
+  .preset-disciplined-list .dl-cover-photo {
+    width: 100%; height: calc(var(--dl-k, 1) * 560px);
+    background-color: #E9E9E9; background-size: cover; background-position: center;
+  }
+  .preset-disciplined-list .dl-sub {
+    font-size: calc(var(--dl-k, 1) * 38px); line-height: 1.3;
+    margin-top: calc(var(--dl-k, 1) * 26px); text-align: right;
+  }
+  .preset-disciplined-list .dl-head {
+    font-size: calc(var(--dl-k, 1) * 60px); line-height: 1.16; letter-spacing: -0.01em;
+    margin: 0 0 calc(var(--dl-k, 1) * 56px) 0;
+  }
+  .preset-disciplined-list .dl-why,
+  .preset-disciplined-list .dl-side,
+  .preset-disciplined-list .dl-outro {
+    font-size: calc(var(--dl-k, 1) * 38px); line-height: 1.32;
+  }
+  .preset-disciplined-list .dl-why { margin: 0 0 calc(var(--dl-k, 1) * 30px) 0; }
+  .preset-disciplined-list .dl-outro { margin-top: calc(var(--dl-k, 1) * 34px); }
+  .preset-disciplined-list .dl-side p,
+  .preset-disciplined-list .dl-col p { margin: 0 0 calc(var(--dl-k, 1) * 26px) 0; }
+  .preset-disciplined-list .dl-side p:last-child,
+  .preset-disciplined-list .dl-col p:last-child { margin-bottom: 0; }
+  .preset-disciplined-list .dl-row {
+    display: flex; flex-direction: row; align-items: center; gap: calc(var(--dl-k, 1) * 34px);
+  }
+  .preset-disciplined-list .dl-row.photo-right { flex-direction: row-reverse; }
+  .preset-disciplined-list .dl-photo {
+    flex: 0 0 auto; width: calc(var(--dl-k, 1) * 470px); height: calc(var(--dl-k, 1) * 370px);
+    background-color: #E9E9E9; background-size: cover; background-position: center;
+  }
+  .preset-disciplined-list .dl-side { flex: 1 1 auto; min-width: 0; }
+  /* Product slide: one text column beside a tall phone screenshot. */
+  .preset-disciplined-list .dl-row.phone { align-items: center; }
+  .preset-disciplined-list .dl-col {
+    flex: 1 1 auto; min-width: 0;
+    font-size: calc(var(--dl-k, 1) * 38px); line-height: 1.32;
+  }
+  .preset-disciplined-list .dl-col p { margin-bottom: calc(var(--dl-k, 1) * 50px); }
+  .preset-disciplined-list .dl-phone {
+    flex: 0 0 auto; width: calc(var(--dl-k, 1) * 360px); height: calc(var(--dl-k, 1) * 720px);
+    border-radius: calc(var(--dl-k, 1) * 34px);
+    background-color: #E9E9E9; background-size: cover; background-position: center top;
+  }
+  .preset-disciplined-list .dl-outro-head {
+    font-size: calc(var(--dl-k, 1) * 60px); line-height: 1.16; letter-spacing: -0.01em;
+  }
+  .preset-disciplined-list .dl-outro-body {
+    font-size: calc(var(--dl-k, 1) * 38px); line-height: 1.32; margin-top: calc(var(--dl-k, 1) * 34px);
+  }
 </style>
 </head>
 <body>
@@ -4353,6 +4434,25 @@ const PRESETS = {
       return out;
     },
   },
+  disciplined_list: {
+    label: 'Disciplined Habits',
+    slideClass: 'preset-disciplined-list',
+    // TikTok draws its own "n / total" pill on photo carousels.
+    showCounter: false,
+    fallbackBg: 'photo',
+    buildSlides(S) {
+      const out = [];
+      // Plain paper page; each item's `bg` is its inline photo.
+      const p = typeof S.paper === 'string' && S.paper ? S.paper : '#FFFFFF';
+      const paper = `linear-gradient(${p}, ${p})`;
+      if (S.hook) out.push({ html: buildDisciplinedCover(S.hook), bg: paper });
+      (S.habits || []).forEach((it, i) => {
+        out.push({ html: buildDisciplinedSlide(it, i), bg: paper });
+      });
+      if (S.cta) out.push({ html: buildDisciplinedOutro(S.cta), bg: paper });
+      return out;
+    },
+  },
 };
 
 // Formats whose build has no closing CTA slide (the Iro slide is a list item).
@@ -4481,6 +4581,10 @@ function render() {
   if (typeof fitHabitBlocks === 'function' && presetKey === 'habit_list') {
     fitHabitBlocks();
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitHabitBlocks, function () {});
+  }
+  if (typeof fitDisciplinedBlocks === 'function' && presetKey === 'disciplined_list') {
+    fitDisciplinedBlocks();
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitDisciplinedBlocks, function () {});
   }
   if (typeof fitSkillHeads === 'function') {
     fitSkillHeads();
@@ -6497,6 +6601,87 @@ function fitHabitBlocks() {
     while (avail > 0 && wrap.offsetHeight > avail && k > 0.6 && guard < 20) {
       k = Math.max(0.6, k * Math.max(0.9, avail / wrap.offsetHeight));
       wrap.style.setProperty('--hl-k', k.toFixed(3));
+      guard++;
+    }
+  });
+}
+
+// ============================================================
+// PRESET: disciplined_list — "10/10 habits to make you dangerously
+// disciplined" carousel. Data: { hook: {headline, sub, bg}, habits:
+// [{headline, why, bg, body, outro, side, shape}], cta? }.
+// Underline a phrase in any text by wrapping it in underscores:
+// "how you begin your day _sets the mood_". `bg` is the inline photo;
+// `side` puts it "left" (default) or "right". `shape: "phone"` makes the
+// habit a product slide: why, body and outro stack in one column beside a
+// tall rounded app screenshot.
+// ============================================================
+function dlMark(t) {
+  return String(t == null ? '' : t)
+    .replace(/(^|[\s(“"'])_([^_\n]+?)_(?=$|[\s.,!?;:)”"'])/g, '$1<u>$2</u>');
+}
+
+// A string (blank lines split paragraphs) or an array of paragraphs.
+function dlParas(b) {
+  const parts = Array.isArray(b)
+    ? b.map((x) => String(x == null ? '' : x))
+    : String(b || '').split(/\n\s*\n/);
+  return parts.filter((x) => x.trim() !== '').map((x) => `<p>${dlMark(x)}</p>`).join('');
+}
+
+function dlPhoto(url, cls) {
+  const style = url ? ` style="background-image:url('${skUrl(url)}')"` : '';
+  return `<div class="${cls}"${style}></div>`;
+}
+
+function buildDisciplinedCover(h) {
+  if (!h) return '';
+  const title = h.headline || h.title || '';
+  const photo = h.bg || h.photo || '';
+  const sub = h.sub ? `<div class="dl-sub">${dlMark(h.sub)}</div>` : '';
+  return `<div class="dl-wrap"><div class="dl-title">${dlMark(title)}</div>` +
+    `${dlPhoto(photo, 'dl-cover-photo')}${sub}</div>`;
+}
+
+function buildDisciplinedSlide(item, idx) {
+  if (!item) return '';
+  const head = `<div class="dl-head">${dlMark(item.headline || item.title || '')}</div>`;
+  const photoUrl = item.bg || item.photo || '';
+  if (item.shape === 'phone') {
+    // The phone sits right of the text by default, like the original post.
+    const pside = item.side === 'left' ? 'left' : 'right';
+    const col = dlParas([item.why, ...(Array.isArray(item.body) ? item.body : [item.body]), item.outro]);
+    return `<div class="dl-wrap">${head}<div class="dl-row phone photo-${pside}">` +
+      `${dlPhoto(photoUrl, 'dl-phone')}<div class="dl-col">${col}</div></div></div>`;
+  }
+  const side = item.side === 'right' ? 'right' : 'left';
+  const why = item.why ? `<div class="dl-why">${dlMark(item.why)}</div>` : '';
+  const photo = (photoUrl || item.photo !== false) ? dlPhoto(photoUrl, 'dl-photo') : '';
+  const body = `<div class="dl-side">${dlParas(item.body)}</div>`;
+  const outro = item.outro ? `<div class="dl-outro">${dlMark(item.outro)}</div>` : '';
+  return `<div class="dl-wrap">${head}${why}<div class="dl-row photo-${side}">${photo}${body}</div>${outro}</div>`;
+}
+
+function buildDisciplinedOutro(c) {
+  if (!c) return '';
+  const head = c.headline ? `<div class="dl-outro-head">${dlMark(c.headline)}</div>` : '';
+  const body = c.body ? `<div class="dl-outro-body">${dlParas(c.body)}</div>` : '';
+  return `<div class="dl-wrap">${head}${body}</div>`;
+}
+
+// Long copy: scale the block down until it fits inside the safe area, so a
+// wordy habit never runs into TikTok's caption.
+function fitDisciplinedBlocks() {
+  document.querySelectorAll('.preset-disciplined-list .frame').forEach(function (frame) {
+    var wrap = frame.querySelector('.dl-wrap');
+    if (!wrap) return;
+    wrap.style.removeProperty('--dl-k');
+    var cs = getComputedStyle(frame);
+    var avail = frame.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+    var k = 1, guard = 0;
+    while (avail > 0 && wrap.offsetHeight > avail && k > 0.6 && guard < 20) {
+      k = Math.max(0.6, k * Math.max(0.9, avail / wrap.offsetHeight));
+      wrap.style.setProperty('--dl-k', k.toFixed(3));
       guard++;
     }
   });
